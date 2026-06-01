@@ -1,0 +1,49 @@
+---
+title: "Score table"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+ 
+Date: 19/06/2025
+
+## GOHREP
+**Goal:**
+
+Format the scores of all scorers in a single table including missing values. This will be used to run Krippendorff's Alpha.
+
+## Required Libraries
+```{python}
+import pandas as pd
+import os
+```
+
+## Pivot Function
+```{python}
+def pivot_scorers_with_median(df):
+    # Include Median_Score in identifiers to preserve it during pivot
+    id_vars = ['Basename', 'Row', 'Col', 'Pos', 'Median_Score']
+    
+    chunks = []
+    for i in range(1, 4):
+        subset = df[id_vars + [f'Scorer{i}', f'Score{i}']].copy()
+        subset.columns = id_vars + ['Scorer', 'Score']
+        chunks.append(subset)
+    
+    long_df = pd.concat(chunks).dropna(subset=['Scorer'])
+    pivot_df = long_df.pivot(index=id_vars, columns='Scorer', values='Score').reset_index()
+    
+    return pivot_df.rename(columns={'Median_Score': 'median_score'})
+```
+
+## Generate Table
+```{python}
+# Load and process
+input_csv = '/Users/jowillia/Documents/GitHub/AutoCDAScorer_Models/analyses/01_generate_raw_data/04_Median_and_Centre_Coords/combined_CDA_data_median.csv'
+df = pd.read_csv(input_csv)
+result = pivot_scorers_with_median(df)
+
+# Save result for R
+result.to_csv('score_table.csv', index=False)
+```
