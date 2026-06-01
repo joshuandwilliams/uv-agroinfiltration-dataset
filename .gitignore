@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Raw and derived images (large, stored externally or regenerable)
+data/raw_images_rotated/
+data/cropped_images/
+
+# NumPy dataset arrays (large binary files)
+data/datasets/*.npy
