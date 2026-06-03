@@ -1,0 +1,45 @@
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+
+# Create the data frame
+data <- data.frame(
+  Severity_Score = c(0, 1, 2, 3, 4, 5, 6),
+  Frequency = c(2699, 425, 434, 705, 843, 701, 529),
+  Confident_Frequency = c(2289, 94, 72, 154, 187, 103, 232),
+  `Confident_%_of_Total` = c(84.8, 22.1, 16.6, 21.8, 22.1, 14.7, 43.9)
+)
+
+# Calculate the Unconfident Frequency
+data <- data %>%
+  mutate(Unconfident_Frequency = Frequency - Confident_Frequency) %>%
+  select(Severity_Score, Confident_Frequency, Unconfident_Frequency)
+
+# Convert data to long format
+data_long <- data %>%
+  pivot_longer(cols = c(Confident_Frequency, Unconfident_Frequency),
+               names_to = "Confidence",
+               values_to = "Count")
+
+# Ensure Confident Frequency is plotted first (at the bottom)
+data_long$Type <- factor(data_long$Type, levels = c("Confident_Frequency", "Unconfident_Frequency"))
+
+# Create the stacked bar plot
+plot <- ggplot(data_long, aes(x = factor(Severity_Score), y = Count, fill = Confidence)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("blue", "red"),
+                    labels = c("All scorers agreed", "At least 1 scorer disagreed"),
+                    name = "Confidence") +
+  labs(x = "Severity Score", y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_blank(), text = element_text(size = 30))
+
+
+path <- here("analyses", "03_inter_rater_agreement", "stackedbar.png")
+png(path, width=1400, height=1000)
+print(plot)
+dev.off()
+```
