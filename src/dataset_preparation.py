@@ -111,8 +111,9 @@ def combine_CDA_dataframes(cda_dataframes: Dict[str, pd.DataFrame], scorer_info:
 		the contents of the CSVs.
 
 	scorer_info : Union[str, Path]
-		The path to the scoring assignment info
-	
+		Path to randomised_info.csv. Accepts the combined file covering both
+		dataset parts — only rows whose basename matches the CDA data are used.
+
 	Returns:
 	--------
 	pd.DataFrame
@@ -133,6 +134,8 @@ def combine_CDA_dataframes(cda_dataframes: Dict[str, pd.DataFrame], scorer_info:
 	output_table = output_table.join(max_values, on='img')
 
 	randomised_info = pd.read_csv(scorer_info)
+	relevant_basenames = set(output_table['img'])
+	randomised_info = randomised_info[randomised_info['basename'].isin(relevant_basenames)]
 	output_table = output_table.merge(randomised_info[['basename', 'scorer1', 'scorer2', 'scorer3']], left_on='img', right_on='basename', how='left')
 
 	for i in range(1, 4):
