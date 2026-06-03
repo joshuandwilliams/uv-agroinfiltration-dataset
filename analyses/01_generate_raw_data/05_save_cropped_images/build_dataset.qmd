@@ -30,19 +30,28 @@ N/A
 ### Required packages
 ```{python}
 # Public packages
+import os
+
 import pandas as pd
 from pathlib import Path
 import sys
 
 # Custom functions
-repo_root = next(p for p in Path.cwd().parents if (p / '.git').exists())
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
 sys.path.append(str(repo_root / 'src'))
 import dataset_preparation
 ```
 
 ### Load data
 ```{python}
-data = pd.read_csv(str(repo_root / "analyses/01_Generating_Dataset/04_Median_and_Centre_Coords/combined_CDA_data_median.csv"))
+data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
+
+# Scorer columns contain anonymised IDs. Reverse-map to real names so that
+# save_cropped_images() can locate raw image files on the shared drive.
+key = pd.read_csv(repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs/anonymisation_key.csv")
+id_to_name = dict(zip(key['ID'], key['Scorer_Name']))
+for col in ['Scorer1', 'Scorer2', 'Scorer3']:
+    data[col] = pd.to_numeric(data[col], errors='coerce').map(id_to_name)
 ```
 
 ### Create folders

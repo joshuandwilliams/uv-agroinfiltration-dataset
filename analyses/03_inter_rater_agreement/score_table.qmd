@@ -16,7 +16,10 @@ Format the scores of all scorers in a single table including missing values. Thi
 ## Required Libraries
 ```{python}
 import pandas as pd
-import os
+from pathlib import Path
+import sys
+
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
 ```
 
 ## Pivot Function
@@ -39,11 +42,7 @@ def pivot_scorers_with_median(df):
 
 ## Generate Table
 ```{python}
-# Load and process
-input_csv = '/Users/jowillia/Documents/GitHub/AutoCDAScorer_Models/analyses/01_generate_raw_data/04_Median_and_Centre_Coords/combined_CDA_data_median.csv'
-df = pd.read_csv(input_csv)
+df = pd.read_csv(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv")
 result = pivot_scorers_with_median(df)
-
-# Save result for R
-result.to_csv('score_table.csv', index=False)
+result.to_csv(repo_root / "analyses/03_inter_rater_agreement/score_table.csv", index=False)
 ```

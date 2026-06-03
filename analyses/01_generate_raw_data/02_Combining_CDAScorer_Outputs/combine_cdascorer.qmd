@@ -2,7 +2,7 @@
 title: "Combine CDAScorer annotation datasets"
 format:
   html:
-	code-fold: true
+    code-fold: true
 jupyter: python3
 ---
  
@@ -32,8 +32,8 @@ With a median score:
 3. To this table add all of the unique combinations of File, Row, Col, Pos that appear across the datasets.
 4. Load in the randomised_info.csv data, which contains information about who scored each image. Use this to fill in Scorer1, Scorer2, and Scorer3 columns.
 5. For each row, loop through those scorers, access their CDAScorer data tables for the current CDA, and add their score and coordinates to the corresponding columns of the output table.
-6. Create an additional table which includes only File, Row, Col, Pos, Median_Score, and the means of the 4 coordinates.
-7. Output both tables.
+6. Generate an anonymisation key mapping scorer names to integer IDs.
+7. Anonymise scorer columns and save the combined tables. The key (anonymisation_key.csv) is the only record of real names and is not uploaded to Zenodo.
 
 ### Import required packages
 ```{python}
@@ -43,21 +43,46 @@ from pathlib import Path
 import sys
 
 # Custom functions
-repo_root = next(p for p in Path.cwd().parents if (p / '.git').exists())
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
 sys.path.append(str(repo_root / 'src'))
 import dataset_preparation
+import human_performance
 ```
 
 ### Read in all the CDAScorer data tables
 ```{python}
-cda_dataframes1 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/Set1"))
-cda_dataframes2 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/Set2"))
+cda_dataframes1 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/set1"))
+cda_dataframes2 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/set2"))
 ```
 
 ### Create new combined data table
 ```{python}
-combined_CDA_data1 = dataset_preparation.combine_CDA_dataframes(cda_dataframes1, "../01_Allocation_info/randomised_info.csv")
-combined_CDA_data2 = dataset_preparation.combine_CDA_dataframes(cda_dataframes2, "../01_Allocation_info/randomised_info_2.csv")
-combined_CDA_data1.to_csv("combined_CDA_data_1.csv", index=False)
-combined_CDA_data2.to_csv("combined_CDA_data_2.csv", index=False)
+# Both sets use the same combined randomised_info.csv (Set column distinguishes them).
+# combine_CDA_dataframes filters to the relevant rows via a left join on basename.
+scorer_info = repo_root / "analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv"
+
+combined_CDA_data1 = dataset_preparation.combine_CDA_dataframes(cda_dataframes1, scorer_info)
+combined_CDA_data2 = dataset_preparation.combine_CDA_dataframes(cda_dataframes2, scorer_info)
+out_dir = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
+# Generate anonymisation key from all unique scorer names across both sets and
+# all three scorer columns. The key is the only place real names are recorded —
+# it is not uploaded to Zenodo.
+combined_both = pd.concat([combined_CDA_data1, combined_CDA_data2], ignore_index=True)
+all_scorer_names = pd.concat([
+    combined_both['Scorer1'].dropna(),
+    combined_both['Scorer2'].dropna(),
+    combined_both['Scorer3'].dropna(),
+]).unique()
+key = human_performance.generate_scorer_key(
+    pd.DataFrame({'Scorer1': all_scorer_names}),
+    random_state=42,
+    output_path=str(out_dir / "anonymisation_key.csv"),
+)
+print(f"Anonymisation key: {len(key)} scorers")
+
+combined_CDA_data1 = human_performance.anonymise_scorers(combined_CDA_data1, key)
+combined_CDA_data2 = human_performance.anonymise_scorers(combined_CDA_data2, key)
+combined_CDA_data1.to_csv(out_dir / "combined_cda_data_1.csv", index=False)
+combined_CDA_data2.to_csv(out_dir / "combined_cda_data_2.csv", index=False)
+print("Anonymised outputs saved.")
 ```

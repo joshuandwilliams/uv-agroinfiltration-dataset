@@ -1,0 +1,522 @@
+---
+title: "EDA Plots"
+format:
+  html:
+    code-fold: true
+---
+ 
+Date: 7/5/2024
+
+## GOHREP
+**Goal:**
+
+Conduct experimental data analysis for the CDA score dataset by building a range of plots with ggplot2 in R.
+
+**Hypothesis:**
+
+NA - The aim of EDA is to direct hypothesis generation
+
+**Rationale:**
+
+NA
+
+**Experimental plan:**
+
+1. Sketch out a range of plot types on paper.
+2. Convert these into R code.
+3. Form hypotheses based on the plots.
+
+### Load required packages.
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+#install.packages("here")
+library(here)
+```
+
+### Load in the data. Create combined table. Anonymise scorers.
+
+```{r}
+path1 <- here("analyses", "02_score_distributions", "output_combined.csv")
+path2 <- here("analyses", "02_score_distributions", "median_combined.csv")
+path3 <- here("analyses", "02_score_distributions", "scorer_key.csv")
+
+output_data <- read_csv(path1, show_col_types = FALSE)
+median_data <- read_csv(path2, show_col_types = FALSE)
+scorer_key <- read_csv(path3, show_col_types = FALSE, col_types = cols(ID = col_character(), Scorer_Name = col_character()))
+
+score_data <- output_data %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3) %>%
+  bind_cols(
+      median_data %>%
+        select(Median_Score)
+  )
+
+id_lookup <- setNames(scorer_key$ID, scorer_key$Scorer_Name)
+
+score_data <- score_data %>%
+  mutate(across(c(Scorer1, Scorer2, Scorer3), ~ id_lookup[.]))
+
+head(score_data)
+```
+
+### Create a long table with one scorer and one score in each row.
+
+```{r}
+scorer_data <- score_data %>%
+  select(starts_with("Scorer")) %>%
+  pivot_longer(cols = everything(), names_to = NULL, values_to = "Scorer") %>%
+  filter(!is.na(Scorer))
+
+score_values <- score_data %>%
+  select(starts_with("Score"), -starts_with("Scorer")) %>%
+  pivot_longer(cols = everything(), names_to = NULL, values_to = "Score") %>%
+  filter(!is.na(Score))
+
+additional_data <- score_data %>%
+  select(Basename, Row, Col, Pos, Median_Score) %>%
+  slice(rep(row_number(), each = 3))
+
+score_data_long <- bind_cols(scorer_data, score_values, additional_data)
+
+score_data_long$Scorer <- factor(score_data_long$Scorer, levels = sort(as.numeric(unique(score_data_long$Scorer))))
+
+head(score_data_long)
+```
+
+### What were the frequencies of severity scores collected by each scorer?
+
+```{r fig.width=10, fig.height=12}
+#| fig-width: 10
+#| fig-height: 12
+score_data_long_freq <- score_data_long %>%
+  group_by(Scorer, Score) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+ggplot(score_data_long_freq, aes(x = Scorer, y = Score)) +
+  geom_point(aes(size = Count, color = Count), stat = "identity") +
+  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
+  scale_size_continuous(name = "Frequency", range = c(0.06, 25)) +
+  scale_color_gradient(name = "Frequency", low = "blue", high = "red") +
+  labs(x = "Scorer", y = "Score") +
+  theme_minimal()
+```
+
+What does this plot show?
+
+- For all scorers, 0 is the most common score. We expect this due to negative controls.
+- The frequency of 0s collected by scorer 5 seems unusually low at only 229, with the next closest at 626 by Scorer 1.
+- The frequency of missing scores varied between scorers, with Scorer 4 missing only 3 scores, and Scorer 10 missing 36.
+- The total frequency of scores collected by some scorers (Scorer 1, Scorer 5, and Scorer 7) appears lower than the others.
+
+Hypothesis forming:
+
+1. Scorer 5 collected significantly fewer 0s than any other scorer.
+
+Follow-up plots:
+
+- Proportion of scores by scorer.
+- Frequency of missing scores by score for each scorer.
+- Cumulative frequency of scores by scorer.
+
+### What were the percentages of scores collected by each scorer?
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 10
+#| fig-height: 11
+
+score_data_long_prop <- score_data_long_freq %>%
+  group_by(Scorer) %>%
+  mutate(total_count = sum(Count))
+
+score_data_long_prop <- score_data_long_prop %>%
+  mutate(proportion = Count / total_count)
+
+#ggplot(score_data_long_prop, aes(x = Scorer, y = Score)) +
+#  geom_point(aes(size = proportion, color = proportion), stat = "identity") +
+#  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), vjust = 4, color = #"black", size = 5) +
+#  scale_size_continuous(name = "Percentage", range = c(0.06, 25)) +
+#  scale_color_gradient(name = "Percentage", low = "blue", high = "red") +
+#  labs(x = "Scorer", y = "Score") +
+#  theme_minimal()
+
+ggplot(score_data_long_prop, aes(x = Scorer, y = Score, fill = proportion)) +
+  geom_tile(color="black") +
+  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(name = "Percentage", low = "white", high = "red") +
+  labs(x = "Scorer", y = "Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1))
+```
+
+What does this plot show?
+
+- All scorers scored a greater percentage of 0s than any other score.
+- Previously, the number of 0s scored by Scorer 5 appeared very small. However, the percentage is only 3% lower than that of Scorer 10.
+
+Things that stand out per score:
+
+0: Previously, the number of 0s scored by Scorer 5 appeared very small. However, the percentage is only 3% lower than that of Scorer 10.
+
+1: Scorer 10 scored 1s almost double the next highest of Scorer 6, which may explain the relatively lower percentage of 0s.
+
+1 and 2: Scorer 1 scored 1s and 2s roughly half as often as the next lowest, Scorer 5 and Scorer 2 for 1s and 2s respectively.
+
+6: The percentage of 6s scored by Scorer 5 is more than 35% higher than the next highest by Scorer 1, and almost double the next highest of Scorer 8.
+
+Hypothesis forming:
+
+1. The distributions of scores collected differs significantly between individuals.
+
+Follow-up plots:
+
+- N/A
+
+### How were the frequencies of missing scores distributed by median score?
+
+```{r fig.width=10, fig.height=12}
+#| fig-width: 10
+#| fig-height: 12
+
+score_data_nas <- score_data_long %>%
+  filter(Score == "[]")
+
+score_data_nas_freq <- score_data_nas %>%
+  group_by(Scorer, Median_Score) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+ggplot(score_data_nas_freq, aes(x = Scorer, y = Median_Score)) +
+  geom_point(aes(size = Count, color = Count), stat = "identity") +
+  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
+  scale_size_continuous(name = "Frequency", range = c(1.19, 25)) +
+  scale_color_gradient(name = "Frequency", low = "blue", high = "red") +
+  labs(x = "Scorer", y = "Score") +
+  theme_minimal() + 
+  scale_y_continuous(breaks = 0:6) + 
+  coord_cartesian(ylim = c(-0.25, max(score_data_nas_freq$Median_Score)))
+
+```
+
+What does this plot show?
+
+- For the majority of CDA images with a missing score, the two remaining scores were 0s.
+- Scorer 10 missed 6 scores where the two remaining scores were 6s.
+
+Hypothesis forming:
+
+1. The missing scores are mostly due to damaged or folded leaf regions.
+
+Follow-up plots:
+
+- N/A
+
+### Was there a difference in total scores collected by scorers?
+
+```{r fig.width=7, fig.height=10}
+#| fig-width: 7
+#| fig-height: 10
+
+# Calculate cumulative frequency for each scorer
+score_data_filtered <- score_data_long %>%
+  filter(!grepl("\\[\\]", Score))
+
+score_data_filtered$Score <- as.integer(score_data_filtered$Score)
+
+cumulative_data <- score_data_filtered %>%
+  group_by(Scorer, Score) %>%
+  summarise(Freq = n())
+
+cumulative_data <- cumulative_data %>%
+  group_by(Scorer) %>%
+  mutate(Cum_Freq = cumsum(Freq)) %>%
+  ungroup()
+
+cumulative_data$Score <- factor(cumulative_data$Score)
+
+total_cumulative <- cumulative_data %>%
+  filter(Score == 6) %>%
+  group_by(Scorer) %>%
+  summarize(total_cumulative = max(Cum_Freq))
+
+# Plot
+ggplot(cumulative_data, aes(x = Score, y = Cum_Freq, color = Scorer, group = Scorer)) +
+  geom_line(size = 2) +
+  geom_text(data = total_cumulative, aes(label = total_cumulative, x = 7.5, y = total_cumulative), vjust = 0, hjust = 1.2, color = "black", size = 3) +
+  labs(x = "Score", y = "Cumulative Frequency", color = "Scorer") +
+  theme_minimal() +
+  scale_x_discrete(breaks = unique(cumulative_data$Score)) +
+  scale_color_brewer(palette = "Set3")
+
+```
+
+What does this plot show?
+
+- The majority of scorers scored between 2000-2500 total images. Two scorers scored between 1200-1300, and scorer 5 socred only 778. The three lower counts were of individuals who only scored one of the two parts of the dataset (since it was split into part 1 and part 2).
+
+Hypothesis forming:
+
+1. The first dataset part was smaller than the second (2649 vs 3687), a ratio of 0.72. The ratio of scores 778 to 1231 is 0.63, so this may partially explain why Scorer 5 appeared to collect fewer scores.
+
+Follow-up plots:
+
+- N/A
+
+### What was the percentage agreement between each pair of scorers?
+
+```{r}
+# Assuming 'data' is your dataframe
+data <- score_data_long %>%
+  mutate(Score = as.numeric(Score)) %>%
+  group_by(Basename, Row, Col, Pos) %>%
+  mutate(id = row_number()) %>%
+  ungroup()
+
+# Assuming 'data' is your dataframe and has been prepared as mentioned earlier
+pairwise_comparisons <- data %>%
+  full_join(data, by = c("Basename", "Row", "Col", "Pos")) %>%
+  filter(id.x < id.y) %>%
+  select(Scorer.x = Scorer.x, Score.x = Score.x, Scorer.y = Scorer.y, Score.y = Score.y) %>%
+  group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+filtered_data <- pairwise_comparisons %>%
+  filter(!is.na(Score.x) & !is.na(Score.y))
+
+filtered_copy <- filtered_data
+names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+
+filtered_data <- rbind(filtered_data, filtered_copy)
+
+agreement_data <- filtered_data %>%
+  group_by(Scorer.x, Scorer.y) %>%
+  summarise(Total = sum(Count),
+            Agree = sum(Count * (Score.x == Score.y)),
+            Percent_Agree = (Agree / Total) * 100,
+            .groups = 'drop')
+
+agreement_data <- agreement_data[as.integer(agreement_data$Scorer.x) < as.integer(agreement_data$Scorer.y), ]
+
+all_combinations <- expand.grid(Scorer.x = unique(agreement_data$Scorer.x), Scorer.y = unique(agreement_data$Scorer.y))
+
+# Merge with the original data frame using a left join
+merged_df <- all_combinations %>%
+  left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
+  mutate(Total = ifelse(is.na(Total), 0, Total),  # Replace NA values in Total column with 0
+         Agree = ifelse(is.na(Agree), NA, Agree),  # Replace NA values in Agree column with NA
+         Percent_Agree = ifelse(is.na(Percent_Agree), NA, Percent_Agree)) %>%  # Replace NA values in Percent_Agree column with NA
+  filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+
+ggplot(merged_df, aes(x = Scorer.x, y = factor(Scorer.y, levels = as.character(rev(sort(unique(as.integer(Scorer.y)))))), fill = Percent_Agree)) +
+  geom_tile(color = "black", size = 1) +
+  geom_text(aes(label = ifelse(is.na(Percent_Agree), "", sprintf("%.1f%%", Percent_Agree))), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(low = "blue", high = "red", name = "Percentage Agreement", na.value = "white") +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.key.size = unit(2, "lines"))
+```
+
+What does this plot show?
+
+- Not all combinations of scorers scored the same images.
+- The most any two scorers agreed was 76.6% (between Scorer 7 and Scorer 10), and the least was 34.5% (Between Scorer 5 and Scorer 6).
+- There were 3 pairs for which scoring agreement was <40% (5v6, 5v3, 8v10), and 5 <50% (2v10, 5v8).
+- Scorer 5 agreed a maximum of 52.1% of the time with any other scorer.
+- Scorer 10 showed the greatest range of scoring agreement, agreeing with Scorer 7 76.6% of the time and agreeing with Scorer 8 38.9% of the time (only half as often!).
+
+Hypothesis forming:
+
+1. N/A
+
+Follow-up plots:
+
+- Did pairs of scorers agreeing less often show any patterns of disagreement (e.g. one often scored higher or lower)?
+
+### Agreement patterns between scorer pairs (coloured on log10 scale else colour palette can't be seen due to high frequency of 0,0)
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+filtered_data <- pairwise_comparisons %>%
+  filter(!is.na(Score.x) & !is.na(Score.y))
+
+filtered_copy <- filtered_data
+names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+names(filtered_copy)[names(filtered_copy) %in% c("Score.x", "Score.y")] <- c("Score.y", "Score.x")
+filtered_data <- rbind(filtered_data, filtered_copy)
+
+filtered_data <- filtered_data[as.integer(filtered_data$Scorer.x) <= as.integer(filtered_data$Scorer.y), ]
+
+my_palette <- colorRampPalette(c("lightblue", "red"))(100)
+
+ggplot(filtered_data, aes(x = Score.x, y = Score.y)) +
+  geom_tile(aes(fill = Count), color = "black", size = 0.5) +
+  geom_abline(data = filtered_data, aes(intercept = 0, slope = 1), linetype = "dashed") +
+  scale_fill_gradientn(colours = my_palette, name = "Frequency") +
+  facet_grid(Scorer.y ~ Scorer.x, switch = "both", scales = "free") +
+  theme_bw() +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  theme(panel.spacing = unit(0.25, "lines"),
+        strip.placement = "outside",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
+```
+
+What does this plot show?
+
+- The facets containing Scorer 5 show that Scorer 5 tends to give higher scores than other scorers.
+- Previously we saw low agreement between Scorer 8 and Scorer 10. Typically there is a much higher proportion of 0s, but in this facet we see a lighter cell corresponding to 0s, which may be responsible for the reduction in agreement.
+- In some facets e.g. Scorer 2 vs Scorer 3 and Scorer 1 vs Scorer 9, we see instances of large disagreements between scores.
+
+Hypothesis forming:
+
+1. The low agreement between Scorer 8 and Scorer 10 is due to a lower proportion of 0s relative to other pairs of scorers.
+2. Some scorers were biased towards higher or lower scores than the average.
+
+
+Follow-up plots:
+
+- For each scorer, how often were scores collected at different distances from the median score.
+- For each median score, how often were scores collected at different distances from the median score.
+
+### Distance from median score by scorer
+
+```{r fig.width=10, fig.height=14}
+#| fig-width: 10
+#| fig-height: 14
+
+score_data_filtered <- score_data_long %>%
+  filter(!grepl("\\[\\]", Score))
+score_data_filtered$Score <- as.integer(score_data_filtered$Score)
+
+score_data_filtered_with_distance <- score_data_filtered %>%
+  mutate(Distance_to_Median = Score - Median_Score)
+
+# Group by Scorer and Distance_to_Median and calculate the count of occurrences
+score_data_filtered_freq <- score_data_filtered_with_distance %>%
+  group_by(Scorer, Distance_to_Median) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+# Plot the bubble plot with Distance_to_Median on the y-axis
+ggplot(score_data_filtered_freq, aes(x = Scorer, y = Distance_to_Median)) +
+  geom_point(aes(size = Count, color = Count), stat = "identity") +  # Use actual count for size and color
+  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +  # Add labels for counts
+  scale_size_continuous(name = "Frequency", range = c(0.012, 25)) +  # Control size of points based on Count
+  scale_color_gradient(name = "Frequency", low = "blue", high = "red") +  # Apply color gradient based on Count
+  labs(x = "Scorer", y = "Distance to Median", color = "Frequency") +  # Axis and legend labels
+  theme_minimal() + 
+  scale_y_continuous(breaks = unique(score_data_filtered_with_distance$Distance_to_Median), minor_breaks = NULL) + 
+  scale_y_continuous(breaks = -6:6)
+```
+
+And as percentages collected by each scorer?
+
+```{r fig.width=10, fig.height=14}
+#| fig-width: 10
+#| fig-height: 14
+score_data_dist_prop <- score_data_filtered_freq %>%
+  group_by(Scorer) %>%
+  mutate(total_count = sum(Count))
+
+score_data_dist_prop <- score_data_dist_prop %>%
+  mutate(proportion = Count / total_count)
+
+ggplot(score_data_dist_prop, aes(x = Scorer, y = Distance_to_Median, fill = proportion * 100)) +
+  geom_tile(color="black") +
+  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(name = "Percentage", low = "white", high = "red") +
+  labs(x = "Scorer", y = "Distance to Median", fill = "Proportion") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(vjust = 0.5, hjust = 1)) + 
+  scale_y_continuous(breaks = -6:6)
+```
+
+What do these plots show?
+
+- For each scorer, the most common case was agreement with the median score.
+- Scorer 5 disagreed with the median score in 378/778 cases. 376/378 of these were above the median (99.5%).
+- Scorer 5 was responsible for 44.5% of scores 2 above the median, and 84.8% of scores 3 above the median.
+- Other scorers showed bias in different directions also. When scorer 4 disagreed with the median, they scored lower 80.0% of the time. When scorer 3 disagreed with the median, they scored lower 78.7% of the time. When scorer 2 disagreed with the median, they scored higher 71.2% of the time.
+
+Hypothesis forming:
+1. Some scorers were biased towards higher or lower scores than the average.
+
+Follow-up plots:
+
+- N/A
+
+### Distance from median score by scorer
+
+```{r fig.width=10, fig.height=10}
+#| fig-width: 10
+#| fig-height: 10
+
+score_data_filtered_with_distance2 <- score_data_filtered %>%
+  mutate(Distance_to_Median = abs(Score - Median_Score))
+
+score_data_filtered_freq4 <- score_data_filtered_with_distance2 %>%
+  group_by(Median_Score, Distance_to_Median) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+# Generate the bubble plot with median on the x-axis
+ggplot(score_data_filtered_freq4, aes(x = Median_Score, y = Distance_to_Median)) +
+  geom_point(aes(size = Count, color = Count), stat = "identity") +  # Use actual count for size and color
+  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +  # Add labels for counts
+  scale_size_continuous(name = "Frequency", range = c(3, 25)) +  # Control size of points based on Count
+  scale_color_gradient(name = "Frequency", low = "blue", high = "red") +  # Apply color gradient based on Count
+  labs(x = "Median", y = "Distance from Median", color = "Frequency") +  # Axis and legend labels
+  theme_minimal() + 
+  scale_x_continuous(breaks = unique(score_data_filtered_with_distance$Median_Score), minor_breaks = NULL) +
+  scale_y_continuous(breaks = 0:6) + 
+  coord_cartesian(ylim = c(-0.25, max(score_data_nas_freq$Median_Score)), xlim = c(-0.25, 6))
+```
+
+What does this plot show?
+
+- Agreement with the median score is the most common outcome for each score.
+- 99.8% of median score 0s were scored within +-1 of median score. 94.4% within +-1 for 3s was the minimum.
+- The score of 5 had the largest percentage of disagreeing scores at 35.2%, closely followed by 2 at 34.8%. This was compared to 0s, for which disagreeing scores only constituted 4.0%.
+
+Hypothesis forming:
+1. N/A
+
+Follow-up plots:
+- How common is three agreeing scores for each score?
+
+### How common is three agreeing scores for each score?
+
+| Severity Score | Frequency | Confident Frequency | Confident % of Total |
+|----------------|-----------|---------------------|----------------------|
+| 0              | 2699      | 2289                | 84.8                 |
+| 1              | 425       | 94                  | 22.1                 |
+| 2              | 434       | 72                  | 16.6                 |
+| 3              | 705       | 154                 | 21.8                 |
+| 4              | 843       | 187                 | 22.1                 |
+| 5              | 701       | 103                 | 14.7                 |
+| 6              | 529       | 232                 | 43.9                 |
+
+What does this table show?
+- CDAs with a median score of 0 were given 3 0s 84.5% of the time.
+- The next highest, 6s, saw this occur only 43.9% of the time, nearly half as often. Both values are the extremes, so higher agreement makes sense.
+- Intermediate scores of 1-6 received three agreeing scores only 14.7-22.1% of the time. The vast majority of CDAs had at least one disagreeing score.
+
+Hypothesis forming:
+
+1. N/A
+
+Follow-up plots:
+- N/A

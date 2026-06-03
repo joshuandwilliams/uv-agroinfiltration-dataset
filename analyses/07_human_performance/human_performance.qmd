@@ -38,14 +38,14 @@ import matplotlib.pyplot as plt
 import scipy.stats as st
 
 # Custom functions
-repo_root = next(p for p in Path.cwd().parents if (p / '.git').exists())
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
 sys.path.append(str(repo_root / 'src'))
 import human_performance
 ```
 
 Load scorer data
 ```{python}
-data = pd.read_csv(str(repo_root / "analyses/01_Generating_Dataset/04_Median_and_Centre_Coords/combined_CDA_data_median.csv"))
+data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
 ```
 
 Anonymise the scorers

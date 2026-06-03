@@ -1,0 +1,83 @@
+---
+title: "Manual annotation checking summary"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Date: 02/06/2026
+
+## GOHREP
+**Goal:**
+
+Quantify how many bounding box annotations were changed during the manual
+checking process, by comparing coordinates before and after checking.
+
+**Experimental plan:**
+
+1. Load the unchecked combined data (step 02) and the checked data (step 03)
+2. Merge on (Basename, Row, Col, Pos) to align matching CDAs
+3. For each scorer, check whether any of the four coordinates changed
+4. Report total changes, breakdown by scorer, and any CDAs only present in one file
+
+### Load data
+```{python}
+import pandas as pd
+from pathlib import Path
+import sys
+
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
+
+unchecked_dir = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
+checked_dir   = repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords"
+
+sets = {
+    1: (unchecked_dir / "combined_cda_data_1.csv",
+        checked_dir   / "combined_cda_data_checked_1.csv"),
+    2: (unchecked_dir / "combined_cda_data_2.csv",
+        checked_dir   / "combined_cda_data_checked_2.csv"),
+}
+
+KEY = ['Basename', 'Row', 'Col', 'Pos']
+COORD_COLS = [f'{c}_{i}' for i in range(1, 4) for c in ['X1', 'X2', 'Y1', 'Y2']]
+```
+
+### Compare unchecked vs checked for each set
+```{python}
+for set_num, (unchecked_path, checked_path) in sets.items():
+    print(f"─── Set {set_num} ───────────────────────────────────────")
+
+    before = pd.read_csv(unchecked_path)
+    after  = pd.read_csv(checked_path)
+
+    merged = before.merge(after, on=KEY, suffixes=('_before', '_after'))
+
+    only_before = len(before) - len(merged)
+    only_after  = len(after)  - len(merged)
+
+    print(f"CDAs in unchecked:  {len(before)}")
+    print(f"CDAs in checked:    {len(after)}")
+    print(f"CDAs only in unchecked (removed): {only_before}")
+    print(f"CDAs only in checked  (added):    {only_after}")
+    print()
+
+    def coords_changed(b, a):
+        for bv, av in zip(b, a):
+            b_null, a_null = pd.isna(bv), pd.isna(av)
+            if b_null != a_null:
+                return True
+            if not b_null and bv != av:
+                return True
+        return False
+
+    total_changed = 0
+    for i in range(1, 4):
+        cb = merged[[f'{c}_{i}_before' for c in ['X1','X2','Y1','Y2']]].values
+        ca = merged[[f'{c}_{i}_after'  for c in ['X1','X2','Y1','Y2']]].values
+        total_changed += sum(coords_changed(b, a) for b, a in zip(cb, ca))
+
+    total_annotations = len(merged) * 3
+    print(f"  Annotations changed: {total_changed} / {total_annotations} ({total_changed / total_annotations * 100:.1f}%)")
+    print()
+```

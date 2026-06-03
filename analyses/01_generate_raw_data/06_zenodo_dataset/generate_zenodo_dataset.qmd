@@ -1,0 +1,119 @@
+---
+title: "Generate Zenodo dataset"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Date: 02/06/2026
+
+## GOHREP
+**Goal:**
+
+Generate the files required for Zenodo upload in FAIR-compliant formats.
+
+**Rationale:**
+
+The dataset should be Interoperable (FAIR principle). Since the images are
+pre-cropped classification images, COCO JSON (designed for detection/segmentation)
+is not appropriate. Interoperability is achieved through the ImageNet-style
+directory structure (score-class subfolders), a well-documented multi-rater CSV
+containing both individual scores and the median, and clear README documentation.
+
+**Experimental plan:**
+
+1. Generate anonymised multi-rater CSV (Median_Score + one column per scorer ID)
+2. Zip cropped images preserving score-class folder structure (cropped_images.zip)
+3. Convert raw rotated TIFs to JPEG (quality 92) and zip (raw_images.zip)
+4. Zip annotation images (annotated_raw_images.zip)
+
+Zenodo allows a maximum of 100 files per record, so images are bundled into
+ZIP archives. Output files are written to data/zenodo/ and are gitignored.
+
+### Import required packages
+```{python}
+import zipfile
+import pandas as pd
+from pathlib import Path
+import sys
+
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
+sys.path.append(str(repo_root / 'src'))
+from coco_export import generate_multi_rater_csv
+```
+
+### Set paths
+```{python}
+combined_dir      = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
+median_path       = repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"
+images_dir        = repo_root / "data/cropped_images"
+raw_rotated_dir   = repo_root / "data/raw_images_rotated"
+annotations_dir   = repo_root / "data/annotations"
+output_dir        = repo_root / "data/zenodo"
+output_dir.mkdir(parents=True, exist_ok=True)
+```
+
+### Generate anonymised multi-rater CSV
+```{python}
+median_data = pd.read_csv(median_path)
+generate_multi_rater_csv(
+    median_data=median_data,
+    output_path=output_dir / "cda_dataset_multi_rater.csv",
+)
+```
+
+### Zip cropped images
+```{python}
+zip_path = output_dir / "cropped_images.zip"
+output_dir.mkdir(parents=True, exist_ok=True)
+
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    for score_dir in sorted(images_dir.iterdir()):
+        if not score_dir.is_dir():
+            continue
+        for img_file in sorted(score_dir.glob("*.tif")):
+            arcname = f"{score_dir.name}/{img_file.name}"
+            zf.write(img_file, arcname)
+
+print(f"Saved cropped_images.zip: {len(zf.namelist())} files")
+```
+
+### Convert raw rotated images to JPEG and zip
+```{python}
+# Raw TIFs are ~43 MB each (9.2 GB total). JPEG at quality 92 reduces this to
+# ~700 MB–1 GB while preserving pixel dimensions, so bounding box coordinates
+# in the dataset remain valid for re-extracting crops from these images.
+# Note: pixel values differ slightly from the TIF originals due to JPEG compression,
+# so re-extracted crops will not be bit-identical to the images in cropped_images.zip.
+from PIL import Image as PILImage
+
+zip_path = output_dir / "raw_images.zip"
+tif_files = sorted(f for f in raw_rotated_dir.iterdir()
+                   if f.suffix.lower() == ".tif")
+
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    for tif_path in tif_files:
+        jpg_name = tif_path.stem + ".jpg"
+        img = PILImage.open(tif_path).convert("RGB")
+        # Write JPEG directly into the zip without a temporary file on disk
+        import io
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=92, optimize=True)
+        zf.writestr(jpg_name, buf.getvalue())
+        print(f"  {tif_path.name} → {jpg_name}")
+
+print(f"\nSaved raw_images.zip: {len(tif_files)} images")
+```
+
+### Zip annotation images
+```{python}
+annotations_dir = repo_root / "data/annotations"
+zip_path = output_dir / "annotated_raw_images.zip"
+
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    for img_file in sorted(annotations_dir.glob("*.jpg")):
+        zf.write(img_file, img_file.name)
+
+print(f"Saved annotated_raw_images.zip: {len(zf.namelist())} files")
+```
