@@ -1,0 +1,780 @@
+---
+title: "Pair scoring frequency and experimental differences"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 13/06/2024 - 24/06/2024
+
+## GOHREP
+
+**Goal:**
+
+Do pairwise scoring frequencies match our expectations given the distribution strategy?
+
+Are there differences in CDA counts per raw agro image between different experiments?
+
+**Hypothesis:**
+
+In part 1 of the CDA dataset, scorers will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.
+
+There will be differences in CDA counts per raw agro image between different experiments.
+
+**Rationale:**
+
+Part 1 of the CDA dataset contains some chimaeric CDAs, which were ignored during scoring but not during raw agro image distribution. Part 2 does not.
+
+Different experiments used different numbers of leaves per raw image and different numbers of infiltrations per leaf.
+
+**Experimental plan:**
+
+-   Plot chimaera image with collected scores overlayed.
+-   Table showing pattern of image assignments between scorers.
+-   Add "folder" column for experiment. Add "chimaera" column (boolean).
+-   Generate frequency grids (in parts).
+-   Plot pairwise frequencies on strip plots with vertical line at expected value (in parts).
+-   Plot boxplots CDA count per raw agro image grouped by folder (all).
+-   Generate PCA plot coloured by folder (all).
+-   Plot raw agro image count per scorer, faceted by folder (all).
+-   Calculate average pairwise agreement per folder (all).
+
+### Image distribution strategy
+
+- Estimated total number of CDAs per raw agro image = leaf_count * pos_per_leaf.
+- Randomised image order.
+- Divided raw agro images equally by CDA count using staggered approach, meaning some scorers never scored the same image:
+
+| Dataset portion (all equal in size) | Scorer1 | Scorer2 | Scorer3 |
+|-------------------------------------|---------|---------|---------|
+| A                                   | 1       | 2       | 3       |
+| B                                   | 2       | 3       | 4       |
+| C                                   | 3       | 4       | 5       |
+| D                                   | 4       | 5       | 6       |
+| E                                   | 5       | 6       | 7       |
+| F                                   | 6       | 7       | 8       |
+| G                                   | 7       | 8       | 9       |
+| H                                   | 8       | 9       | 1       |
+| I                                   | 9       | 1       | 2       |
+
+### Chimaera images
+
+Chimaera images contain both yellow and orange CDAs (see example below). The orange CDAs were ignored from scoring, but not from image allocation estimates.
+
+The chimaera images are all of the Piik(DeltaHMA) and the Fig2_leaf_images.
+
+![](Chimaeras_with_scores.png){width="800"}
+
+### Packages
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(here)
+library(RColorBrewer)
+library(EBImage)
+```
+
+### Add columns to CDA dataset parts 1 and 2
+
+Dataset Part 1
+```{r}
+# Paths with "here" package
+score1_path <- here("analyses", "05_by_raw_image", "output_no_na.csv")
+count_path  <- here("analyses", "05_by_raw_image", "image_info.csv")
+alloc_path  <- here("analyses", "05_by_raw_image", "randomised_info.csv")
+
+# Load files
+score_data_1      <- read_csv(score1_path, show_col_types = FALSE)
+image_info        <- read_csv(count_path, show_col_types = FALSE)
+randomised_info   <- read_csv(alloc_path, show_col_types = FALSE)
+count_data_1      <- image_info %>% filter(Set == 1)
+allocation_data_1 <- randomised_info %>% filter(Set == 1)
+```
+
+Dataset Part 2
+```{r}
+# Paths with "here" package
+score2_path <- here("analyses", "05_by_raw_image", "output_no_na_2.csv")
+
+# Load files (image_info and randomised_info already loaded above)
+score_data_2      <- read_csv(score2_path, show_col_types = FALSE)
+count_data_2      <- image_info %>% filter(Set == 2)
+allocation_data_2 <- randomised_info %>% filter(Set == 2)
+```
+
+Anonymise score data tables
+```{r}
+key_path <- here("analyses", "05_by_raw_image", "scorer_key.csv")
+scorer_key <- read_csv(key_path, show_col_types = FALSE, col_types = cols(ID = col_character(), Scorer_Name = col_character()))
+
+anonymise_data <- function(data, key){
+  id_lookup <- setNames(key$ID, key$Scorer_Name)
+  data <- data %>%
+  mutate(across(c(Scorer1, Scorer2, Scorer3), ~ id_lookup[.]))
+  return(data)
+}
+score_data_1 <- anonymise_data(score_data_1, scorer_key)
+score_data_2 <- anonymise_data(score_data_2, scorer_key)
+```
+
+Add CDA_Per_Leaf, Folder, and Chimaera columns to allocation_data
+```{r}
+new_columns <- function(allocation_data, count_data){
+  allocation_data$Path <- gsub("^/Volumes/shared/Research-Groups/Mark-Banfield/Josh_Williams/", "", allocation_data$Path)
+
+  merged_data <- merge(allocation_data, count_data, by.x = "basename", by.y = "Image", all.x = TRUE)
+  merged_data <- merged_data[order(match(merged_data$basename, allocation_data$basename)), ]
+  
+  allocation_data$CDA_Per_Leaf <- merged_data$CDA_Per_Leaf
+  allocation_data$Folder <- sub("/.*", "", allocation_data$Path)
+  allocation_data$Chimaera <- ifelse(allocation_data$Folder %in% c("Fig2_leaf_images", "Piik (DeltaHMA)"), 1, 0)
+
+  return(allocation_data)
+}
+
+allocation_data_1 <- new_columns(allocation_data_1, count_data_1)
+allocation_data_2 <- new_columns(allocation_data_2, count_data_2)
+
+allocation_data_1
+allocation_data_2
+
+allocation_data_combined <- rbind(allocation_data_1, allocation_data_2)
+print(allocation_data_combined)
+```
+
+Convert to long form
+```{r}
+allocation_long <- function(allocation_data){
+  allocation_data_long <- allocation_data %>%
+    pivot_longer(cols = starts_with("scorer"), names_to = "Scorer", values_to = "ScorerName") %>%
+    select(-Scorer, ScorerName, Chimaera, count, -Path, -index)
+}
+
+allocation_long_1 <- allocation_long(allocation_data_1)
+allocation_long_2 <- allocation_long(allocation_data_2)
+
+# Anonymise allocation data
+anonymise_data <- function(data, key){
+  id_lookup <- setNames(key$ID, key$Scorer_Name)
+  data <- data %>%
+  mutate(across(c(Scorer1, Scorer2, Scorer3), ~ id_lookup[.]))
+  return(data)
+}
+
+# Anonymise scorers
+id_lookup <- setNames(scorer_key$ID, scorer_key$Scorer_Name)
+allocation_long_1 <- allocation_long_1 %>%
+  mutate(across(ScorerName, ~ id_lookup[.]))
+allocation_long_2 <- allocation_long_2 %>%
+  mutate(across(ScorerName, ~ id_lookup[.]))
+
+allocation_long_1
+allocation_long_2
+
+allocation_long_combined <- rbind(allocation_long_1, allocation_long_2)
+print(allocation_long_combined)
+```
+
+
+
+
+Calculate the number of scores collected by each scorer in each dataset
+
+
+For each pair, calculate the total CDA frequency, the Chimaera frequency, and the Chimaera proportion.
+```{r}
+pairwise_score_data <- function(allocation_long) {
+  # Step 0: Modify the Chimaera column
+  allocation_long <- allocation_long %>%
+    mutate(Chimaera = Chimaera * count)
+
+  # Step 1: Prepare the data by grouping and summarizing to ensure each basename and ScorerName pair has a unique entry
+  allocation_summary <- allocation_long %>%
+    group_by(basename, ScorerName) %>%
+    summarise(count = sum(count), Chimaera = sum(Chimaera), .groups = 'drop')
+  
+  # Step 2: Spread the ScorerNames across columns for each basename for both count and Chimaera
+  allocation_wide <- allocation_summary %>%
+    pivot_wider(names_from = ScorerName, values_from = c(count, Chimaera))
+  
+  # Step 3: Generate all combinations of scorer pairs and calculate the sum for each pair
+  scorer_columns <- setdiff(names(allocation_wide), "basename")
+  count_columns <- grep("count", scorer_columns, value = TRUE)
+  
+  scorer_combinations <- combn(count_columns, 2, simplify = FALSE)
+  
+  # Step 4: Create a data frame to hold pairwise scores
+  allocation_pairs <- map_df(scorer_combinations, function(pair) {
+    scorers <- sort(as.numeric(sub("count_", "", pair)))
+    scorers <- sort(scorers)
+    data.frame(
+      Scorer.x = scorers[1],
+      Scorer.y = scorers[2],
+      CDA_Count = rowSums(select(allocation_wide, all_of(pair)), na.rm = TRUE) / 2, # Divide by 2 here
+      Chimaera_Count = rowSums(select(allocation_wide, all_of(gsub("count", "Chimaera", pair))), na.rm = TRUE) / 2, # Divide by 2 here
+      basename = allocation_wide$basename
+    )
+  })
+  
+  # Step 5: Group by scorer pairs and sum CDA_Count and Chimaera_Count across all basenames
+  allocation_pairs %>%
+    group_by(Scorer.x, Scorer.y) %>%
+    summarise(
+      CDA_Count = sum(CDA_Count), 
+      Chimaera_Count = sum(Chimaera_Count), 
+      .groups = 'drop'
+    ) %>%
+    mutate(Chimaera_Proportion = Chimaera_Count / CDA_Count)
+}
+
+alloc_pairs_1 <- pairwise_score_data(allocation_long_1)
+alloc_pairs_2 <- pairwise_score_data(allocation_long_2)
+
+alloc_pairs_1
+alloc_pairs_2
+```
+
+### Pairwise frequency plots
+```{r}
+long_score_table <- function(score_data) {
+    scorer_data <- score_data %>%
+    select(starts_with("Scorer")) %>%
+    pivot_longer(cols = everything(), names_to = NULL, values_to = "Scorer") %>%
+    filter(!is.na(Scorer))
+
+    score_values <- score_data %>%
+    select(starts_with("Score"), -starts_with("Scorer")) %>%
+    pivot_longer(cols = everything(), names_to = NULL, values_to = "Score") %>%
+    filter(!is.na(Score))
+
+    additional_data <- score_data %>%
+    select(Basename, Row, Col, Pos) %>%
+    slice(rep(row_number(), each = 3))
+
+    score_data_long <- bind_cols(scorer_data, score_values, additional_data)
+
+    score_data_long$Scorer <- factor(score_data_long$Scorer, levels = sort(as.numeric(unique(score_data_long$Scorer))))
+
+    score_data_long <- score_data_long %>%
+    filter(Score != "[]")
+
+    return(score_data_long)
+}
+score_long_1 <- long_score_table(score_data_1)
+score_long_2 <- long_score_table(score_data_2)
+score_long_combined <- rbind(score_long_1, score_long_2)
+print(score_long_combined)
+```
+
+
+Calculate the number of scores collected by each scorer in each dataset
+```{r}
+scorer_counts_1 <- score_long_1 %>%
+  group_by(Score) %>%
+  summarise(count = n())
+print(scorer_counts_1)
+
+scorer_counts_2 <- score_long_2 %>%
+  group_by(Score) %>%
+  summarise(count = n())
+print(scorer_counts_2)
+```
+
+```{r}
+pairwise_score_data <- function(score_data_long){
+    data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+    pairwise_comparisons <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos")) %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x = Scorer.x, Score.x = Score.x, Scorer.y = Scorer.y, Score.y = Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = 'drop')
+
+    filtered_data <- pairwise_comparisons %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+    filtered_copy <- filtered_data
+    names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+
+    filtered_data <- rbind(filtered_data, filtered_copy)
+
+    agreement_data <- filtered_data %>%
+    group_by(Scorer.x, Scorer.y) %>%
+    summarise(Total = sum(Count),
+                Agree = sum(Count * (Score.x == Score.y)),
+                Percent_Agree = (Agree / Total) * 100,
+                .groups = 'drop')
+
+    agreement_data <- agreement_data[as.integer(agreement_data$Scorer.x) < as.integer(agreement_data$Scorer.y), ]
+
+    all_combinations <- expand.grid(Scorer.x = unique(agreement_data$Scorer.x), Scorer.y = unique(agreement_data$Scorer.y))
+
+    merged_df <- all_combinations %>%
+    left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
+    mutate(Total = ifelse(is.na(Total), NA, Total),
+            Agree = ifelse(is.na(Agree), NA, Agree),
+            Percent_Agree = ifelse(is.na(Percent_Agree), NA, Percent_Agree)) %>%
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+
+    merged_df$Scorer.y <- factor(merged_df$Scorer.y, levels = sort(unique(merged_df$Scorer.y)))
+
+    return(merged_df)
+}
+merged_1 <- pairwise_score_data(score_long_1)
+merged_2 <- pairwise_score_data(score_long_2)
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+plot_pairwise_freq <- function(merged_df){
+  ggplot(merged_df, aes(x = Scorer.x, y = Scorer.y, fill = Total)) +
+  geom_tile(color = "black", size = 1) +
+  geom_text(aes(label = ifelse(is.na(Total), "", Total)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(low = "blue", high = "red", name = "Count", na.value = "white") +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.key.size = unit(2, "lines"))
+}
+plot_pair_freq_1 <- plot_pairwise_freq(merged_1)
+plot_pair_freq_2 <- plot_pairwise_freq(merged_2)
+
+print(plot_pair_freq_1)
+print(plot_pair_freq_2)
+```
+
+### Expected count per scorer (assumes no Chimaeras)
+
+```{r fig.width=11, fig.height=2}
+#| fig-width: 11
+#| fig-height: 2
+expected_count_plot <- function(merged_df, score_data){
+  expected_count = (2 / length(unique(merged_df$Scorer.y))) * nrow(score_data)
+  print(paste("Expected Count:", expected_count))
+
+  merged_df_filtered <- merged_df[!is.na(merged_df$Total), ]
+
+  ggplot(merged_df_filtered, aes(x = Total, y = 1)) +
+  geom_point(color = "black", size = 5, alpha = 0.5) +
+  geom_vline(xintercept = expected_count, color = "red", linetype = "dashed", size = 1) +
+  labs(x = "CDA count per raw agro image", y = "") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        aspect.ratio = 0.1,
+        plot.margin = margin(5, 5, 5, 5, "mm")) +
+  coord_cartesian(xlim = c(0, max(merged_df_filtered$Total) + 50))
+}
+plot_expected_1 <- expected_count_plot(merged_1, score_data_1)
+plot_expected_2 <- expected_count_plot(merged_2, score_data_2)
+
+print(plot_expected_1)
+print(plot_expected_2)
+
+pairfreqpath1 <- here("analyses", "05_by_raw_image", "pairscorefreq1.png")
+pairfreqpath2 <- here("analyses", "05_by_raw_image", "pairscorefreq2.png")
+
+png(pairfreqpath1, width=1100, height=200)
+print(plot_expected_1)
+dev.off()
+
+png(pairfreqpath2, width=1100, height=200)
+print(plot_expected_2)
+dev.off()
+
+```
+
+The frequencies are below what we would expect.
+
+### Boxplots for each folder by the number of CDAs per image.
+
+So I need a dataframe with Img, Folder, CDA Count
+```{r}
+data_for_boxplots <- function(score_data, allocation_data){
+  score_data_with_folder <- score_data %>%
+    left_join(allocation_data, by = c("Basename" = "basename"))
+
+  result <- score_data_with_folder %>%
+    group_by(Folder, Basename) %>%
+    summarise(RowCount = n(), .groups = 'drop')
+  return(result)
+}
+
+boxplot_data_1 <- data_for_boxplots(score_data_1, allocation_data_1)
+boxplot_data_2 <- data_for_boxplots(score_data_2, allocation_data_2)
+print(boxplot_data_1)
+print(boxplot_data_2)
+boxplot_data_combined <- rbind(boxplot_data_1, boxplot_data_2)
+print(boxplot_data_combined)
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+boxplot_frequency_plot <- function(boxplot_data){
+  ggplot(boxplot_data, aes(x = Folder, y = RowCount)) +
+    geom_jitter(size = 5, alpha = 0.2, width=0.3) +
+    labs(x = "Folder", y = "CDA Count") +
+    theme_minimal() +
+    scale_y_continuous(limits = c(0, NA)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+boxplot_1 <- boxplot_frequency_plot(boxplot_data_1)
+boxplot_2 <- boxplot_frequency_plot(boxplot_data_2)
+#print(boxplot_1)
+#print(boxplot_2)
+
+boxplot_combined <- boxplot_frequency_plot(boxplot_data_combined)
+
+peragrobyexperimentpath <- here("analyses", "05_by_raw_image", "peragrobyexperiment.png")
+
+
+png(peragrobyexperimentpath, width=1100, height=1000)
+print(boxplot_combined)
+dev.off()
+
+print(boxplot_combined)
+```
+
+### PCA raw agro images, coloured by folder
+
+Load and scale raw agro images (save as a RData file to avoid having to load again)
+```{r}
+"""
+image_folder <- here("data", "raw_images_rotated")
+image_files <- list.files(image_folder, full.names = TRUE)
+image_files
+
+target_size <- c(256, 256)
+
+successful_files <- list()
+
+# Function to read, resize, and flatten images with error handling
+read_and_process_image <- function(file, target_size) {
+  tryCatch({
+    print(file)
+    img <- readImage(file)
+    img_resized <- resize(img, target_size[1], target_size[2])
+    successful_files <<- c(successful_files, file)
+    return(as.numeric(img_resized))
+  }, error = function(e) {
+    message("Error reading image: ", file, "\n", e)
+    return(NULL)
+  })
+}
+image_matrix_path <- here("analyses", "05_by_raw_image", "image_matrix.RData")
+
+# Read, resize, and flatten all images into a matrix
+image_matrix <- do.call(rbind, lapply(image_files, read_and_process_image, target_size = target_size))
+save(image_matrix, file = image_matrix_path)
+"""
+```
+
+Implement and plot the PCA
+```{r}
+"""
+load(image_matrix_path)
+pca_result <- prcomp(image_matrix, scale. = FALSE)
+pca_data <- as.data.frame(pca_result$x[, 1:2])
+colnames(pca_data) <- c("PC1", "PC2")
+successful_files <- unlist(successful_files)
+print(successful_files)
+pca_data$Basename <- basename(successful_files)
+print(boxplot_data_combined)
+print(pca_data)
+"""
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+"""
+plot_data <- merge(pca_data, boxplot_data_combined, by = "Basename")
+
+explained_variance <- summary(pca_result)$importance[2, ]
+x_label <- paste0("PC1 (", round(explained_variance[1] * 100, 2), "% variance)")
+y_label <- paste0("PC2 (", round(explained_variance[2] * 100, 2), "% variance)")
+
+ggplot(plot_data, aes(x = PC1, y = PC2, color = Folder)) +
+  geom_point(size = 5, alpha=0.7) +
+  labs(x = x_label, y = y_label) +
+  theme_minimal()
+"""
+```
+
+### Images per scorer, faceted by folder
+```{r}
+count_data <- allocation_long_combined %>%
+  group_by(ScorerName, Folder) %>%
+  summarise(row_count = n(), .groups = 'drop') %>%
+  complete(ScorerName, Folder, fill = list(row_count = 0))
+
+
+count_data$ScorerName <- factor(count_data$ScorerName, levels = sort(as.numeric(unique(count_data$ScorerName))))
+
+y_min <- min(count_data$row_count)
+y_max <- max(count_data$row_count)
+print(count_data)
+
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+
+plotpath <- here("analyses", "05_by_raw_image", "exp_per_scorer.png")
+
+count_data$Folder_Anon <- factor(count_data$Folder,
+                            levels = unique(count_data$Folder),
+                            labels = paste("Project", seq_along(unique(count_data$Folder))))
+
+png(plotpath, height=600, width=1200)
+ggplot(count_data, aes(x = ScorerName, y = row_count, color = ScorerName)) +
+  geom_point(size = 5) +
+  facet_wrap(~ Folder_Anon, scales = "free_y", nrow=2) +
+  scale_y_continuous(limits = c(y_min, y_max)) +
+  labs(x = "Scorer",
+       y = "Agroinfiltration Image Count",
+       color = "Scorer ID") +
+  theme_minimal() + 
+  theme(
+    text = element_text(size = 20),
+    strip.text = element_text(size = 20)
+  )
+dev.off()
+
+```
+
+### Average pairwise agreement per folder
+```{r}
+average_pairwise_agreement <- function(data) {
+  valid_data <- data[!is.na(data$Total) & !is.na(data$Percent_Agree), ]
+  
+  weighted_sum <- sum(valid_data$Percent_Agree * valid_data$Total)
+  
+  total_sum <- sum(valid_data$Total)
+  
+  weighted_average <- weighted_sum / total_sum
+  
+  return(weighted_average)
+}
+```
+
+```{r}
+# Add folder to score_long_combined
+score_long_combined <- score_long_combined %>%
+  left_join(boxplot_data_combined %>% select(Basename, Folder), by = "Basename")
+
+print(score_long_combined)
+```
+```{r}
+avg_agreements <- c()
+counts <- c()
+unique_folders <- unique(score_long_combined$Folder)
+zero_count <- c()
+
+for (folder in unique_folders) {
+  # Subset the dataframe for the current Folder
+  score_long_subset <- score_long_combined %>% filter(Folder == folder)
+  print(score_long_subset)
+  # Perform pairwise score data and calculate average agreement
+  pair_merged <- pairwise_score_data(score_long_subset)
+  avg_agreement <- average_pairwise_agreement(pair_merged)
+  
+  # Add the avg_agreement to the vector
+  avg_agreements <- c(avg_agreements, avg_agreement)
+  counts <- c(counts, nrow(score_long_subset))
+
+  zero_subset <- score_long_subset %>% filter(Score == 0)
+  zero_count <- c(zero_count, nrow(zero_subset))
+  # Print the Folder and its corresponding avg_agreement
+  print(paste("Folder:", folder, "Average Agreement:", avg_agreement))
+}
+
+# Optionally, create a data frame to see the results
+results_df <- data.frame(Folder = unique_folders, Average_Agreement = avg_agreements, Count = counts, Zero_Proportion = zero_count / counts)
+print(results_df)
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+ggplot(results_df, aes(x = Folder, y = Average_Agreement, size = Count, color = Count)) +
+  geom_point() +
+  scale_size_continuous(range = c(2, 40)) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(x = "Folder", y = "Average Agreement", size = "Total Score Count (area)", color = "") +
+  ylim(0, 100) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+### Estimated vs actual CDAs per raw agro
+```{r}
+print(allocation_data_combined)
+print(score_long_combined)
+
+basename_counts <- score_long_combined %>%
+  group_by(Basename) %>%
+  summarise(actual_count = n())
+print(basename_counts)
+
+combined_data <- basename_counts %>%
+  left_join(allocation_data_combined, by = c("Basename" = "basename")) %>%
+  select(Basename, actual_count, expected_count = count, Folder) %>%
+  mutate(expected_count = expected_count * 3)
+print(combined_data)
+```
+
+```{r}
+expvsact <- ggplot(combined_data, aes(x = actual_count, y = expected_count, color = Folder)) +
+  geom_point(size = 5, alpha = 0.3) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Actual Count", y = "Expected Count") +
+  scale_color_brewer(palette = "Set1") +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  theme_minimal()
+
+print(expvsact)
+
+expectedvsactualpath <- here("analyses", "05_by_raw_image", "expectedvsactual.png")
+
+png(expectedvsactualpath, width=1100, height=1000)
+print(expvsact)
+dev.off()
+```
+
+
+### Removing experiments on score?
+```{r}
+remove_experiment <- function(score_data_long, experiment, remove_2_disagree){
+
+    subset_score_data <- subset(score_data_long, Folder != experiment)
+    
+    if (remove_2_disagree == TRUE) {
+
+      data_grouped <- subset_score_data %>%
+        group_by(Basename, Row, Col, Pos)
+      
+      groups_with_issues <- data_grouped %>%
+        filter(n() == 2) %>%
+        mutate(diff_scores = n_distinct(Score) > 1) %>%
+        filter(diff_scores) %>%
+        ungroup() %>%
+        select(Basename, Row, Col, Pos)
+      
+      subset_score_data <- subset_score_data %>%
+        anti_join(groups_with_issues, by = c("Basename", "Row", "Col", "Pos"))
+    }
+
+    return(subset_score_data)
+}
+remove_exp_test <- remove_experiment(score_long_combined, "Fig2_leaf_images", remove_2_disagree = TRUE)
+print(remove_exp_test)
+```
+
+```{r}
+pairwise_score_data <- function(score_data_long){
+    data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+    pairwise_comparisons <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos")) %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x = Scorer.x, Score.x = Score.x, Scorer.y = Scorer.y, Score.y = Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = 'drop')
+
+    filtered_data <- pairwise_comparisons %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+    filtered_copy <- filtered_data
+    names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+
+    filtered_data <- rbind(filtered_data, filtered_copy)
+
+    agreement_data <- filtered_data %>%
+    group_by(Scorer.x, Scorer.y) %>%
+    summarise(Total = sum(Count),
+                Agree = sum(Count * (Score.x == Score.y)),
+                Percent_Agree = (Agree / Total) * 100,
+                .groups = 'drop')
+
+    agreement_data <- agreement_data[as.integer(agreement_data$Scorer.x) < as.integer(agreement_data$Scorer.y), ]
+
+    all_combinations <- expand.grid(Scorer.x = unique(agreement_data$Scorer.x), Scorer.y = unique(agreement_data$Scorer.y))
+
+    merged_df <- all_combinations %>%
+    left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
+    mutate(Total = ifelse(is.na(Total), NA, Total),
+            Agree = ifelse(is.na(Agree), NA, Agree),
+            Percent_Agree = ifelse(is.na(Percent_Agree), NA, Percent_Agree)) %>%
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+
+    return(merged_df)
+}
+
+average_pairwise_agreement <- function(data) {
+  valid_data <- data[!is.na(data$Total) & !is.na(data$Percent_Agree), ]
+  
+  weighted_sum <- sum(valid_data$Percent_Agree * valid_data$Total)
+  
+  total_sum <- sum(valid_data$Total)
+  
+  weighted_average <- weighted_sum / total_sum
+  
+  return(weighted_average)
+}
+```
+
+
+```{r}
+unique_experiments <- unique(score_long_combined$Folder)
+unique_experiments <- unique_experiments[order(unique_experiments)]
+unique_experiments <- c("Original", unique_experiments)
+
+CDA_count <- c()
+avg_pairwise_agreement <- c()
+
+for (experiment in unique_experiments) {
+  subset_score_data_T <- remove_experiment(score_long_combined, experiment, TRUE)
+
+  num_unique_CDAs <- subset_score_data_T %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    summarise(n = n(), .groups = 'drop_last') %>%
+    ungroup() %>%
+    nrow()
+
+  pairwise_df_T <- pairwise_score_data(subset_score_data_T)
+
+  pairwise_avg_T <- average_pairwise_agreement(pairwise_df_T)
+
+  CDA_count <- c(CDA_count, num_unique_CDAs)
+  avg_pairwise_agreement <- c(avg_pairwise_agreement, pairwise_avg_T)
+}
+
+result_df <- data.frame(
+    Experiment_Removed = unique_experiments,
+    Score_Count = CDA_count,
+    Avg_Pairwise_Agreement = avg_pairwise_agreement
+)
+
+print(result_df)
+```

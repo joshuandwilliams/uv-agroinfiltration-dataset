@@ -1,0 +1,455 @@
+---
+title: "EDA Plots No 0"
+format:
+  html:
+    code-fold: true
+---
+ 
+Date: 14/5/2024
+
+## GOHREP
+**Goal:**
+
+Repeat preivous EDA but removing any CDAs with a median score of 0 (the large majority) to look for patterns amongst the other scores.
+
+**Hypothesis:**
+
+Removing the 0s will allow patterns to be seen more clearly amongst the remaining scores.
+
+**Rationale:**
+
+NA
+
+**Experimental plan:**
+
+1. Copy the code from the original EDA, but add a line to remove Median_Score == 0
+2. Remove any plots for which this doesn't make sense e.g. those split by Median_Score
+
+### Load required packages.
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(here)
+library(RColorBrewer)
+```
+
+### Load in the data. Create combined table. Anonymise scorers.
+
+```{r}
+path1 <- here("analyses", "02_score_distributions", "output_combined.csv")
+path2 <- here("analyses", "02_score_distributions", "median_combined.csv")
+path3 <- here("analyses", "02_score_distributions", "scorer_key.csv")
+
+output_data <- read_csv(path1, show_col_types = FALSE)
+median_data <- read_csv(path2, show_col_types = FALSE)
+scorer_key <- read_csv(path3, show_col_types = FALSE, col_types = cols(ID = col_character(), Scorer_Name = col_character()))
+
+score_data <- output_data %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3) %>%
+  bind_cols(
+      median_data %>%
+        select(Median_Score)
+  )
+
+id_lookup <- setNames(scorer_key$ID, scorer_key$Scorer_Name)
+
+score_data <- score_data %>%
+  mutate(across(c(Scorer1, Scorer2, Scorer3), ~ id_lookup[.]))
+
+score_data_no0 <- score_data %>%
+  filter(Median_Score != 0)
+
+head(score_data_no0)
+```
+
+### Create a long table with one scorer and one score in each row.
+
+```{r}
+gen_long <- function(score_data){
+  scorer_data <- score_data %>%
+    select(starts_with("Scorer")) %>%
+    pivot_longer(cols = everything(), names_to = NULL, values_to = "Scorer") %>%
+    filter(!is.na(Scorer))
+
+  score_values <- score_data %>%
+    select(starts_with("Score"), -starts_with("Scorer")) %>%
+    pivot_longer(cols = everything(), names_to = NULL, values_to = "Score") %>%
+    filter(!is.na(Score))
+
+  additional_data <- score_data %>%
+    select(Basename, Row, Col, Pos, Median_Score) %>%
+    slice(rep(row_number(), each = 3))
+
+  score_data_long <- bind_cols(scorer_data, score_values, additional_data)
+
+  score_data_long$Scorer <- factor(score_data_long$Scorer, levels = sort(as.numeric(unique(score_data_long$Scorer))))
+  return(score_data_long)
+}
+
+score_data_long <- gen_long(score_data)
+score_data_long_no0 <- gen_long(score_data_no0)
+```
+
+### What were the frequencies of severity scores collected by each scorer?
+
+```{r fig.width=10, fig.height=12}
+#| fig-width: 10
+#| fig-height: 12
+score_data_long_freq <- score_data_long %>%
+  group_by(Scorer, Score) %>%
+  summarise(Count = n(), .groups = 'drop')
+
+my_palette <- colorRampPalette(c("lightgoldenrod1", "red"))(431)
+
+ggplot(score_data_long_freq, aes(x = Scorer, y = Score)) +
+  geom_point(aes(size = Count, color = Count), stat = "identity") +
+  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
+  scale_size_continuous(name = "Count", range = c(0.06, 25)) +
+  scale_colour_gradientn(colours = my_palette) + 
+  labs(x = "Scorer", y = "Score") +
+  theme_minimal()
+```
+
+What does this plot show?
+
+- After excluding 0s, the pattens of score frequencies stand out more.
+
+Hypothesis forming:
+
+1. N/A
+
+### What were the percentages of scores collected by each scorer?
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 10
+#| fig-height: 11
+
+score_data_long_prop <- score_data_long_freq %>%
+  group_by(Scorer) %>%
+  mutate(total_count = sum(Count))
+
+score_data_long_prop <- score_data_long_prop %>%
+  mutate(proportion = Count / total_count)
+
+my_palette <- colorRampPalette(c("lightgoldenrod1", "red"))(345)
+
+ggplot(score_data_long_prop, aes(x = Scorer, y = Score, fill = proportion)) +
+  geom_tile(color = "black") +
+  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradientn(name = "Percentage", colours = my_palette) +
+  labs(x = "Scorer", y = "Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust = 1))
+```
+
+What does this plot show?
+
+- This highlights the differences in percentages of scores collected by each scorer.
+- Scorers 1 and 5 both scored a high proportion of 6s, and a low proportion of 1s and 2s.
+- Scorer 10 scored low proportion of 6s and a high proportion of 4s.
+- Despite CDAs of median 0 being removed, Scorer 4 scored 0 5.1% of the time.
+- Scorer 5 did not score any 0s when the Median was not 0.
+
+Hypothesis forming:
+
+1. N/A
+
+### Was there a difference in total scores collected by scorers?
+
+```{r fig.width=7, fig.height=10}
+#| fig-width: 7
+#| fig-height: 10
+
+# Calculate cumulative frequency for each scorer
+score_data_filtered <- score_data_long %>%
+  filter(!grepl("\\[\\]", Score))
+
+score_data_filtered$Score <- as.integer(score_data_filtered$Score)
+
+cumulative_data <- score_data_filtered %>%
+  group_by(Scorer, Score) %>%
+  summarise(Freq = n())
+
+cumulative_data <- cumulative_data %>%
+  group_by(Scorer) %>%
+  mutate(Cum_Freq = cumsum(Freq)) %>%
+  ungroup()
+
+cumulative_data$Score <- factor(cumulative_data$Score)
+
+total_cumulative <- cumulative_data %>%
+  filter(Score == 6) %>%
+  group_by(Scorer) %>%
+  summarize(total_cumulative = max(Cum_Freq))
+
+total_cumulative
+
+# Plot
+ggplot(cumulative_data, aes(x = Score, y = Cum_Freq, color = Scorer, group = Scorer)) +
+  geom_line(size = 2) +
+  geom_text(data = total_cumulative, aes(label = total_cumulative, x = 7.5, y = total_cumulative), vjust = 0, hjust = 1.2, color = "black", size = 3) +
+  labs(x = "Score", y = "Cumulative Frequency", color = "Scorer") +
+  theme_minimal() +
+  scale_x_discrete(breaks = unique(cumulative_data$Score)) +
+  scale_color_brewer(palette = "Set3")
+
+```
+
+As a table:
+
+| Scorer | Frequency of Non-Zero Scores Collected |
+|--------|---------------------------------------|
+|    1   |                 648                   |
+|    2   |                1408                   |
+|    3   |                1207                   |
+|    4   |                1339                   |
+|    5   |                 529                   |
+|    6   |                1174                   |
+|    7   |                 580                   |
+|    8   |                1275                   |
+|    9   |                1356                   |
+|   10   |                1355                   |
+
+
+What does this plot show?
+
+- A similar trend shows here to the previous plot including median 0s: Scorers 1, 5, and 7 collected fewer scores.
+- However, it is interesting that after removing 0s, the number of scores collected by scorer 5 is much closer to that of scorers 1 and 7 compared to previously, highlighting did not score as many images that received a median score of 0.
+
+Hypothesis forming:
+
+1. N/A
+
+
+### What was the percentage agreement between each pair of scorers?
+
+```{r}
+
+gen_merged_df <- function(score_data_long){
+  # Assuming 'data' is your dataframe
+  data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+  # Assuming 'data' is your dataframe and has been prepared as mentioned earlier
+  pairwise_comparisons <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos")) %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x = Scorer.x, Score.x = Score.x, Scorer.y = Scorer.y, Score.y = Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = 'drop')
+
+  filtered_data <- pairwise_comparisons %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+  filtered_copy <- filtered_data
+  names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+
+  filtered_data <- rbind(filtered_data, filtered_copy)
+
+  agreement_data <- filtered_data %>%
+    group_by(Scorer.x, Scorer.y) %>%
+    summarise(Total = sum(Count),
+              Agree = sum(Count * (Score.x == Score.y)),
+              Percent_Agree = (Agree / Total) * 100,
+              .groups = 'drop')
+
+  agreement_data <- agreement_data[as.integer(agreement_data$Scorer.x) < as.integer(agreement_data$Scorer.y), ]
+
+  all_combinations <- expand.grid(Scorer.x = unique(agreement_data$Scorer.x), Scorer.y = unique(agreement_data$Scorer.y))
+
+  # Merge with the original data frame using a left join
+  merged_df <- all_combinations %>%
+    left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
+    mutate(Total = ifelse(is.na(Total), 0, Total),  # Replace NA values in Total column with 0
+          Agree = ifelse(is.na(Agree), NA, Agree),  # Replace NA values in Agree column with NA
+          Percent_Agree = ifelse(is.na(Percent_Agree), NA, Percent_Agree)) %>%  # Replace NA values in Percent_Agree column with NA
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+
+  return(merged_df)
+}
+
+merged_df <- gen_merged_df(score_data_long)
+merged_df_no0 <- gen_merged_df(score_data_long_no0)
+```
+
+```{r}
+print(merged_df)
+print(merged_df_no0)
+```
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+
+min_value <- min(c(merged_df$Percent_Agree, merged_df_no0$Percent_Agree), na.rm = TRUE)
+max_value <- max(c(merged_df$Percent_Agree, merged_df_no0$Percent_Agree), na.rm = TRUE)
+
+
+# With 0
+pathout <- here("analyses", "02_score_distributions", "pairwiseagree_norm.png")
+png(pathout, height=1000, width=1150)
+ggplot(merged_df, aes(x = Scorer.x, y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))), fill = Percent_Agree)) +
+  geom_tile(color = "black", size = 1) +  # Use tiles to create the heatmap
+  geom_text(aes(label = ifelse(is.na(Percent_Agree), "", sprintf("%.1f%%", Percent_Agree))), color = "white", size = 8, vjust = 0.5, family = "sans", fontface = "bold") +
+  scale_fill_gradient(low = "blue", high = "red", name = "Percentage Agreement", na.value = "white", limits = c(min_value, max_value)) +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  scale_x_discrete(limits = 1:10) +
+  scale_y_discrete(limits = 1:10) +
+  coord_cartesian(xlim = c(1, 10), ylim = c(1, 10)) +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.key.size = unit(2, "lines"),
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))
+dev.off()
+```
+
+```{r}
+# No 0
+pathout <- here("analyses", "02_score_distributions", "pairwiseagreeno0_norm.png")
+png(pathout, height=1000, width=1150)
+ggplot(merged_df_no0, aes(x = Scorer.x, y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))), fill = Percent_Agree)) +
+  geom_tile(color = "black", size = 1) +
+  geom_text(aes(label = ifelse(is.na(Percent_Agree), "", sprintf("%.1f%%", Percent_Agree))), color = "white", size = 8, vjust = 0.5, family = "sans", fontface = "bold") +
+  scale_fill_gradient(low = "blue", high = "red", name = "Percentage Agreement", na.value = "white", limits = c(min_value, max_value)) +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  scale_x_discrete(limits = 1:10) +
+  scale_y_discrete(limits = 1:10) +
+  coord_cartesian(xlim = c(1, 10), ylim = c(1, 10)) +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.key.size = unit(2, "lines"),
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20))
+dev.off()
+```
+
+```{r}
+subset_data <- merged_df %>%
+  filter(Scorer.x == 5, Scorer.y == 6)
+```
+
+
+What does this plot show?
+
+- The minimum agreement has decreased from 34.3% to 16.1% (between the same pair of scorers - Scorer 5 and Scorer 6).
+- Without 0s, the maximum % agreement is 57.1% between Scorer 2 and Scorer 7, down from 76.6 (previously between Scorer 10 and Scorer 7).
+- Scorer 10 and Scorer 8 is interesting, because with 0s they agreed 38.9% of the time and without there was only a 4.2% decrease to 34.7%. This means that they either both scored highly (and were unlikely to give out 0s), or they both scored relatively fewer 0-score CDAs than other pairs.
+- The largest decrease in accuracy after removing 0s was between Scorer 4 and Scorer 1, with a decrease of 30.1% from 70.7% to 40.6%, indicating that the majority of agreement was on 0s, and agreement over other scores was far less likely.
+
+Hypothesis forming:
+
+1. N/A
+
+### Agreement patterns between scorer pairs
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+filtered_data <- pairwise_comparisons %>%
+  filter(!is.na(Score.x) & !is.na(Score.y))
+
+filtered_copy <- filtered_data
+names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+names(filtered_copy)[names(filtered_copy) %in% c("Score.x", "Score.y")] <- c("Score.y", "Score.x")
+filtered_data <- rbind(filtered_data, filtered_copy)
+
+filtered_data <- filtered_data[as.integer(filtered_data$Scorer.x) <= as.integer(filtered_data$Scorer.y), ]
+
+my_palette <- colorRampPalette(c("lightblue", "red"))(100)
+
+filtered_data$Scorer.y <- factor(filtered_data$Scorer.y, levels = rev(levels(filtered_data$Scorer.y)))
+
+```
+
+```{r}
+library(tidyr)
+#pathout <- here("analyses", "02_score_distributions", "pair_patterns_no0.png")
+#png(pathout, height=1000, width=1150)
+levels_x <- levels_y <- as.character(1:10)
+filtered_data <- filtered_data %>%
+  mutate(Scorer.x = factor(Scorer.x, levels = levels_x),
+         Scorer.y = factor(Scorer.y, levels = levels_y))
+complete_data <- complete(filtered_data,
+                          Scorer.x = factor(levels_x, levels = levels_x),
+                          Scorer.y = factor(levels_y, levels = levels_y),
+                          fill = list(Count = 0))
+complete_data <- complete_data %>% mutate(Scorer.y = forcats::fct_rev(Scorer.y))
+real_data <- complete_data %>% filter(Count > 0)
+
+```
+
+```{r}
+pathout <- here("analyses", "02_score_distributions", "pair_patterns_no0.png")
+png(pathout, height=1000, width=1150)
+ggplot(complete_data, aes(x = Score.x, y = Score.y)) +
+  geom_tile(aes(fill = Count), color = "black", size = 0.5) +
+  geom_abline(data = real_data, aes(intercept = 0, slope = 1), linetype = "dashed") +
+  scale_fill_gradientn(colours = my_palette, name = "Frequency") +
+  facet_grid(Scorer.y ~ Scorer.x, switch = "both") +
+  theme_bw() +
+  labs(x = "Scorer X", y = "Scorer Y") + 
+  theme(panel.spacing = unit(0.25, "lines"),
+        strip.placement = "outside",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.key.size = unit(2, "lines"),
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)
+        )
+dev.off()
+```
+
+```{r}
+subset_data <- filtered_data %>%
+  filter(Scorer.x == 5, Scorer.y == 6)
+
+pathsingle <- here("analyses", "02_score_distributions", "singletrend.png")
+png(pathsingle, height=600, width=650)
+ggplot(subset_data, aes(x = Score.x, y = Score.y)) +
+  geom_tile(aes(fill = Count), color = "black", size = 0.5) +
+  geom_abline(data = subset_data, aes(intercept = 0, slope = 1), linetype = "dashed") +
+  scale_fill_gradientn(colours = my_palette, name = "Frequency") +
+  facet_grid(Scorer.y ~ Scorer.x, switch = "both") +
+  theme_bw() +
+  labs(x = "Scorer X", y = "Scorer Y") + 
+  theme(panel.spacing = unit(0.25, "lines"),
+        strip.placement = "outside",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.key.size = unit(2, "lines"),
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)
+        ) +
+  scale_x_continuous(limits = c(-0.5, max(subset_data$Score.x) + 1), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-0.5, max(subset_data$Score.y) + 1), expand = c(0, 0))
+dev.off()
+
+
+```
+
+What does this plot show?
+
+- Like previously, there are trends showing some scorers to score higher or lower than others, for example Scorer 5 typically scores higher than the median, and Scorer 4 often scores lower than the median.
+- The most frequent pattern is still that of agreement though.
+
+Hypothesis forming:
+
+1. N/A

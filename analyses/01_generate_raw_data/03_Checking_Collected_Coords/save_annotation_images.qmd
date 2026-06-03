@@ -1,0 +1,55 @@
+---
+title: "Save annotation images for all raw agroinfiltration images"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Date: 02/06/2026
+
+## GOHREP
+**Goal:**
+
+Generate a JPEG annotation image for every raw agroinfiltration image in both
+dataset parts, showing all collected bounding boxes overlaid on the image.
+
+**Experimental plan:**
+
+1. Load the checked annotation data for both dataset parts
+2. For each unique agroinfiltration image, save an annotated JPEG to data/annotations/
+3. Requires connection to the lab network drive
+
+### Import required packages
+```{python}
+import pandas as pd
+from pathlib import Path
+import sys
+
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
+sys.path.append(str(repo_root / 'src'))
+from annotation_viewer import save_all_annotation_images
+```
+
+### Set paths
+```{python}
+SCORING_DIRS = {
+    1: "/Volumes/shared/Research-Groups/Mark-Banfield/Josh_Williams/Scoring_5May",
+    2: "/Volumes/shared/Research-Groups/Mark-Banfield/Josh_Williams/Scoring_20Oct",
+}
+
+output_dir = repo_root / "data/annotations"
+checked_dir = repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords"
+```
+
+### Save Set 1 annotation images
+```{python}
+data1 = pd.read_csv(checked_dir / "combined_cda_data_checked_1.csv")
+save_all_annotation_images(data1, SCORING_DIRS[1], output_dir, skip_existing=True)
+```
+
+### Save Set 2 annotation images
+```{python}
+data2 = pd.read_csv(checked_dir / "combined_cda_data_checked_2.csv")
+save_all_annotation_images(data2, SCORING_DIRS[2], output_dir, skip_existing=True)
+```
