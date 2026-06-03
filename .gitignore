@@ -8,9 +8,15 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Quarto intermediate files
+*.ipynb
+*_files/
+
 # Raw and derived images (large, stored externally or regenerable)
 data/raw_images_rotated/
 data/cropped_images/
+data/annotations/
+data/zenodo/
 
-# NumPy dataset arrays (large binary files)
-data/datasets/*.npy
+# Claude
+.claude/
