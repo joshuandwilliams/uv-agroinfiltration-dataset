@@ -1,0 +1,39 @@
+name: uv-agroinfiltration
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # Python
+  - python=3.12
+
+  # Core data
+  - pandas
+  - numpy
+
+  # Image processing
+  - opencv
+  - pillow
+
+  # Statistics and ML utilities
+  - scikit-learn
+  - matplotlib
+
+  # Testing
+  - pytest
+  - pytest-mock
+  - pyfakefs
+
+  # R
+  - r-base
+  - r-tidyverse
+  - r-here
+  - r-rcolorbrewer
+  - bioconductor-ebimage
+
+  # Quarto (for rendering .qmd analyses)
+  - quarto
+
+  # pip-only packages
+  - pip:
+    - reportlab
+    - requests
