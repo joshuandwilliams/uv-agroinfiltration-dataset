@@ -1,0 +1,69 @@
+cff-version: 1.2.0
+title: "6,364 UV-Spectra Agroinfiltration Cell Death Area Images Scored by Severity"
+message: "If you use this dataset, please cite it using the metadata from this file."
+type: dataset
+version: 0.0.1
+date-released: "2026-06-02"
+license: CC-BY-NC-4.0
+doi: 10.5281/zenodo.20493034
+repository-code: https://github.com/joshuandwilliams/uv-agroinfiltration-dataset
+keywords:
+  - agroinfiltration
+  - cell death
+  - Nicotiana benthamiana
+  - image dataset
+  - severity scoring
+  - UV spectra
+  - plant immunity
+  - inter-rater reliability
+  - annotation
+abstract: >
+  A dataset of 6,364 annotated images of agroinfiltration cell death areas (CDAs)
+  captured under UV-spectra light in Nicotiana benthamiana. The severity of cell
+  death in each image has been scored on an ordinal scale from 0 (no cell death)
+  to 6 (strong cell death) by 3 separate individuals, with the median score used
+  as the ground truth label. Bounding box coordinates and individual scorer
+  annotations are included to support inter-rater reliability research and
+  re-extraction of crops at alternative resolutions.
+authors:
+  - given-names: Joshua
+    family-names: Williams
+    orcid: https://orcid.org/0000-0002-8423-5549
+    affiliation: "John Innes Centre, Department of Biochemistry & Metabolism"
+  - given-names: Mark
+    family-names: Banfield
+    orcid: https://orcid.org/0000-0001-8921-3835
+    affiliation: "John Innes Centre, Department of Biochemistry & Metabolism"
+  - given-names: Dan
+    family-names: MacLean
+    orcid: https://orcid.org/0000-0003-1032-0887
+    affiliation: "The Sainsbury Laboratory"
+references:
+  - type: article
+    title: "Structural basis of pathogen recognition by an integrated HMA domain in a plant NLR immune receptor"
+    authors:
+      - family-names: Maqbool
+        given-names: Abbas
+      - family-names: Saitoh
+        given-names: Hiromasa
+      - family-names: Franceschetti
+        given-names: Marina
+      - family-names: Stevenson
+        given-names: Clare E M
+      - family-names: Uemura
+        given-names: Akiko
+      - family-names: Kanzaki
+        given-names: Hiroe
+      - family-names: Kamoun
+        given-names: Sophien
+      - family-names: Terauchi
+        given-names: Ryohei
+      - family-names: Banfield
+        given-names: Mark J
+    doi: 10.7554/eLife.08709
+    year: 2015
+    journal: eLife
+    volume: 4
+    identifiers:
+      - type: doi
+        value: 10.7554/eLife.08709
