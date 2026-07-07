@@ -127,21 +127,15 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Determine whether scorers’ over- and under-scoring errors are <em>independent</em> per CDA, or whether they <strong>cluster</strong> — either in time (a sequential momentum / anchoring effect, where having just scored high makes the next score more likely to be high) or by image (an experiment-level effect, where a scorer’s deviation is consistent within a leaf/image but shifts between images).</p>
+<p>Determine whether raters’ over- and under-scoring errors are <em>independent</em> per CDA, or whether they <strong>cluster</strong> — either in time (a sequential momentum / anchoring effect, where having just scored high makes the next score more likely to be high) or by image (an experiment-level effect, where a rater’s deviation is consistent within a leaf/image but shifts between images).</p>
 <p><strong>Hypothesis:</strong></p>
 <ol type="1">
 <li>In the rescore task (originals presented in <em>randomised</em> order), drift <code>new − old</code> will show little sequential autocorrelation — there is no stimulus structure to anchor to.</li>
 <li>In the original scoring (CDAs scored in image order), residual disagreement will appear autocorrelated, but this will be an <strong>image-blocking</strong> effect (consecutive CDAs share a leaf) rather than genuine temporal momentum.</li>
-<li>Between-scorer disagreement will carry a modest but real <strong>image-level</strong> component: two scorers’ relative offset is more consistent within an image than between images.</li>
+<li>Between-rater disagreement will carry a modest but real <strong>image-level</strong> component: two raters’ relative offset is more consistent within an image than between images.</li>
 </ol>
 <p><strong>Rationale:</strong></p>
-<p>This follows up a question raised in <code>06_intra_rater_reliability</code>: do over-/under-scoring patterns occur in groups? The danger is mistaking experimental structure for scorer psychology. Original scoring is not random — infiltration layouts place controls (0s) together, leaves differ in lighting/background, and neighbouring spots on a leaf share treatment — so consecutive scores are correlated for reasons that have nothing to do with sequential anchoring. We therefore (a) use the <em>randomised-order</em> rescore as a clean temporal test, (b) decompose the original-scoring autocorrelation into within- vs across-image, and (c) test image-level structure directly with a confound-free pairwise comparison.</p>
-<p><strong>Experimental plan:</strong></p>
-<ol type="1">
-<li>Rescore drift autocorrelation (randomised order → clean temporal test).</li>
-<li>Original-scoring residual autocorrelation, decomposed into within-image vs across-image consecutive pairs.</li>
-<li>Between-scorer pairwise disagreement: variance decomposition (ICC) by image, with and without 0-median CDAs.</li>
-</ol>
+<p>This follows up a question raised in <code>06_intra_rater_reliability</code>: do over-/under-scoring patterns occur in groups? The danger is mistaking experimental structure for rater psychology. Original scoring is not random — infiltration layouts place controls (0s) together, leaves differ in lighting/background, and neighbouring spots on a leaf share treatment — so consecutive scores are correlated for reasons that have nothing to do with sequential anchoring. We therefore (a) use the <em>randomised-order</em> rescore as a clean temporal test, (b) decompose the original-scoring autocorrelation into within- vs across-image, and (c) test image-level structure directly with a confound-free pairwise comparison.</p>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -201,7 +195,7 @@ Attaching package: 'scales'</code></pre>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.2</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"src"</span>, <span class="st">"plotting_helpers.R"</span>))</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Canonical three-scorer panel (one row per CDA).</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Canonical three-rater panel (one row per CDA).</span></span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>canon <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"04_median_and_centre_coords"</span>, <span class="st">"combined_cda_data_median.csv"</span>),</span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
@@ -235,12 +229,12 @@ Attaching package: 'scales'</code></pre>
 </section>
 <section id="temporal-test-1-rescore-drift-randomised-order" class="level2">
 <h2 class="anchored" data-anchor-id="temporal-test-1-rescore-drift-randomised-order">2. Temporal test 1 — rescore drift (randomised order)</h2>
-<p>The rescore originals were presented in a randomised order, so consecutive trials are unrelated images. Any autocorrelation in the drift <code>new − old</code> is therefore a <strong>pure sequential effect</strong>. The cost is power: only ~100 trials per scorer.</p>
+<p>The rescore originals were presented in a randomised order, so consecutive trials are unrelated images. Any autocorrelation in the drift <code>new − old</code> is therefore a <strong>pure sequential effect</strong>. The cost is power: only ~100 trials per rater.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.1</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># rescore_anon/ holds one file per scorer, already anonymised (filename and</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># rescore_anon/ holds one file per rater, already anonymised (filename and</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># `scorer` column both give the same ID).</span></span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>rescore_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"06_intra_rater_reliability"</span>, <span class="st">"rescore_anon"</span>),</span>
@@ -304,7 +298,7 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(rescore, <span class="fu">aes</span>(seq, cum)) <span class="sc">+</span></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
 <span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rescoring order"</span>, <span class="at">y =</span> <span class="st">"Cumulative</span><span class="sc">\n</span><span class="st">mean-centred drift"</span>) <span class="sc">+</span></span>
 <span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
@@ -325,19 +319,18 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>The cumulative drift wanders in long excursions — but a cumulative sum of <em>independent</em> noise is a random walk that wanders identically, so the eye is unreliable here; the formal tests are what count.</li>
-<li>Every scorer’s runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.</li>
+<li>Every rater’s runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 <section id="temporal-test-2-original-scoring-image-ordered" class="level2">
 <h2 class="anchored" data-anchor-id="temporal-test-2-original-scoring-image-ordered">3. Temporal test 2 — original scoring (image-ordered)</h2>
-<p>The original scoring was done in image order, with thousands of scores per scorer — far more power, but consecutive CDAs usually share an image. Each score is compared to the <strong>leave-one-out consensus</strong> (the median, i.e.&nbsp;mean, of the <em>other two</em> scorers on that CDA), giving a residual <code>score − consensus</code>. Scores are matched to the canonical panel by image and CDA position; the leave-one-out reference removes the self-inclusion that would otherwise force a score to match its own median.</p>
+<p>The original scoring was done in image order, with thousands of scores per rater — far more power, but consecutive CDAs usually share an image. Each score is compared to the <strong>leave-one-out consensus</strong> (the median, i.e.&nbsp;mean, of the <em>other two</em> raters on that CDA), giving a residual <code>score − consensus</code>. Scores are matched to the canonical panel by image and CDA position; the leave-one-out reference removes the self-inclusion that would otherwise force a score to match its own median.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co"># data/cdascorer_anon/ holds one file per scorer, named Scorer&lt;ID&gt;.csv - see</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co"># data/cdascorer_anon/ holds one file per rater, named Scorer&lt;ID&gt;.csv - see</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># the anonymisation script under scripts/.</span></span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>read_raw_set <span class="ot">&lt;-</span> <span class="cf">function</span>(set) {</span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"cdascorer_anon"</span>, set), <span class="at">pattern =</span> <span class="st">"[.]csv$"</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
@@ -366,11 +359,11 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
 <span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Matched raw scores:"</span>, <span class="fu">nrow</span>(raw_resid), <span class="st">"across"</span>,</span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">n_distinct</span>(<span class="fu">paste</span>(raw_resid<span class="sc">$</span>Scorer, raw_resid<span class="sc">$</span>Set)), <span class="st">"scorer-sessions</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">n_distinct</span>(<span class="fu">paste</span>(raw_resid<span class="sc">$</span>Scorer, raw_resid<span class="sc">$</span>Set)), <span class="st">"rater-sessions</span><span class="sc">\n</span><span class="st">"</span></span>
 <span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Matched raw scores: 17943 across 17 scorer-sessions</code></pre>
+<pre><code>Matched raw scores: 17943 across 17 rater-sessions</code></pre>
 </div>
 <details>
 <summary>Code</summary>
@@ -475,18 +468,17 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <li>Pooled across the original scoring the residual is strongly positively autocorrelated — but this is <strong>entirely a within-image effect</strong>. ~97% of consecutive scores share an image; the lag-1 autocorrelation is large and highly significant for same-image pairs yet indistinguishable from zero across image boundaries (CI spans 0).</li>
 <li>This matches §2: when the context changes — randomised rescore order, or crossing an image boundary — there is no residual momentum. The apparent clustering is image-blocking, not sequential anchoring.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 </section>
 <section id="image-level-structure-of-disagreement-confound-free" class="level2">
 <h2 class="anchored" data-anchor-id="image-level-structure-of-disagreement-confound-free">4. Image-level structure of disagreement (confound-free)</h2>
-<p>The temporal tests show disagreement is organised at the image level, but the raw-score autocorrelation conflates several things (the experimental layout, the abundance of agreed 0s, per-image bias). A cleaner test, free of temporal order and of the self-vs-median issue, looks at the <strong>difference between two scorers</strong> on the same CDA: the true severity cancels, leaving only their relative disagreement. If that difference is consistent within an image but shifts between images, disagreement has an image-level component. This is the intraclass correlation (ICC) of the pairwise difference with image as the grouping factor: the fraction of disagreement variance attributable to <em>which image</em> a CDA is on.</p>
+<p>The temporal tests show disagreement is organised at the image level, but the raw-score autocorrelation conflates several things (the experimental layout, the abundance of agreed 0s, per-image bias). A cleaner test, free of temporal order and of the self-vs-median issue, looks at the <strong>difference between two raters</strong> on the same CDA: the true severity cancels, leaving only their relative disagreement. If that difference is consistent within an image but shifts between images, disagreement has an image-level component. This is the intraclass correlation (ICC) of the pairwise difference with image as the grouping factor: the fraction of disagreement variance attributable to <em>which image</em> a CDA is on.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co"># All within-CDA scorer pairs, oriented lower-ID minus higher-ID, with image label.</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co"># All within-CDA rater pairs, oriented lower-ID minus higher-ID, with image label.</span></span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>mk_pair <span class="ot">&lt;-</span> <span class="cf">function</span>(d, a, b) {</span>
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">%&gt;%</span></span>
 <span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">transmute</span>(Basename, Median_Score,</span>
@@ -502,7 +494,7 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>pairs <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">mk_pair</span>(canon, <span class="dv">1</span>, <span class="dv">2</span>), <span class="fu">mk_pair</span>(canon, <span class="dv">1</span>, <span class="dv">3</span>), <span class="fu">mk_pair</span>(canon, <span class="dv">2</span>, <span class="dv">3</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pair, Basename, Median_Score, diff)</span>
 <span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Random-effects (one-way ANOVA) ICC of the difference by image, for one scorer-pair.</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Random-effects (one-way ANOVA) ICC of the difference by image, for one rater-pair.</span></span>
 <span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>icc_by_pair <span class="ot">&lt;-</span> <span class="cf">function</span>(df) {</span>
 <span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
 <span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Basename) <span class="sc">%&gt;%</span></span>
@@ -574,7 +566,7 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Non-zero median only"</span> <span class="ot">=</span> <span class="st">"#3182bd"</span></span>
 <span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
 <span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">NA</span>)) <span class="sc">+</span></span>
-<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"ICC of pairwise difference by image</span><span class="sc">\n</span><span class="st">(per scorer-pair)"</span>) <span class="sc">+</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"ICC of pairwise difference by image</span><span class="sc">\n</span><span class="st">(per rater-pair)"</span>) <span class="sc">+</span></span>
 <span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>))</span>
 <span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -589,11 +581,10 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Each point is one scorer-pair; the ICC is the share of their disagreement variance explained by image.</li>
-<li>The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two scorers’ relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).</li>
+<li>Each point is one rater-pair; the ICC is the share of their disagreement variance explained by image.</li>
+<li>The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two raters’ relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).</li>
 <li>Crucially, <strong>removing the abundant agreed-0 CDAs raises the ICC</strong> rather than lowering it — so the image-level structure is not an artefact of zero-heavy control regions; it is strongest among genuinely contested CDAs.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="illustration-per-image-mean-difference-for-the-best-sampled-pairs" class="level3">
 <h3 class="anchored" data-anchor-id="illustration-per-image-mean-difference-for-the-best-sampled-pairs">4.2 Illustration: per-image mean difference for the best-sampled pairs</h3>
@@ -628,7 +619,7 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 <span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>pair, <span class="at">scales =</span> <span class="st">"free_x"</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
 <span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
 <span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Image (ranked by mean difference)"</span>,</span>
-<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Mean score difference</span><span class="sc">\n</span><span class="st">(scorer A − scorer B)"</span></span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Mean score difference</span><span class="sc">\n</span><span class="st">(rater A − rater B)"</span></span>
 <span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
@@ -648,20 +639,37 @@ Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>For the best-sampled scorer-pairs, each point is the mean difference on one image with its 95% CI.</li>
-<li>The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two scorers’ relative offset shifts from image to image while being comparatively settled within each image.</li>
+<li>For the best-sampled rater-pairs, each point is the mean difference on one image with its 95% CI.</li>
+<li>The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two raters’ relative offset shifts from image to image while being comparatively settled within each image.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 </section>
-<section id="discussion-confounds-and-interpretation" class="level2">
-<h2 class="anchored" data-anchor-id="discussion-confounds-and-interpretation">5. Discussion — confounds and interpretation</h2>
-<p><strong>Same image = same experiment.</strong> Original scoring is not a random sequence. CDAs on one image are spots on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two effects follow: (i) the underlying severities are correlated, and (ii) a scorer’s <em>reading</em> of that leaf (exposure, contrast, what counts as “necrotic” under that lighting) is correlated. The §3 within-image autocorrelation and the §4 ICC both capture this image-level structure; neither is evidence of temporal anchoring, which the randomised rescore (§2) and the across-image boundary (§3.1) both rule out.</p>
-<p><strong>The abundance of 0s and non-random layout.</strong> Infiltration layouts group controls together, so a scorer genuinely does see runs of 0s — but those are near-universally agreed, so they contribute <em>agreement</em>, not disagreement structure. This is why the analyses use <strong>residuals / pairwise differences</strong> rather than raw scores (which would be trivially autocorrelated by the design), and why the §4 ICC is computed both with and without 0s. The result is reassuring: excluding 0s <em>increases</em> the image-level ICC, so the structure lives in the contested mid-range CDAs, not in the clustered controls.</p>
-<p><strong>Is class balancing necessary?</strong> For the <em>temporal</em> tests, no — and it would be harmful: down-sampling or re-weighting score classes destroys the true adjacency of the sequence, so a “lag-1” on a balanced series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not raw scores) and the within/across-image split, both of which are done. For the <em>image-level</em> ICC, balance is handled implicitly: the difference between two scorers already removes the severity (class) signal, and reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant 0 class.</p>
-<p><strong>Overall.</strong> Over-/under-scoring does <strong>not</strong> have temporal momentum across contexts — a scorer’s last score does not pull their next one once the image changes. What is real is a modest <strong>image-level</strong> structure to disagreement: two scorers’ relative calibration drifts somewhat from image to image (plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an individual cell-death area.</p>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">5. Discussion</h2>
+<section id="rescore-drift-autocorrelation-temporal-test-1" class="level3">
+<h3 class="anchored" data-anchor-id="rescore-drift-autocorrelation-temporal-test-1">5.1 Rescore drift autocorrelation (temporal test 1)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="original-scoring-residual-autocorrelation-temporal-test-2" class="level3">
+<h3 class="anchored" data-anchor-id="original-scoring-residual-autocorrelation-temporal-test-2">5.2 Original-scoring residual autocorrelation (temporal test 2)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="icc-of-pairwise-disagreement-by-image-1" class="level3">
+<h3 class="anchored" data-anchor-id="icc-of-pairwise-disagreement-by-image-1">5.3 ICC of pairwise disagreement by image</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="illustration-per-image-mean-difference-for-the-best-sampled-pairs-1" class="level3">
+<h3 class="anchored" data-anchor-id="illustration-per-image-mean-difference-for-the-best-sampled-pairs-1">5.4 Illustration: per-image mean difference for the best-sampled pairs</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative-confounds-and-interpretation" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative-confounds-and-interpretation">5.5 Overall narrative — confounds and interpretation</h3>
+<p><strong>Same image = same experiment.</strong> Original scoring is not a random sequence. CDAs on one image are spots on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two effects follow: (i) the underlying severities are correlated, and (ii) a rater’s <em>reading</em> of that leaf (exposure, contrast, what counts as “necrotic” under that lighting) is correlated. The §3 within-image autocorrelation and the §4 ICC both capture this image-level structure; neither is evidence of temporal anchoring, which the randomised rescore (§2) and the across-image boundary (§3.1) both rule out.</p>
+<p><strong>The abundance of 0s and non-random layout.</strong> Infiltration layouts group controls together, so a rater genuinely does see runs of 0s — but those are near-universally agreed, so they contribute <em>agreement</em>, not disagreement structure. This is why the analyses use <strong>residuals / pairwise differences</strong> rather than raw scores (which would be trivially autocorrelated by the design), and why the §4 ICC is computed both with and without 0s. The result is reassuring: excluding 0s <em>increases</em> the image-level ICC, so the structure lives in the contested mid-range CDAs, not in the clustered controls.</p>
+<p><strong>Is class balancing necessary?</strong> For the <em>temporal</em> tests, no — and it would be harmful: down-sampling or re-weighting score classes destroys the true adjacency of the sequence, so a “lag-1” on a balanced series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not raw scores) and the within/across-image split, both of which are done. For the <em>image-level</em> ICC, balance is handled implicitly: the difference between two raters already removes the severity (class) signal, and reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant 0 class.</p>
+<p><strong>Overall.</strong> Over-/under-scoring does <strong>not</strong> have temporal momentum across contexts — a rater’s last score does not pull their next one once the image changes. What is real is a modest <strong>image-level</strong> structure to disagreement: two raters’ relative calibration drifts somewhat from image to image (plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an individual cell-death area.</p>
+</section>
 </section>
 
 </main>
