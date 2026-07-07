@@ -62,10 +62,6 @@ source(here("src", "data_helpers.R"))
 source(here("src", "plotting_helpers.R"))
 
 save_plot <- make_save_plot("02_score_distributions")
-
-# Direction palette for signed distance plots (severity palette sev_pal comes
-# from plotting_helpers.R)
-dir_pal <- c("Above" = "firebrick", "At" = "grey60", "Below" = "#3182bd")
 ```
 
 ```{r}
@@ -385,154 +381,14 @@ if (nrow(score_data_nas) > 0) {
 
 ---
 
-## 5. Distance from median
+## 5. Discussion
 
-### 5.1 Signed distance from median by rater (percentage heatmap)
-
-```{r fig.width=10, fig.height=13}
-#| fig-width: 10
-#| fig-height: 13
-# 5.1
-dist_data <- score_data_valid %>%
-  mutate(
-    Distance_to_Median = Score - Median_Score,
-    Direction = case_when(
-      Distance_to_Median > 0 ~ "Above",
-      Distance_to_Median < 0 ~ "Below",
-      TRUE ~ "At"
-    )
-  )
-
-dist_freq <- dist_data %>%
-  group_by(Scorer, Distance_to_Median, Direction) %>%
-  summarise(Count = n(), .groups = "drop")
-
-dist_pct <- dist_freq %>%
-  group_by(Scorer) %>%
-  mutate(proportion = Count / sum(Count))
-
-scorer_totals <- dist_freq %>%
-  group_by(Scorer) %>%
-  summarise(Total = sum(Count), .groups = "drop")
-
-scorer_labels <- setNames(
-  paste0(scorer_totals$Scorer, "\n(n=", scorer_totals$Total, ")"),
-  as.character(scorer_totals$Scorer)
-)
-
-ymin <- min(dist_pct$Distance_to_Median)
-ymax <- max(dist_pct$Distance_to_Median)
-
-p <- ggplot(dist_pct, aes(x = Scorer, y = Distance_to_Median, fill = proportion * 100)) +
-  geom_tile(color = "black") +
-  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), color = "black", size = 4, vjust = 0.5) +
-  scale_fill_gradient(name = "Percentage\n(within Rater)", low = "white", high = "firebrick") +
-  scale_x_discrete(labels = scorer_labels) +
-  scale_y_continuous(breaks = ymin:ymax, limits = c(ymin - 0.5, ymax + 0.5)) +
-  coord_equal() +
-  labs(x = "Rater", y = "Distance to Median Severity Score") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11),
-    panel.grid = element_blank()
-  )
-p
-save_plot(p, "dist_from_median_pct.png", width = 10, height = 13, dir = "thesis_plots")
-```
-
-**What this shows:**
-
-- This plot also shows the disagreement patterns between raters and the median, but as a percentage rather than an absolute count. This makes it clearer to compare distributions between raters.
-- Rater 5 agrees with the median far less often than any other raters - only 51.3% of the time. Of the remaining 48.7%, 48.4% of the time they score above the median, and 0.3% below.
-- This plot shows the disagreement patterns between each rater and the median score.
-- For all raters, the most common outcome was agreement of the median.
-- Some raters (e.g. Rater 5) tend to score higher than the median. Other raters (e.g. Rater 4) tend to score lower than the median.
-- Occasionally, some raters collect scores that are very far from the median - 4, 5, or even 6 scores away.
-
-### 5.2 Absolute distance from median by median score (percentage heatmap)
-
-```{r fig.width=10, fig.height=10}
-#| fig-width: 10
-#| fig-height: 10
-# 5.2
-absdist_data <- score_data_valid %>%
-  mutate(Distance_to_Median = abs(Score - Median_Score))
-
-absdist_freq <- absdist_data %>%
-  group_by(Median_Score, Distance_to_Median) %>%
-  summarise(Count = n(), .groups = "drop")
-
-absdist_pct <- absdist_freq %>%
-  group_by(Median_Score) %>%
-  mutate(proportion = Count / sum(Count))
-
-median_totals <- absdist_freq %>%
-  group_by(Median_Score) %>%
-  summarise(Total = sum(Count), .groups = "drop")
-
-median_labels <- setNames(
-  paste0(median_totals$Median_Score, "\n(n=", median_totals$Total, ")"),
-  as.character(median_totals$Median_Score)
-)
-
-ymax <- max(absdist_pct$Distance_to_Median)
-
-p <- ggplot(absdist_pct, aes(x = factor(Median_Score), y = Distance_to_Median, fill = proportion * 100)) +
-  geom_tile(color = "black") +
-  geom_text(aes(label = sprintf("%.1f%%", proportion * 100)), color = "black", size = 4, vjust = 0.5) +
-  scale_fill_gradient(name = "Percentage\n(within Median\nSeverity Score)", low = "white", high = "firebrick") +
-  scale_x_discrete(labels = median_labels) +
-  scale_y_continuous(breaks = 0:ymax) +
-  coord_equal() +
-  labs(x = "Median Severity Score", y = "Absolute Distance from Median Severity Score") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11),
-    panel.grid = element_blank()
-  )
-p
-save_plot(p, "abs_dist_by_median_pct.png", width = 10, height = 10, dir = "thesis_plots")
-```
-
-**What this shows:**
-
-- This plot shows what proportion of the time disagreeing scores were chosen for each median score.
-- The extreme scores 0 and 6 were agreed upon much more often than the intermediate scores.
-- The counts represent all the annotations that were involved in cell death areas of each median score (e.g. not all the median-1 cell death area received three 1s, which is why the number differs from the raw count of 1s collected).
-- This plot shows how often disagreeing scores are chosen for each median score.
-- Agreement with the median is the most common outcome for every score level.
-- 99.8% (3017/3035) of median-0 CDAs were scored within ±1 of the median. Score 3 had the lowest within-±1 rate at 94.4% (1987/2104).
-- Score 5 had the largest percentage of disagreeing scores at 35.2%, closely followed by score 2 at 34.8%, compared to only 4.0% for score 0.
-
----
-
-## 6. Discussion
-
-### 6.1 Score distributions
+### 5.1 Score distributions
 
 - The score distributions collected reflect experimental design and biological outcomes. Some experiments have quite binary outcomes (0 or 6) whilst others have more balanced phenotypes, showing a range of intermediate scores.
 - A score of 0 is common because of both experimental (intentional negative control included in all experiments) and biological (no expression or no immune response) outcomes.
 
-### 6.2 Differences between raters
-
-- The differences in the score distributions collected by each rater could be down to the images they were randomly allocated, but it could also reflect differences in scoring strategy or interpretation of the scoring key.
-- The distribution of scores may be due to the random allocation of images during the collection process. The images came from a series of different projects in the Banfield lab, which worked with different biological systems that may show different phenotypic distributions.
-- The difference in overall score count are due to three raters (1, 5, and 7) only scoring one of the two datasets.
-
-### 6.3 Scoring disagreement
-
-- Scoring disagreement may arise due to individual (scoring biases driven by past scoring experiences) or experimental (ambiguous scoring key interpreted differently by different raters) reasons.
-- Score 0 is more unambiguous than intermediate scores. It is a complete lack of cell death area. This may be why cell death areas with a median score of 0 saw fewer disagreeing scores.
-- Cell death areas with median 0 scores receive far less scoring variance, and almost nothing beyond the adjacent score. It is an unambiguous task.
-- Intermediate scores, which may be more subjective or less clearly align to the scoring key, are scored less consistently.
-
-### 6.4 Missing scores
+### 5.2 Missing scores
 
 - Missed scores represent intentional choices, not accidental omissions.
 - The annotation tool includes a skip button which the annotators were instructed use for cell death areas that were highly unclear (e.g. leaf folding), damaged, or overlapping with adjacent cell death areas. Different interpretations of these descriptions may account for the variable skip counts.
@@ -540,14 +396,14 @@ save_plot(p, "abs_dist_by_median_pct.png", width = 10, height = 10, dir = "thesi
 
 ---
 
-## 7. Additional visualisations
+## 6. Additional visualisations
 
-### 7.1 Dotplot of all scores, sorted by median score
+### 6.1 Dotplot of all scores, sorted by median score
 
 ```{r fig.width=14, fig.height=8}
 #| fig-width: 14
 #| fig-height: 8
-# 7.1
+# 6.1
 score_data_sorted <- score_data_raw %>%
   arrange(Median_Score) %>%
   mutate(row_index = row_number())
@@ -588,12 +444,12 @@ p
 save_plot(p, "dotplot_scores_sorted_by_median.png", 14, 8)
 ```
 
-### 7.2 Score frequency by rater (bubble)
+### 6.2 Score frequency by rater (bubble)
 
 ```{r fig.width=10, fig.height=12}
 #| fig-width: 10
 #| fig-height: 12
-# 7.2
+# 6.2
 p <- ggplot(score_freq, aes(x = Scorer, y = Score)) +
   geom_point(aes(size = Count, color = factor(Score)), stat = "identity") +
   geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
@@ -611,54 +467,4 @@ p <- ggplot(score_freq, aes(x = Scorer, y = Score)) +
   coord_cartesian(ylim = c(-0.6, 6.2))
 p
 save_plot(p, "score_freq.png", width = 10, height = 12)
-```
-
-### 7.3 Signed distance from median by rater (bubble)
-
-```{r fig.width=10, fig.height=14}
-#| fig-width: 10
-#| fig-height: 14
-# 7.3
-p <- ggplot(dist_freq, aes(x = Scorer, y = Distance_to_Median)) +
-  geom_point(aes(size = Count, color = Direction), stat = "identity") +
-  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
-  scale_size_continuous(name = "Frequency", range = c(0.012, 25)) +
-  scale_color_manual(name = "Direction", values = dir_pal) +
-  scale_y_continuous(breaks = -6:6) +
-  labs(x = "Rater", y = "Distance to Median Severity Score") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11)
-  )
-p
-save_plot(p, "dist_from_median_freq.png", width = 10, height = 14)
-```
-
-### 7.4 Absolute distance from median by median score (bubble)
-
-```{r fig.width=10, fig.height=10}
-#| fig-width: 10
-#| fig-height: 10
-# 7.4
-p <- ggplot(absdist_freq, aes(x = Median_Score, y = Distance_to_Median)) +
-  geom_point(aes(size = Count, color = factor(Median_Score)), stat = "identity") +
-  geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
-  scale_size_continuous(name = "Frequency", range = c(3, 25)) +
-  scale_color_manual(name = "Median Severity\nScore", values = sev_pal) +
-  scale_x_continuous(breaks = 0:6) +
-  scale_y_continuous(breaks = 0:6) +
-  labs(x = "Median Severity Score", y = "Absolute Distance from Median Severity Score") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11)
-  ) +
-  coord_cartesian(xlim = c(-0.25, 6), ylim = c(-0.25, 6))
-p
-save_plot(p, "abs_dist_by_median.png", width = 10, height = 10)
 ```
