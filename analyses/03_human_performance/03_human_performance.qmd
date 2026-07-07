@@ -50,10 +50,10 @@ data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_
 
 ## 2. Compute agreement metrics
 
-When a CDA has received 3 different scores, Metric 1 gives 33% agreement, whilst Metric 2 gives 0% agreement.
-
 ```{python}
 # 2.0
+# When a CDA has received 3 different scores, Metric 1 gives 33% agreement,
+# whilst Metric 2 gives 0% agreement.
 results_path = repo_root / "analyses" / "03_human_performance" / "human_performance_results.csv"
 
 
@@ -244,32 +244,6 @@ plot_distribution(pairwise_dist, f"{plots_dir}/metric2_exact.png", "Exact Accura
 plot_distribution(pairwise_nearmiss, f"{plots_dir}/metric2_nearmiss.png", "Near-Miss Accuracy (pairwise agreement)")
 ```
 
-## 5. Discussion
-
-### 5.1 Metric 1: agreement with the Median Severity Score
-
-_Add notes here._
-
-### 5.2 Metric 2: pairwise agreement between raters
-
-_Add notes here._
-
-### 5.3 Metric 1: summary statistics
-
-_Add notes here._
-
-### 5.4 Metric 2: summary statistics
-
-_Add notes here._
-
-### 5.5 Metric 1: distribution plots
-
-_Add notes here._
-
-### 5.6 Metric 2: distribution plots
-
-_Add notes here._
-
-### 5.7 Overall narrative
+## 5. Interpretation and Discussion
 
 _Add notes here._
