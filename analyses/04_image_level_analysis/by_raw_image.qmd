@@ -1,0 +1,429 @@
+---
+title: "Plots by raw image / CDA image"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 08/06/2026
+
+## GOHREP
+
+**Goal:**
+
+Visualise the image dataset in a way that allows all scores / images to be seen
+
+**Hypothesis:**
+
+NA
+
+**Rationale:**
+
+NA
+
+**Experimental plan:**
+
+1.
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+# 1.1.1
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+library(RColorBrewer)
+```
+
+```{r}
+# 1.1.2
+save_plot <- function(p, filename, width, height, dir = "supp_plots") {
+  ggsave(here("analyses", "04_image_level_analysis", dir, filename),
+    plot = p, width = width, height = height, units = "in", dpi = 300
+  )
+}
+
+# Severity palette (YlOrRd), matching 02_score_distributions
+sev_pal <- setNames(brewer.pal(7, "YlOrRd"), as.character(0:6))
+```
+
+### 1.2 Load data
+
+```{r}
+# 1.2
+path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+score_data <- read_csv(path_data, show_col_types = FALSE) %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(
+    across(c(Scorer1, Scorer2, Scorer3), as.character),
+    across(c(Score1, Score2, Score3), ~ replace(as.character(.), . == "[]", NA))
+  )
+```
+
+### 1.3 Create a long table with one scorer and one score per row
+
+```{r}
+# 1.3
+long_score_table <- function(data) {
+  long <- data %>%
+    select(
+      Basename, Row, Col, Pos, Median_Score,
+      Scorer1, Score1, Scorer2, Score2, Scorer3, Score3
+    ) %>%
+    pivot_longer(
+      cols          = c(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3),
+      names_to      = c(".value", "num"),
+      names_pattern = "(Scorer|Score)(\\d+)"
+    ) %>%
+    select(-num) %>%
+    filter(!is.na(Scorer), !is.na(Score))
+  long$Scorer <- factor(long$Scorer, levels = sort(as.numeric(unique(long$Scorer))))
+  long
+}
+score_data_long <- long_score_table(score_data)
+```
+
+## 2. Dataset overview (Materials & Methods)
+
+Summary tables describing the raw image dataset. All counts here are in **raw images**, not CDA images.
+
+### 2.1 Load allocation metadata
+
+`image_info.csv` has one row per raw image. The `Path` column records the source folder, but is only written once per folder, so we fill it downwards. The top-level folder is taken as the project, which is then replaced with an anonymised label (`Project A`, `Project B`, …) using the shared key in `01_allocation_info/project_anonymisation_key.csv`.
+
+```{r}
+# 2.1.1
+project_key <- read_csv(
+  here("analyses", "01_generate_raw_data", "01_allocation_info", "project_anonymisation_key.csv"),
+  show_col_types = FALSE
+)
+project_lookup <- setNames(project_key$Anon_Label, project_key$Project)
+
+image_info <- read_csv(
+  here("analyses", "01_generate_raw_data", "01_allocation_info", "image_info.csv"),
+  show_col_types = FALSE
+) %>%
+  fill(Path, .direction = "down") %>%
+  mutate(Project = unname(project_lookup[sub("/.*", "", Path)]))
+```
+
+The allocation metadata over-counts the CDAs-per-leaf for 16 source images: inspecting the source images confirmed these leaves carry only 5 CDAs, not the recorded 6 or 8. We correct the in-memory copy used for these tables only — `image_info.csv` (which drives the allocation pipeline) is intentionally left unchanged. The original allocated value is retained as `CDA_Per_Leaf_Alloc`.
+
+```{r}
+# 2.1.2
+layout5_images <- c(
+  # Project E batch: allocation recorded 8 CDAs/leaf, true layout is 5
+  "_DSC9258.tif", "_DSC9259.tif", "_DSC9260.tif", "_DSC9261.tif",
+  # Project B batch: allocation recorded 6 CDAs/leaf, true layout is 5
+  "DSC_2394.tif", "DSC_2395.tif", "DSC_2396.tif", "DSC_2397.tif",
+  "DSC_2451.tif", "DSC_2452.tif", "DSC_2453.tif", "DSC_2454.tif",
+  "DSC_2867.tif", "DSC_2868.tif", "DSC_2869.tif", "DSC_2870.tif"
+)
+
+image_info <- image_info %>%
+  mutate(
+    CDA_Per_Leaf_Alloc = CDA_Per_Leaf,
+    CDA_Per_Leaf = if_else(Image %in% layout5_images, 5, CDA_Per_Leaf)
+  )
+```
+
+### 2.2 Total number of raw images
+
+Counted two ways as a cross-check: directly from the image files in `data/raw_images_rotated`, and from the allocation metadata. The images are split across two collection sets.
+
+```{r}
+# 2.2.1
+n_from_files <- length(list.files(here("data", "raw_images_rotated"),
+  pattern = "(?i)\\.tif$"
+))
+n_from_meta <- n_distinct(image_info$Image)
+
+tibble(
+  Source = c("Image files (data/raw_images_rotated)", "Allocation metadata (image_info.csv)"),
+  Raw_Images = c(n_from_files, n_from_meta)
+) %>%
+  knitr::kable(caption = "Total number of raw images")
+```
+
+Per-set totals:
+
+```{r}
+# 2.2.2
+image_info %>%
+  count(Set, name = "Raw_Images") %>%
+  mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
+  knitr::kable(caption = "Raw images per set")
+```
+
+### 2.3 Number of scorers per set
+
+Each CDA was scored by up to three scorers (`Scorer1`–`Scorer3` in `combined_cda_data_median.csv`). Counting the distinct scorers that contributed to the images in each set:
+
+```{r}
+# 2.3
+scorers_long <- score_data %>%
+  select(Basename, Scorer1, Scorer2, Scorer3) %>%
+  left_join(select(image_info, Image, Set), by = c("Basename" = "Image")) %>%
+  pivot_longer(c(Scorer1, Scorer2, Scorer3), values_to = "Scorer") %>%
+  filter(!is.na(Scorer), Scorer != "[]")
+
+scorers_long %>%
+  group_by(Set) %>%
+  summarise(
+    N_Scorers = n_distinct(Scorer),
+    Scorers = paste(sort(unique(as.numeric(Scorer))), collapse = ", "),
+    .groups = "drop"
+  ) %>%
+  knitr::kable(caption = "Distinct scorers per set")
+```
+
+### 2.4 Distribution of raw images across projects
+
+```{r}
+# 2.4.1
+image_info %>%
+  count(Set, Project, name = "Raw_Images") %>%
+  arrange(desc(Raw_Images)) %>%
+  mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
+  knitr::kable(caption = "Raw images per project")
+```
+
+The same breakdown, but counting CDAs in the cleaned dataset (`combined_cda_data_median.csv`) rather than raw source images:
+
+```{r}
+# 2.4.2
+score_data %>%
+  left_join(select(image_info, Image, Set, Project), by = c("Basename" = "Image")) %>%
+  count(Set, Project, name = "CDAs") %>%
+  arrange(desc(CDAs)) %>%
+  mutate(Percent = round(100 * CDAs / sum(CDAs), 1)) %>%
+  knitr::kable(caption = "CDAs (cleaned dataset) per project")
+```
+
+### 2.5 Projects, layouts and counts (combined)
+
+One row per project, showing its set, total raw image count, and the CDA-per-leaf layout(s) it contains. Where a project mixes layouts, each is listed as `CDAs per leaf (raw images)`.
+
+```{r}
+# 2.5
+image_info %>%
+  count(Set, Project, CDA_Per_Leaf, name = "n") %>%
+  arrange(Set, Project, CDA_Per_Leaf) %>%
+  group_by(Set, Project) %>%
+  summarise(
+    Count            = sum(n),
+    `CDAs Per Leaf`  = paste0(CDA_Per_Leaf, " (", n, ")", collapse = "<br>"),
+    .groups          = "drop"
+  ) %>%
+  arrange(Set, desc(Count)) %>%
+  knitr::kable(
+    caption = "Set, project, raw image count and leaf layout(s)",
+    escape = FALSE
+  )
+```
+
+### 2.6 Distribution of leaf layouts (cell death areas per leaf)
+
+Each raw image uses a fixed layout: every leaf in the image is divided into a set number of cell death areas (CDAs). We report the layout two ways.
+
+**Method 1 — from the allocation record** (`CDA_Per_Leaf` in `image_info.csv`, with the 16 manual corrections from §2.1 applied):
+
+```{r}
+# 2.6.1
+layout_alloc <- image_info %>%
+  count(CDA_Per_Leaf, name = "Raw_Images") %>%
+  arrange(CDA_Per_Leaf)
+
+layout_alloc %>%
+  knitr::kable(caption = "CDAs per leaf, from the (corrected) allocation record")
+```
+
+The 16 corrected images, showing the originally allocated layout against the verified one:
+
+```{r}
+# 2.6.2
+image_info %>%
+  filter(Image %in% layout5_images) %>%
+  count(Project, CDA_Per_Leaf_Alloc, CDA_Per_Leaf, name = "Raw_Images") %>%
+  arrange(desc(Raw_Images)) %>%
+  knitr::kable(caption = "Manually corrected layouts (allocated vs verified)")
+```
+
+**Method 2 — independently derived from the scored positions** in `combined_cda_data_median.csv`. The `Pos` column indexes the CDA within a leaf, so the layout of an image is the maximum `Pos` it contains (taken over all leaves, since individual leaves may have unscored positions):
+
+```{r}
+# 2.6.3
+layout_positions <- score_data %>%
+  group_by(Basename) %>%
+  summarise(CDA_Per_Leaf = max(Pos), .groups = "drop") %>%
+  count(CDA_Per_Leaf, name = "Raw_Images") %>%
+  arrange(CDA_Per_Leaf)
+
+layout_positions %>%
+  knitr::kable(caption = "CDAs per leaf, derived from scored positions")
+```
+
+**Reconciliation of the two methods.** After the corrections, the two methods agree for most images. Where the (corrected) layout still exceeds the highest scored position, the image is **dual-infiltration**: each leaf carried both yellow/green and orange cell death areas, and the orange ones were ignored during scoring, so their positions are never scored and the position-based method reports a smaller layout. These are Project C and Project H.
+
+```{r}
+# 2.6.4
+layout_compare <- score_data %>%
+  group_by(Basename) %>%
+  summarise(Obs_CDA_Per_Leaf = max(Pos), .groups = "drop") %>%
+  inner_join(select(image_info, Image, Layout_CDA_Per_Leaf = CDA_Per_Leaf),
+    by = c("Basename" = "Image")
+  )
+
+layout_compare %>%
+  count(Layout_CDA_Per_Leaf, Obs_CDA_Per_Leaf, name = "Raw_Images") %>%
+  arrange(Layout_CDA_Per_Leaf, Obs_CDA_Per_Leaf) %>%
+  knitr::kable(caption = "Corrected layout vs. layout observed from scored positions")
+```
+
+## 3. Score proportions per raw image
+
+The dotplots of all individual scores (sorted and faceted by median score) now live at the top of `02_score_distributions`, alongside the raw score-count plots.
+
+### 3.1 Compute proportions
+
+```{r}
+# 3.1
+score_data_grouped <- score_data %>%
+  group_by(Basename) %>%
+  summarize(
+    Frequency_0 = sum(c(Score1, Score2, Score3) == 0, na.rm = TRUE),
+    Frequency_1 = sum(c(Score1, Score2, Score3) == 1, na.rm = TRUE),
+    Frequency_2 = sum(c(Score1, Score2, Score3) == 2, na.rm = TRUE),
+    Frequency_3 = sum(c(Score1, Score2, Score3) == 3, na.rm = TRUE),
+    Frequency_4 = sum(c(Score1, Score2, Score3) == 4, na.rm = TRUE),
+    Frequency_5 = sum(c(Score1, Score2, Score3) == 5, na.rm = TRUE),
+    Frequency_6 = sum(c(Score1, Score2, Score3) == 6, na.rm = TRUE),
+    Total = n() * 3
+  ) %>%
+  mutate(
+    Proportion_0 = Frequency_0 / Total,
+    Proportion_1 = Frequency_1 / Total,
+    Proportion_2 = Frequency_2 / Total,
+    Proportion_3 = Frequency_3 / Total,
+    Proportion_4 = Frequency_4 / Total,
+    Proportion_5 = Frequency_5 / Total,
+    Proportion_6 = Frequency_6 / Total
+  ) %>%
+  rowwise() %>%
+  mutate(Most_Common_Score = which.max(c(
+    Proportion_0, Proportion_1, Proportion_2, Proportion_3, Proportion_4, Proportion_5, Proportion_6
+  )) - 1) %>%
+  ungroup()
+
+# Long form: one row per (image, score) with its proportion
+score_data_heatmap <- score_data_grouped %>%
+  pivot_longer(
+    cols = starts_with("Proportion"),
+    names_to = "Score",
+    values_to = "Proportion"
+  ) %>%
+  mutate(Score = sub("Proportion_", "", Score))
+```
+
+### 3.2 Distribution of each score's proportion across images (violins)
+
+```{r fig.width=10, fig.height=6}
+#| fig-width: 10
+#| fig-height: 6
+# 3.2
+score_box <- score_data_heatmap %>%
+  mutate(Score = factor(Score, levels = as.character(0:6))) %>%
+  group_by(Score) %>%
+  mutate(is_outlier = Proportion > quantile(Proportion, 0.75) + 1.5 * IQR(Proportion)) %>%
+  ungroup()
+
+outlier_counts <- score_box %>%
+  group_by(Score) %>%
+  summarise(n_out = sum(is_outlier), y_lab = max(Proportion) + 0.04, .groups = "drop")
+
+set.seed(1)
+p <- ggplot(score_box, aes(x = Score, y = Proportion)) +
+  geom_violin(aes(fill = Score), scale = "width", quantile.linetype = 1) +
+  geom_point(
+    data = subset(score_box, is_outlier),
+    position = position_jitter(width = 0.08, height = 0), size = 0.8, alpha = 0.5
+  ) +
+  geom_text(
+    data = outlier_counts, aes(x = Score, y = y_lab, label = n_out),
+    size = 4, colour = "grey25"
+  ) +
+  scale_fill_manual(values = sev_pal, guide = "none") +
+  labs(
+    x = "Score", y = "Proportion per Image",
+    caption = "Number above each violin = images in the upper tail (> Q3 + 1.5 x IQR)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    plot.caption = element_text(size = 10, colour = "grey35")
+  )
+p
+save_plot(p, "score_proportion_violins.png", width = 10, height = 6)
+```
+
+**What this shows:**
+
+- Some images had no 0s. This is interesting because there are normally control infiltrations.
+- Some images had almost all 0s.
+- Non-0 scores rarely comprised more than 50% of cell death areas in a raw image, with a couple of excepions for 2s and 6s.
+
+**Discussion:**
+
+- The images with no 0s are mostly images where two infiltrations were applied to the same leaf. In the case that there was none of the usual green cell death, there was an orange cell death of the other infiltration, and the annotators were instructed to ignore those cell death areas because they did not represent true "no cell death" examples.
+
+### 3.3 Heatmap of proportions sorted by most common score
+
+```{r fig.width=8, fig.height=16}
+#| fig-width: 8
+#| fig-height: 16
+# 3.3
+score_data_sorted <- score_data_grouped %>%
+  arrange(Most_Common_Score, Basename)
+breakpoints <- which(diff(score_data_sorted$Most_Common_Score) != 0) + 0.5
+
+score_data_heatmap3 <- score_data_grouped %>%
+  pivot_longer(
+    cols = starts_with("Proportion"),
+    names_to = "Score",
+    values_to = "Proportion"
+  ) %>%
+  mutate(Score = sub("Proportion_", "", Score)) %>%
+  select(Basename, Score, Proportion, Most_Common_Score)
+
+p <- ggplot(score_data_heatmap3, aes(x = Score, y = reorder(Basename, Most_Common_Score), fill = Proportion)) +
+  geom_tile() +
+  geom_hline(yintercept = breakpoints, linetype = "dashed", color = "red", linewidth = 1) +
+  scale_fill_gradient(low = "white", high = "firebrick") +
+  labs(x = "Score", y = "Agroinfiltration Image", fill = "Proportion") +
+  theme_minimal() +
+  theme(
+    axis.text.x  = element_text(size = 13, angle = 45, hjust = 1),
+    axis.text.y  = element_text(size = 4),
+    axis.title   = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text  = element_text(size = 11)
+  )
+p
+save_plot(p, "heatmap_proportion_sorted_by_most_common_score.png", 8, 16)
+```
+
+**What this shows:**
+
+- Like the CDA images themselves, in many of the raw agroinfiltration images the most common score was 0.
+- For images where the most common score was 5 or 6, there tended to be very few scores between 1 and 3.
+- For images where the most common score was 3, there tended to be very few extreme scores (0 or 6).
+
+**Discussion:**
+
+- The images for which most scores were extreme (0 or 5/6) were likely from biological systems that showed strong presence/absence phenotypes.
+- The images with very few 0s were likely from images where each cell death area received two infiltrations, and those with no green cell death were excluded from annotation.

@@ -28,6 +28,7 @@ dependencies:
   - r-tidyverse
   - r-here
   - r-rcolorbrewer
+  - r-patchwork
   - bioconductor-ebimage
 
   # Quarto (for rendering .qmd analyses)

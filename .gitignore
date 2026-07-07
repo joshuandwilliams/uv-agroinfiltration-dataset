@@ -20,3 +20,13 @@ data/zenodo/
 
 # Claude
 .claude/
+
+# Scratch / preview images (not part of the analysis)
+tmp/
+
+# Editor
+.vscode/
+
+# Build artifacts
+*.egg-info/
+Rplots.pdf
