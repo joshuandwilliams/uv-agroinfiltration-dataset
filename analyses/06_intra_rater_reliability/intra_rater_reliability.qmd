@@ -873,9 +873,99 @@ save_plot(p, "intra_vs_inter_alpha_distributions.png", width = 7, height = 5)
 
 ---
 
-## 8. Discussion
+## 8. Rescore drift autocorrelation (sequential order)
 
-### 8.1 Summary statistics
+The rescore originals were presented in a randomised order, so consecutive trials are unrelated images.
+Any autocorrelation in the drift `new − old` is therefore a **pure sequential effect**. The cost is
+power: only ~100 trials per rater.
+
+```{r}
+# 8.1
+# Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).
+runs_p <- function(x) {
+  s <- sign(x[x != 0])
+  n <- length(s)
+  n1 <- sum(s > 0)
+  n2 <- sum(s < 0)
+  if (n1 == 0 || n2 == 0 || n < 3) {
+    return(NA_real_)
+  }
+  runs <- 1 + sum(s[-1] != s[-n])
+  mu <- 1 + 2 * n1 * n2 / n
+  v <- 2 * n1 * n2 * (2 * n1 * n2 - n) / (n^2 * (n - 1))
+  2 * pnorm(-abs((runs - mu) / sqrt(v)))
+}
+
+# rescore_anon/ holds one file per rater, already anonymised (filename and
+# `scorer` column both give the same ID).
+rescore_files <- list.files(
+  here("analyses", "06_intra_rater_reliability", "rescore_anon"),
+  pattern = "[.]csv$", full.names = TRUE
+)
+# Rows are kept in file order = presentation order.
+rescore <- bind_rows(lapply(rescore_files, function(f) {
+  read_csv(f, show_col_types = FALSE) %>%
+    mutate(
+      Scorer = factor(scorer), seq = row_number(),
+      old_score = as.integer(old_score), new_score = as.integer(new_score),
+      drift = new_score - old_score
+    )
+})) %>%
+  filter(!is.na(drift)) %>%
+  group_by(Scorer) %>%
+  mutate(cum = cumsum(drift - mean(drift))) %>%
+  ungroup()
+
+rescore_stats <- rescore %>%
+  group_by(Scorer) %>%
+  summarise(
+    n = n(),
+    lag1_acf = cor(head(drift, -1), tail(drift, -1)),
+    runs_p = runs_p(drift),
+    mean_drift = mean(drift), .groups = "drop"
+  )
+print(rescore_stats)
+
+rescore_lag <- rescore %>%
+  group_by(Scorer) %>%
+  mutate(lag_drift = lag(drift)) %>%
+  ungroup()
+m_rescore <- lm(drift ~ lag_drift + Scorer, data = rescore_lag)
+cat(sprintf(
+  "\nPooled lag-1 drift autocorrelation: coef = %.3f, p = %.3f\n",
+  coef(m_rescore)["lag_drift"], summary(m_rescore)$coefficients["lag_drift", 4]
+))
+```
+
+```{r fig.width=14, fig.height=3.5}
+#| fig-width: 14
+#| fig-height: 3.5
+# 8.2
+p <- ggplot(rescore, aes(seq, cum)) +
+  geom_hline(yintercept = 0, color = "grey60") +
+  geom_line(color = "steelblue") +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
+  labs(x = "Rescoring order", y = "Cumulative\nmean-centred drift") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.5, "lines"),
+    axis.text = element_text(size = 11), axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12)
+  )
+p
+save_plot(p, "rescore_drift_sequence.png", width = 14, height = 3.5)
+```
+
+**What this shows:**
+
+- The cumulative drift wanders in long excursions — but a cumulative sum of *independent* noise is a random walk that wanders identically, so the eye is unreliable here; the formal tests are what count.
+- Every rater's runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.
+
+---
+
+## 9. Discussion
+
+### 9.1 Summary statistics
 
 All raters rescored 100 CDAs. Some raters skipped CDAs in the original scoring, which is why three raters only have 99 collected scores in the original scores.
 
@@ -883,54 +973,58 @@ On these non-zero-median CDAs, raters' exact agreement with their own previous s
 
 Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.
 
-### 8.2 Score class distribution of rescored CDAs
+### 9.2 Score class distribution of rescored CDAs
 
 - The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.
 
-### 8.3 Exact and within-±1 intra-rater agreement per rater
+### 9.3 Exact and within-±1 intra-rater agreement per rater
 
 - I'm not going to investigate this further. Some reasons that different raters may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.
 
-### 8.4 Intra-rater self-agreement by original score
+### 9.4 Intra-rater self-agreement by original score
 
 - Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.
 
-### 8.5 Confusion matrix of original vs rescore per rater
+### 9.5 Confusion matrix of original vs rescore per rater
 
 _Add notes here._
 
-### 8.6 Distribution of new_score − old_score per rater
+### 9.6 Distribution of new_score − old_score per rater
 
 - Rater 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.
 
-### 8.7 Proportion of CDAs where the median label would change per rater
+### 9.7 Proportion of CDAs where the median label would change per rater
 
 - Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.
 - The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.
 - There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label's own lack of stability.
 
-### 8.8 Absolute difference distribution (within- vs between-rater)
+### 9.8 Absolute difference distribution (within- vs between-rater)
 
 - The majority of disagreement between raters can be explained by task ambiguity that occurs even within the same rater. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.
 - The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.
 - The ground truth generated by three raters is not meaningfully noisier than an individual judgement.
 
-### 8.9 Disagreement by score class (within- vs between-rater)
+### 9.9 Disagreement by score class (within- vs between-rater)
 
 - This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.
 
-### 8.10 Reliability coefficient: intra- vs inter-rater Krippendorff's α
+### 9.10 Reliability coefficient: intra- vs inter-rater Krippendorff's α
 
 _Add notes here._
 
-### 8.11 Bootstrap distribution of pooled intra-rater α (raw scores)
+### 9.11 Bootstrap distribution of pooled intra-rater α (raw scores)
 
 _Add notes here._
 
-### 8.12 Intra- vs inter-rater α distributions
+### 9.12 Intra- vs inter-rater α distributions
 
 _Add notes here._
 
-### 8.13 Overall narrative
+### 9.13 Rescore drift autocorrelation (sequential order)
+
+_Add notes here._
+
+### 9.14 Overall narrative
 
 The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — raters agree with themselves about as well as the panel agrees with each other, so an individual's day-to-day inconsistency is roughly the same magnitude as the disagreement between different raters.
