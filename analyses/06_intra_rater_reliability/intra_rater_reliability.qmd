@@ -11,24 +11,16 @@ Date: 2026-06-05
 
 **Goal:**
 
-Quantify how consistently each scorer scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).
+Quantify how consistently each rater scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).
 
 **Hypothesis:**
 
-1. Scorers will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).
+1. Raters will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).
 2. Rescoring will not systematically improve or worsen agreement with the median — any changes will reflect genuine scoring uncertainty rather than learning.
 
 **Rationale:**
 
-Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each scorer was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.
-
-**Experimental plan:**
-
-1. Load and anonymise all rescore CSVs.
-2. Intra-rater reliability: compare `old_score` vs `new_score` per scorer, including self-agreement by original score class.
-3. Score change distribution: characterise the direction and magnitude of score changes.
-4. Ground truth labels: assess how often rescoring disagreements would change the median label.
-5. Within- vs between-scorer variation: compare intra-rater disagreement (this analysis) with inter-rater disagreement (analysis 04).
+Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each rater was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.
 
 ---
 
@@ -56,7 +48,7 @@ library(irr)
 source(here("src", "agreement_metrics.R"))
 source(here("src", "plotting_helpers.R"))
 
-# rescore_anon/ holds one file per scorer, already anonymised (filename and
+# rescore_anon/ holds one file per rater, already anonymised (filename and
 # `scorer` column both give the same ID) - see the anonymisation script under scripts/.
 rescore_files <- list.files(
   here("analyses", "06_intra_rater_reliability", "rescore_anon"),
@@ -80,9 +72,9 @@ rescore_data$Scorer <- factor(rescore_data$Scorer,
   levels = sort(unique(rescore_data$Scorer))
 )
 
-cat("Scorers:", paste(levels(rescore_data$Scorer), collapse = ", "), "\n")
+cat("Raters:", paste(levels(rescore_data$Scorer), collapse = ", "), "\n")
 
-cat("CDAs per scorer:\n")
+cat("CDAs per rater:\n")
 print(count(rescore_data, Scorer))
 
 cat("\nRows with missing old_score (original score was '[]'):\n")
@@ -122,8 +114,8 @@ write_csv(
 print(summary_stats)
 ```
 
-Pooled across all rescored CDAs (all scorers combined), the off-by-one rate is the
-near-miss rate (|old − new| ≤ 1) minus the exact rate (old = new): how often a scorer's
+Pooled across all rescored CDAs (all raters combined), the off-by-one rate is the
+near-miss rate (|old − new| ≤ 1) minus the exact rate (old = new): how often a rater's
 repeat score differed from their original by exactly one severity point.
 
 ```{r}
@@ -137,14 +129,6 @@ cat(sprintf("Exact self-agreement (diff = 0):          %.2f%%\n", mean(intra_poo
 cat(sprintf("Near-miss self-agreement (diff <= 1):     %.2f%%\n", mean(intra_pooled_diffs$absdiff <= 1) * 100))
 cat(sprintf("Off-by-one disagreement (diff == 1):      %.2f%%\n", mean(intra_pooled_diffs$absdiff == 1) * 100))
 ```
-
-**Discussion:**
-
-All scorers rescored 100 CDAs. Some scorers skipped CDAs in the original scoring, which is why three scorers only have 99 collected scores in the original scores.
-
-On these non-zero-median CDAs, scorers' exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Scorer 9 stnd out as significantly lower than the other four Scorers, achieving an exact self-agreement rate of just 30%.
-
-Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.
 
 ---
 
@@ -213,8 +197,8 @@ p <- ggplot(class_prop, aes(x = factor(Median_Score), y = prop, fill = fillkey, 
     breaks = c("Original", as.character(1:6)), name = NULL
   ) +
   scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.12))) +
-  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
-  labs(x = "Median score", y = "Proportion of non-zero CDAs") +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
+  labs(x = "Median Severity Score", y = "Proportion of non-zero CDAs") +
   theme_minimal() +
   theme(
     panel.spacing = unit(0.5, "lines"),
@@ -231,19 +215,15 @@ save_plot(p, "rescore_class_distribution.png", width = 12, height = 5, dir = "th
 
 **What this shows:**
 
-- This plot visualises whether each scorer's rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.
+- This plot visualises whether each rater's rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.
 - Scores collected during rescoring were not uniformally distributed. Some scores were collected more often during rescoring than others.
-- The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that scorer.
-
-**Discussion:**
-
-- The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.
+- The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that rater.
 
 ---
 
 ## 4. Intra-rater consistency: old vs new score
 
-### 4.1 Exact and within-±1 intra-rater agreement per scorer
+### 4.1 Exact and within-±1 intra-rater agreement per rater
 
 ```{r fig.width=7, fig.height=5}
 #| fig-width: 7
@@ -271,7 +251,7 @@ p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
     breaks = c("Exact agreement", "Near-miss agreement (±1)")
   ) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
-  labs(x = "Scorer", y = "Intra-rater agreement") +
+  labs(x = "Rater", y = "Intra-rater agreement") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -285,13 +265,9 @@ save_plot(p, "intra_rater_agreement.png", width = 7, height = 5)
 
 **What this shows:**
 
-- This plot shows the self agreement rates of each scorer split by the original score class.
-- The per-class self agreement patterns differed between scorers. Scorer 6 had a similar achievement rate across score classes, whilst Scorer 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).
-- Scorer 4 was the only scorer to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.
-
-**Discussion:**
-
-- I'm not going to investigate this further. Some reasons that different scorers may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.
+- This plot shows the self agreement rates of each rater split by the original score class.
+- The per-class self agreement patterns differed between raters. Rater 6 had a similar achievement rate across score classes, whilst Rater 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).
+- Rater 4 was the only rater to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.
 
 ### 4.2 Intra-rater self-agreement by original score
 
@@ -312,8 +288,8 @@ p <- ggplot(self_agree, aes(x = factor(old_score), y = exact, fill = factor(old_
     labels = scales::percent, limits = c(0, 1.05),
     expand = expansion(mult = c(0, 0.05))
   ) +
-  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
-  labs(x = "Original score", y = "Self-agreement (exact)") +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
+  labs(x = "Original Severity Score", y = "Self-agreement (exact)") +
   theme_minimal() +
   theme(
     panel.spacing = unit(0.5, "lines"),
@@ -329,15 +305,11 @@ save_plot(p, "intra_rater_self_agreement.png", width = 12, height = 5)
 
 **What this shows:**
 
-- Each bar (and its label) is the proportion of CDAs a scorer re-scored identically to their original score, for that original score class.
-- Classes a scorer rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.
+- Each bar (and its label) is the proportion of CDAs a rater re-scored identically to their original score, for that original score class.
+- Classes a rater rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.
 - Extreme scores (1, 6) are expected to be reproduced more consistently than mid-scale scores (3–4).
 
-**Discussion:**
-
-- Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.
-
-### 4.3 Confusion matrix of original vs rescore per scorer
+### 4.3 Confusion matrix of original vs rescore per rater
 
 ```{r fig.width=10, fig.height=7}
 #| fig-width: 10
@@ -353,7 +325,7 @@ p <- ggplot(cm_data, aes(x = factor(old_score), y = factor(new_score), fill = n)
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey40") +
   geom_text(aes(label = ifelse(n > 0, n, "")), size = 2.5) +
   scale_fill_gradient(low = "white", high = "#238b45", name = "Count") +
-  facet_wrap(~Scorer, ncol = 3, labeller = label_both) +
+  facet_wrap(~Scorer, ncol = 3, labeller = as_labeller(function(x) paste("Rater:", x))) +
   coord_equal() +
   labs(x = "Original", y = "Rescore") +
   theme_minimal() +
@@ -372,20 +344,16 @@ save_plot(p, "intra_rater_confusion_matrix.png", width = 10, height = 7)
 
 **What this shows:**
 
-- This plot shows one confusion matrix per scorer. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.
-- The highest counts for most scorers lie on the diagonal.
-- Scorer 9 consistently rescored higher than their original score.
-- No median-zero CDAs were rescored, but some scorers still scored 0s, even when they had previously given a non-zero score.
-
-**Discussion:**
-
-- 
+- This plot shows one confusion matrix per rater. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.
+- The highest counts for most raters lie on the diagonal.
+- Rater 9 consistently rescored higher than their original score.
+- No median-zero CDAs were rescored, but some raters still scored 0s, even when they had previously given a non-zero score.
 
 ---
 
 ## 5. Score change distribution
 
-### 5.1 Distribution of new_score − old_score per scorer
+### 5.1 Distribution of new_score − old_score per rater
 
 ```{r fig.width=12, fig.height=5}
 #| fig-width: 12
@@ -417,7 +385,7 @@ p <- ggplot(
   ) +
   scale_x_continuous(breaks = -6:6) +
   scale_y_continuous(labels = scales::percent) +
-  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
   labs(x = "Score change (rescore − original)", y = "Proportion") +
   theme_minimal() +
   theme(
@@ -436,12 +404,8 @@ save_plot(p, "score_change_distribution.png", width = 12, height = 5, dir = "the
 **What this shows:**
 
 - This plot shows the distribution of scores compared to their original. The red bars show where the rescore was higher than the original. The blue bars show where the rescore was lower than the original.
-- For four of the five scorers, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.
-- For Scorer 9, almost all disagreements were above the original score, most commonly 2 above the original.
-
-**Discussion:**
-
-- Scorer 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.
+- For four of the five raters, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.
+- For Rater 9, almost all disagreements were above the original score, most commonly 2 above the original.
 
 ---
 
@@ -494,7 +458,7 @@ print(change_summary)
 ```
 
 
-### 6.1 Proportion of CDAs where the median label would change per scorer
+### 6.1 Proportion of CDAs where the median label would change per rater
 
 ```{r fig.width=7, fig.height=5}
 #| fig-width: 7
@@ -509,7 +473,7 @@ p <- ggplot(change_summary, aes(x = Scorer, y = pct_changed / 100)) +
     labels = scales::percent, limits = c(0, 0.5),
     expand = expansion(mult = c(0, 0.05))
   ) +
-  labs(x = "Scorer", y = "% CDAs with changed median label") +
+  labs(x = "Rater", y = "% CDAs with changed median label") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -522,27 +486,21 @@ save_plot(p, "median_label_changes.png", width = 7, height = 5, dir = "thesis_pl
 
 **What this shows:**
 
-- If we substituted each scorer's new score for their old score in the original three-scorer panel and recomputed the median, how many CDAs would receive a different label?
+- If we substituted each rater's new score for their old score in the original three-rater panel and recomputed the median, how many CDAs would receive a different label?
 - Between 13% and 27% of scores (non-0) would change if the rescores replaced the original scores.
-
-**Discussion:**
-
-- Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.
-- The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.
-- There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label's own lack of stability.
 
 ---
 
-## 7. Within- vs between-scorer variation
+## 7. Within- vs between-rater variation
 
 This section compares two kinds of disagreement on the same set of non-zero-median CDAs:
 
-1. Within-scorer: For each rescored CDA, what is the difference between the new and old score.
-2. Between-scorer: For each CDA, what is the difference between each pair of original scorers (Scorer1 - Scorer2, Scorer1 - Scorer3, Scorer2 - Scorer3). Pairwise scorer-vs-scorer comparison, not a comparison to the median.
+1. Within-rater: For each rescored CDA, what is the difference between the new and old score.
+2. Between-rater: For each CDA, what is the difference between each pair of original raters (Scorer1 - Scorer2, Scorer1 - Scorer3, Scorer2 - Scorer3). Pairwise rater-vs-rater comparison, not a comparison to the median.
 
 Both are restricted to non-zero-median CDAs.
 
-If the within- and between-scorer spreads are similar, most label noise is irreducible scoring uncertainty rather than systematic between-scorer bias.
+If the within- and between-rater spreads are similar, most label noise is irreducible scoring uncertainty rather than systematic between-rater bias.
 
 ```{r}
 # 7
@@ -557,7 +515,7 @@ between_raw <- read_csv(
   mutate(across(c(Score1, Score2, Score3, Median_Score), as.numeric)) %>%
   filter(Median_Score > 0)
 
-# Within-scorer differences (one per rescored CDA) and between-scorer pairwise differences.
+# Within-rater differences (one per rescored CDA) and between-rater pairwise differences.
 within_diff <- rescore_data %>%
   filter(!is.na(score_change)) %>%
   transmute(diff = as.numeric(score_change))
@@ -568,15 +526,15 @@ between_diff <- between_raw %>%
   filter(!is.na(diff)) %>%
   transmute(diff)
 
-src_levels <- c("Within-scorer", "Between-scorer")
+src_levels <- c("Within-rater", "Between-rater")
 src_pal <- setNames(c("firebrick", "steelblue"), src_levels)
 
 cat(
-  "Within-scorer differences:", nrow(within_diff),
+  "Within-rater differences:", nrow(within_diff),
   " | SD =", round(sd(within_diff$diff), 3), "\n"
 )
 cat(
-  "Between-scorer differences:", nrow(between_diff),
+  "Between-rater differences:", nrow(between_diff),
   " | SD =", round(sd(between_diff$diff), 3), "\n"
 )
 ```
@@ -618,15 +576,9 @@ save_plot(p, "within_vs_between_abs.png", width = 8, height = 5)
 
 **What this shows:**
 
-- This plot shows the proportion of CDAs receiving two scores with a given distance from the same scorer (red) or between different scorers (blue).
-- Scorers agree with themselves more often than pairs of scorers agree with each other.
-- This balances out at the near-miss level - within and between-scorer pairs are equally as unlikely to disagree by more than one score.
-
-**Discussion:**
-
-- The majority of disagreement between scorers can be explained by task ambiguity that occurs even within the same scorer. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.
-- The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.
-- The ground truth generated by three scorers is not meaningfully noisier than an individual judgement.
+- This plot shows the proportion of CDAs receiving two scores with a given distance from the same rater (red) or between different raters (blue).
+- Raters agree with themselves more often than pairs of raters agree with each other.
+- This balances out at the near-miss level - within and between-rater pairs are equally as unlikely to disagree by more than one score.
 
 ### 7.2 Disagreement by score class
 
@@ -665,7 +617,7 @@ p <- ggplot(class_cmp, aes(
   geom_point(size = 3) +
   scale_color_manual(values = src_pal, name = NULL) +
   labs(
-    x = "Median score",
+    x = "Median Severity Score",
     y = "Mean absolute disagreement"
   ) +
   theme_minimal() +
@@ -680,13 +632,8 @@ save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5)
 
 **What this shows:**
 
-- For each median score class, how often did scores disagree with each other within and between scorers (+- standard error).
-- The trends of within- vs between-scorers seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).
-
-**Discussion:**
-
-- This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.
-
+- For each median score class, how often did scores disagree with each other within and between raters (+- standard error).
+- The trends of within- vs between-raters seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).
 
 ### 7.3 Reliability coefficient: intra- vs inter-rater Krippendorff's α
 
@@ -694,7 +641,7 @@ save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5)
 # 7.3.1
 set.seed(42)
 
-# Per-scorer intra-rater alpha (old vs new as two raters) with bootstrap CIs.
+# Per-rater intra-rater alpha (old vs new as two raters) with bootstrap CIs.
 intra_alpha <- rescore_data %>%
   filter(!is.na(old_score), !is.na(new_score)) %>%
   group_by(Scorer) %>%
@@ -762,7 +709,7 @@ p <- ggplot(intra_alpha, aes(x = Scorer, y = alpha)) +
   ) +
   geom_pointrange(aes(ymin = lo, ymax = hi), color = "firebrick", linewidth = 0.7) +
   scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "Scorer", y = "Krippendorff's α (ordinal)") +
+  labs(x = "Rater", y = "Krippendorff's α (ordinal)") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -774,19 +721,19 @@ save_plot(p, "intra_vs_inter_alpha.png", width = 7, height = 5)
 
 
 The same ordinal Krippendorff's α used for the inter-rater panel in analysis 04, applied here to each
-scorer's two occasions (treating `old_score` and `new_score` as two raters). Using one coefficient for
+rater's two occasions (treating `old_score` and `new_score` as two raters). Using one coefficient for
 both keeps intra- and inter-rater reliability on a single comparable scale, and the ordinal metric
 respects that a 1↔6 disagreement is worse than 1↔2 (the reason α was chosen over % agreement). It also
-handles the missing values natively. Per-scorer 95% CIs are bootstrapped over CDAs; the dashed line is
+handles the missing values natively. Per-rater 95% CIs are bootstrapped over CDAs; the dashed line is
 the panel inter-rater α on the same non-zero-median CDAs.
 
 **What this shows:**
 
-- Running Krippendorf's alpha (measure of agreement between two scorers) treating the original and new scores as different scorers.
-- Each red point is a scorer's within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.
-- Points above the line mean scorers are more consistent with themselves than with others.
-- Most scorers are on or above the line, meaning they agree with themselves more than the average scorer pair agrees with each other.
-- Scorer 9 agrees with themself less consistently.
+- Running Krippendorf's alpha (measure of agreement between two raters) treating the original and new scores as different raters.
+- Each red point is a rater's within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.
+- Points above the line mean raters are more consistent with themselves than with others.
+- Most raters are on or above the line, meaning they agree with themselves more than the average rater pair agrees with each other.
+- Rater 9 agrees with themself less consistently.
 
 
 ### 7.4 Bootstrap distribution of pooled intra-rater α (raw scores)
@@ -868,7 +815,7 @@ save_plot(p, "intra_krippendorff_alpha_raw.png", width = 7, height = 5)
 **What this shows:**
 
 - The bootstrap distribution of the pooled intra-rater (test–retest) ordinal α.
-- The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, scorers agree with themselves about as well as the panel agrees with each other/
+- The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, raters agree with themselves about as well as the panel agrees with each other/
 - The dotted line marks the α = 0.8 reliability threshold.
 
 ### 7.5 Intra- vs inter-rater α distributions
@@ -924,4 +871,66 @@ p
 save_plot(p, "intra_vs_inter_alpha_distributions.png", width = 7, height = 5)
 ```
 
-**Summary:** The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — scorers agree with themselves about as well as the panel agrees with each other, so an individual's day-to-day inconsistency is roughly the same magnitude as the disagreement between different scorers.
+---
+
+## 8. Discussion
+
+### 8.1 Summary statistics
+
+All raters rescored 100 CDAs. Some raters skipped CDAs in the original scoring, which is why three raters only have 99 collected scores in the original scores.
+
+On these non-zero-median CDAs, raters' exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Rater 9 stnd out as significantly lower than the other four Raters, achieving an exact self-agreement rate of just 30%.
+
+Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.
+
+### 8.2 Score class distribution of rescored CDAs
+
+- The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.
+
+### 8.3 Exact and within-±1 intra-rater agreement per rater
+
+- I'm not going to investigate this further. Some reasons that different raters may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.
+
+### 8.4 Intra-rater self-agreement by original score
+
+- Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.
+
+### 8.5 Confusion matrix of original vs rescore per rater
+
+_Add notes here._
+
+### 8.6 Distribution of new_score − old_score per rater
+
+- Rater 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.
+
+### 8.7 Proportion of CDAs where the median label would change per rater
+
+- Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.
+- The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.
+- There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label's own lack of stability.
+
+### 8.8 Absolute difference distribution (within- vs between-rater)
+
+- The majority of disagreement between raters can be explained by task ambiguity that occurs even within the same rater. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.
+- The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.
+- The ground truth generated by three raters is not meaningfully noisier than an individual judgement.
+
+### 8.9 Disagreement by score class (within- vs between-rater)
+
+- This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.
+
+### 8.10 Reliability coefficient: intra- vs inter-rater Krippendorff's α
+
+_Add notes here._
+
+### 8.11 Bootstrap distribution of pooled intra-rater α (raw scores)
+
+_Add notes here._
+
+### 8.12 Intra- vs inter-rater α distributions
+
+_Add notes here._
+
+### 8.13 Overall narrative
+
+The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — raters agree with themselves about as well as the panel agrees with each other, so an individual's day-to-day inconsistency is roughly the same magnitude as the disagreement between different raters.
