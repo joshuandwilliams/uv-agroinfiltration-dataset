@@ -62,10 +62,7 @@ library(scales)
 
 ```{r}
 # 1.2
-source(here("src", "data_helpers.R"))
 source(here("src", "plotting_helpers.R"))
-
-name_to_id <- load_scorer_key()
 
 # Canonical three-scorer panel (one row per CDA).
 canon <- read_csv(
@@ -106,15 +103,17 @@ power: only ~100 trials per scorer.
 
 ```{r}
 # 2.1
-rescore_files <- c(
-  "rescore_JoshW.csv", "rescore_JoshB.csv", "rescore_Emma.csv",
-  "rescore_Raf.csv", "rescore_Clem.csv"
+# rescore_anon/ holds one file per scorer, already anonymised (filename and
+# `scorer` column both give the same ID).
+rescore_files <- list.files(
+  here("analyses", "06_intra_rater_reliability", "rescore_anon"),
+  pattern = "[.]csv$", full.names = TRUE
 )
 # Rows are kept in file order = presentation order.
 rescore <- bind_rows(lapply(rescore_files, function(f) {
-  read_csv(here("analyses", "06_intra_rater_reliability", f), show_col_types = FALSE) %>%
+  read_csv(f, show_col_types = FALSE) %>%
     mutate(
-      Scorer = factor(name_to_id[scorer]), seq = row_number(),
+      Scorer = factor(scorer), seq = row_number(),
       old_score = as.integer(old_score), new_score = as.integer(new_score),
       drift = new_score - old_score
     )
@@ -184,13 +183,15 @@ self-inclusion that would otherwise force a score to match its own median.
 
 ```{r}
 # 3
+# data/cdascorer_anon/ holds one file per scorer, named Scorer<ID>.csv - see
+# the anonymisation script under scripts/.
 read_raw_set <- function(set) {
-  files <- list.files(here("data", "cdascorer", set), pattern = "[.]csv$", full.names = TRUE)
+  files <- list.files(here("data", "cdascorer_anon", set), pattern = "[.]csv$", full.names = TRUE)
   bind_rows(lapply(files, function(f) {
-    nm <- tools::file_path_sans_ext(basename(f))
+    scorer_id <- as.integer(sub("^Scorer", "", tools::file_path_sans_ext(basename(f))))
     read_csv(f, show_col_types = FALSE) %>%
       transmute(
-        Set = set, Scorer = name_to_id[nm], seq = row_number(),
+        Set = set, Scorer = scorer_id, seq = row_number(),
         Basename = basename(img), Row = row, Col = col, Pos = pos, score = as.numeric(score)
       )
   }))
