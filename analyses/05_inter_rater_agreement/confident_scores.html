@@ -127,13 +127,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Quantify, for each median (ground-truth) severity score, how often the three scorers agreed. Each CDA falls into one of three mutually exclusive groups: all three scorers agreed (unanimous), two of three agreed with the median (majority), or all three gave a different score (no agreement).</p>
+<p>Quantify, for each median (ground-truth) severity score, how often the three raters agreed. Each CDA falls into one of three mutually exclusive groups: all three raters agreed (unanimous), two of three agreed with the median (majority), or all three gave a different score (no agreement).</p>
 <p><strong>Hypothesis:</strong></p>
 <p>Extreme scores (0 and 6) will have a higher proportion of unanimous annotations than intermediate scores, as these cases are most visually clear.</p>
 <p><strong>Rationale:</strong></p>
 <p>Understanding which score classes have reliable ground truth labels informs model training and evaluation strategies.</p>
-<p><strong>Experimental plan:</strong></p>
-<p>Compute the agreement breakdown directly from the canonical score data and present it both as a table and as a stacked bar chart of CDA counts at each median score level (0–6).</p>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -328,7 +326,7 @@ Attaching package: 'dplyr'</code></pre>
 </table>
 </div>
 </div>
-<p>Each CDA is categorised by how many of its three scorers agreed with the median: <em>All-3-Agree</em> (unanimous), <em>2-of-3-Agree</em> (a majority match the median, one differs), and <em>All-3-Disagree</em> (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two scorers; in every case the two present scores match the median, so they fall in the <em>2-of-3-Agree</em> group.</p>
+<p>Each CDA is categorised by how many of its three raters agreed with the median: <em>All-3-Agree</em> (unanimous), <em>2-of-3-Agree</em> (a majority match the median, one differs), and <em>All-3-Disagree</em> (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two raters; in every case the two present scores match the median, so they fall in the <em>2-of-3-Agree</em> group.</p>
 <hr>
 </section>
 <section id="stacked-bar-of-agreement-by-median-score" class="level2">
@@ -349,10 +347,10 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(conf_counts, <span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">factor</span>(<span class="st">`</span><span class="at">Median Score</span><span class="st">`</span>), <span class="at">y =</span> n, <span class="at">fill =</span> Agreement)) <span class="sc">+</span></span>
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>) <span class="sc">+</span></span>
 <span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> agree_pal, <span class="at">name =</span> <span class="st">"Scorer agreement"</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> agree_pal, <span class="at">name =</span> <span class="st">"Rater Agreement"</span>,</span>
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide =</span> <span class="fu">guide_legend</span>(<span class="at">reverse =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Median Score"</span>, <span class="at">y =</span> <span class="st">"Frequency"</span>) <span class="sc">+</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Median Severity Score"</span>, <span class="at">y =</span> <span class="st">"Frequency"</span>) <span class="sc">+</span></span>
 <span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -375,9 +373,24 @@ Attaching package: 'dplyr'</code></pre>
 <li>Median-0 CDAs are overwhelmingly unanimous, reflecting the dominance of negative controls and their visual clarity.</li>
 <li>Median-6 is the next most unanimous; both extremes are easier to identify consistently.</li>
 <li>Intermediate scores (1–5) are dominated by partial or full disagreement, highlighting the difficulty of distinguishing adjacent severity levels.</li>
-<li>All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two scorers to have given that extreme value.</li>
+<li>All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two raters to have given that extreme value.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+<hr>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">4. Discussion</h2>
+<section id="agreement-breakdown-by-median-score-1" class="level3">
+<h3 class="anchored" data-anchor-id="agreement-breakdown-by-median-score-1">4.1 Agreement breakdown by median score</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="stacked-bar-of-agreement-by-median-score-1" class="level3">
+<h3 class="anchored" data-anchor-id="stacked-bar-of-agreement-by-median-score-1">4.2 Stacked bar of agreement by median score</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative">4.3 Overall narrative</h3>
+<p><em>Add notes here.</em></p>
+</section>
 </section>
 
 </main>
