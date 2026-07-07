@@ -76,20 +76,24 @@ cat("Non-NA cells:", sum(!is.na(scorer_matrix)), "/", prod(dim(scorer_matrix)), 
 
 ## 2. Krippendorff's Alpha — Raw Scores
 
-Krippendorff's alpha is computed on the full rater × CDA matrix directly (no median involved). Two distance metrics are compared as a robustness check on the assumed measurement level: **ordinal** (treats 0–6 as ordered categories) and **interval** (treats 0–6 as equally spaced). If the two estimates agree, the reliability conclusion doesn't hinge on which scale assumption is correct. Missing values are handled automatically: expected agreement is estimated from all rated pairs.
-
 ### 2.1 Ordinal metric
 
 ```{r}
 # 2.1.1
+# Computed on the full rater x CDA matrix directly (no median involved).
+# Two distance metrics are compared here and in 2.2 as a robustness check on
+# the assumed measurement level: ordinal (treats 0-6 as ordered categories)
+# and interval (treats 0-6 as equally spaced). If the two estimates agree,
+# the reliability conclusion doesn't hinge on which scale assumption is
+# correct. Missing values are handled automatically: expected agreement is
+# estimated from all rated pairs.
 alpha_raw <- kripp.alpha(scorer_matrix, method = "ordinal")
 cat("Krippendorff's alpha (ordinal, raw scores):", round(alpha_raw$value, 4), "\n")
 ```
 
-Bootstrap distribution (1,000 iterations, n = 500 CDAs per draw):
-
 ```{r}
 # 2.1.2
+# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
 alpha_raw_boot <- bootstrap_kripp_alpha(
   scorer_matrix,
   method = "ordinal", sample_size = 500,
@@ -146,26 +150,20 @@ p
 save_plot(p, "krippendorff_alpha_raw.png", width = 7, height = 5)
 ```
 
-**What this shows:**
-
-- The bootstrap distribution of ordinal Krippendorff's alpha on raw scores, centred on the bootstrap mean.
-- The dotted line marks the Hayes & Krippendorff reliability threshold of α = 0.8.
-- The width of the distribution reflects sampling variability across random draws of 500 CDAs.
-
 ### 2.2 Interval metric
-
-Same rater × CDA matrix as §2.1, but with `method = "interval"` instead of `"ordinal"` — no residuals or medians involved, just a different distance metric applied to the same raw scores.
 
 ```{r}
 # 2.2.1
+# Same rater x CDA matrix as 2.1, but with method = "interval" instead of
+# "ordinal" - no residuals or medians involved, just a different distance
+# metric applied to the same raw scores.
 alpha_raw_interval <- kripp.alpha(scorer_matrix, method = "interval")
 cat("Krippendorff's alpha (interval, raw scores):", round(alpha_raw_interval$value, 4), "\n")
 ```
 
-Bootstrap distribution (1,000 iterations, n = 500 CDAs per draw):
-
 ```{r}
 # 2.2.2
+# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
 alpha_raw_interval_boot <- bootstrap_kripp_alpha(
   scorer_matrix,
   method = "interval", sample_size = 500,
@@ -222,19 +220,16 @@ p
 save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 5)
 ```
 
-**What this shows:**
-
-- The bootstrap distribution of interval Krippendorff's alpha on the same raw scores as §2.1.
-- Near-identical to the ordinal estimate (§2.1) — reliability here is robust to whether the 0–6 scale is treated as ordered categories or as equally-spaced values.
-
 ---
 
 ## 3. Krippendorff's Alpha — Score Residuals
 
-Residuals are computed as (individual score − CDA median score), then Krippendorff's alpha is recomputed on the residual matrix. A high residual alpha would indicate that raters share structured error patterns (they make the same mistakes); a low residual alpha indicates independent errors.
-
 ```{r}
 # 3
+# Residuals are computed as (individual score - CDA median score), then
+# Krippendorff's alpha is recomputed on the residual matrix. A high residual
+# alpha would indicate that raters share structured error patterns (they make
+# the same mistakes); a low residual alpha indicates independent errors.
 # Align median scores to scorer_matrix column order by CDA_ID
 cda_medians <- raw_data %>%
   mutate(CDA_ID = paste(Basename, Row, Col, Pos, sep = "_")) %>%
@@ -300,20 +295,17 @@ p
 save_plot(p, "krippendorff_alpha_residuals.png", width = 7, height = 5)
 ```
 
-**What this shows:**
-
-- The bootstrap distribution of interval Krippendorff's alpha computed on score residuals (score − median), centred on the bootstrap mean.
-- A low alpha here indicates that rater errors are largely independent — raters do not share structured biases across the same CDAs.
-- Comparing this distribution to the raw-score alpha (section 2) shows how much of the inter-rater agreement is driven by absolute severity ordering vs shared error patterns.
-
 ---
 
 ## 4. Pearson Correlation of Score Residuals
 
-For each pair of raters who shared at least one CDA, compute the Pearson correlation of their residuals across those shared CDAs. A high correlation means their errors tend to go in the same direction; a low or near-zero correlation means their errors are largely independent (good for ensemble/median robustness).
-
 ```{r}
 # 4.1
+# For each pair of raters who shared at least one CDA, compute the Pearson
+# correlation of their residuals across those shared CDAs. A high correlation
+# means their errors tend to go in the same direction; a low or near-zero
+# correlation means their errors are largely independent (good for
+# ensemble/median robustness).
 # rownames(scorer_matrix) are in pivot order, not sorted, so map each rater ID
 # back to its matrix row and build pairs ordered by ID (Scorer.x < Scorer.y).
 # This keeps every tile in the upper-left triangle like the other heatmaps.
@@ -384,32 +376,20 @@ p
 save_plot(p, "residual_correlation.png", width = 11, height = 10)
 ```
 
-**What this shows:**
+---
 
+## 5. Interpretation and Discussion
+
+- The bootstrap distribution of ordinal Krippendorff's alpha on raw scores, centred on the bootstrap mean.
+- The dotted line marks the Hayes & Krippendorff reliability threshold of α = 0.8.
+- The width of the distribution reflects sampling variability across random draws of 500 CDAs.
+- The bootstrap distribution of interval Krippendorff's alpha on the same raw scores as §2.1.
+- Near-identical to the ordinal estimate (§2.1) — reliability here is robust to whether the 0–6 scale is treated as ordered categories or as equally-spaced values.
+- The bootstrap distribution of interval Krippendorff's alpha computed on score residuals (score − median), centred on the bootstrap mean.
+- A low alpha here indicates that rater errors are largely independent — raters do not share structured biases across the same CDAs.
+- Comparing this distribution to the raw-score alpha (section 2) shows how much of the inter-rater agreement is driven by absolute severity ordering vs shared error patterns.
 - Pairs with positive correlation share structured biases (e.g., both tend to score high or low on the same CDAs).
 - Pairs near zero have largely independent errors — useful for the median being a robust ground truth.
 - Blank / grey cells indicate pairs who shared too few CDAs (<10) to estimate a reliable correlation.
-
----
-
-## 5. Discussion
-
-### 5.1 Krippendorff's alpha, ordinal metric (raw scores)
-
-_Add notes here._
-
-### 5.2 Krippendorff's alpha, interval metric (raw scores)
-
-_Add notes here._
-
-### 5.3 Krippendorff's alpha on score residuals
-
-_Add notes here._
-
-### 5.4 Pearson correlation of score residuals
-
-_Add notes here._
-
-### 5.5 Overall narrative
 
 _Add notes here._
