@@ -7,7 +7,11 @@ format:
 
 Date: 8/5/26
 
-In this document I conduct exploratory data analysis of the cell death area score dataset by visualising scoring patterns with ggplot2 in R.
+## GOHREP
+
+**Goal:**
+
+Conduct exploratory data analysis of the cell death area score dataset by visualising scoring patterns with ggplot2 in R.
 
 ---
 
@@ -393,6 +397,10 @@ if (nrow(score_data_nas) > 0) {
 - Missed scores represent intentional choices, not accidental omissions.
 - The annotation tool includes a skip button which the annotators were instructed use for cell death areas that were highly unclear (e.g. leaf folding), damaged, or overlapping with adjacent cell death areas. Different interpretations of these descriptions may account for the variable skip counts.
 - Score 0 was the most common score collected, so it being the most commonly missed makes sense. Damaged leaves (often caused by the agroinfiltration syringe puncturing the leaf) also often appeared as score 0.
+
+### 5.3 Overall narrative
+
+_Add notes here._
 
 ---
 
