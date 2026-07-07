@@ -16,7 +16,7 @@ Calculate metrics of human scoring agreement to be used as model benchmarks.
 
 **Hypothesis:**
 
-Human scorers will not always agree.
+Human raters will not always agree.
 
 **Rationale:**
 
@@ -24,8 +24,8 @@ Scoring is subjective, particularly given the scoring key's simple nature.
 
 **Experimental plan:**
 Calculate two metrics across 1,000 class-normalized samples of the scoring data. Plot their distributions and calculate means, confidence intervals, and standard deviations.
-- Metric 1: Percentage agreement of each individual score to median score of same CDA.
-- Metric 2: Percentage agreement of individual scores to each other.
+- Metric 1: Percentage agreement of each Severity Score to the Median Severity Score of the same CDA.
+- Metric 2: Percentage agreement of Severity Scores to each other.
 
 ## 1. Setup
 
@@ -46,9 +46,9 @@ repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').ex
 import human_performance
 ```
 
-### 1.2 Load scorer data
+### 1.2 Load rater data
 
-Scorer IDs in this file are already anonymised (1-10) by the raw-data pipeline
+Rater IDs in this file are already anonymised (1-10) by the raw-data pipeline
 (`01_generate_raw_data/02_combining_cdascorer_outputs`), so no re-anonymisation
 is needed here.
 
@@ -59,13 +59,49 @@ data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_
 
 ## 2. Compute agreement metrics
 
-### 2.1 Methods loop
-
-When a CDA has received 3 different scores, metric 1 gives 33% agreement, whilst metric 2 gives 0% agreement.
+When a CDA has received 3 different scores, Metric 1 gives 33% agreement, whilst Metric 2 gives 0% agreement.
 
 ```{python}
-# 2.1
+# 2.0
 results_path = repo_root / "analyses" / "03_human_performance" / "human_performance_results.csv"
+
+
+def scorer_accuracy_table(scorer_cms, labels):
+	"""Per-rater Exact/Near-Miss Accuracy (%) from a dict of {rater: confusion_matrix}."""
+	rows = []
+	for scorer, cm in scorer_cms.items():
+		acc = human_performance.cm_accuracies(cm, labels)
+		rows.append({
+			"Rater": scorer,
+			"Exact Accuracy": acc["exact_accuracy"] * 100,
+			"Near-Miss Accuracy": acc["within_one_accuracy"] * 100,
+		})
+	return pd.DataFrame(rows)
+
+
+def pairwise_scorer_accuracy_table(data_wide):
+	"""Per-rater Exact/Near-Miss Accuracy (%) for Metric 2, from the wide-format score table."""
+	pairs = []
+	for i, j in [(1, 2), (1, 3), (2, 3)]:
+		sub = data_wide[[f"Scorer{i}", f"Score{i}", f"Scorer{j}", f"Score{j}"]].copy()
+		sub.columns = ["ScorerA", "ScoreA", "ScorerB", "ScoreB"]
+		pairs.append(sub)
+	pairs_df = pd.concat(pairs).dropna(subset=["ScoreA", "ScoreB"])
+	pairs_df["Diff"] = (pairs_df["ScoreA"] - pairs_df["ScoreB"]).abs()
+
+	sym = pd.concat([
+		pairs_df[["ScorerA", "Diff"]].rename(columns={"ScorerA": "Rater"}),
+		pairs_df[["ScorerB", "Diff"]].rename(columns={"ScorerB": "Rater"}),
+	])
+	return (
+		sym.groupby("Rater")["Diff"]
+		.agg(**{
+			"Exact Accuracy": lambda d: (d == 0).mean() * 100,
+			"Near-Miss Accuracy": lambda d: (d <= 1).mean() * 100,
+		})
+		.reset_index()
+	)
+
 
 if results_path.exists():
 	print("Loading pre-computed results from human_performance_results.csv")
@@ -75,22 +111,17 @@ if results_path.exists():
 	pairwise_dist      = results_df["pairwise_dist"].tolist()
 	pairwise_nearmiss  = results_df["pairwise_nearmiss"].tolist()
 
-	# Re-generate confusion matrix plots (fast, seed=42)
-	data_normclass = human_performance.downsample_score_classes_csv(data, seed=42)
-	data_long      = pd.wide_to_long(data_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
+	# Re-generate the example confusion matrices/tables below (fast, seed=42)
+	example_normclass = human_performance.downsample_score_classes_csv(data, seed=42)
+	data_long      = pd.wide_to_long(example_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
 	data_long_noNA = data_long.dropna(subset=['Score'])
 	unique_labels  = np.sort(data_long_noNA['Score'].unique())
 
-	full_cm = confusion_matrix(data_long_noNA['Median_Score'], data_long_noNA['Score'])
-	human_performance.plot_confusion_matrix(full_cm, unique_labels, ["Individual Score", "Median Score"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric1_cm.png"))
+	metric1_cm = confusion_matrix(data_long_noNA['Median_Score'], data_long_noNA['Score'])
+	metric1_scorer_cms = human_performance.generate_scorer_cms(data_long_noNA)
 
-	scorer_cms = human_performance.generate_scorer_cms(data_long_noNA)
-	for scorer_name, cm in scorer_cms.items():
-		scorer_accuracies = human_performance.cm_accuracies(cm, unique_labels, print_results=True)
-
-	score_pairs_df = human_performance.extract_score_pairs(data_normclass)
-	cm = confusion_matrix(score_pairs_df["ScoreA"], score_pairs_df["ScoreB"])
-	human_performance.plot_confusion_matrix(cm, unique_labels, ["Individual Score A", "Individual Score B"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric2_cm.png"))
+	score_pairs_df = human_performance.extract_score_pairs(example_normclass)
+	metric2_cm = confusion_matrix(score_pairs_df["ScoreA"], score_pairs_df["ScoreB"])
 
 else:
 	print("Running 1000-iteration loop (this will take a while)...")
@@ -107,7 +138,7 @@ else:
 		data_long = pd.wide_to_long(data_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
 		data_long_noNA = data_long.dropna(subset=['Score'])
 
-		# Metric 1: Agreement with the median
+		# Metric 1: Agreement with the Median Severity Score
 		full_cm = confusion_matrix(data_long_noNA['Median_Score'], data_long_noNA['Score'])
 		unique_labels = np.sort(data_long_noNA['Score'].unique())
 
@@ -116,14 +147,6 @@ else:
 		agreement_dist.append(accuracies['exact_accuracy'])
 		agreement_nearmiss.append(accuracies['within_one_accuracy'])
 
-		# Generate an example confusion matrix for Metric 1
-		if i == 42:
-			human_performance.plot_confusion_matrix(full_cm, unique_labels, ["Individual Score", "Median Score"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric1_cm.png"))
-
-			scorer_cms = human_performance.generate_scorer_cms(data_long_noNA)
-			for scorer_name, cm in scorer_cms.items():
-				scorer_accuracies = human_performance.cm_accuracies(cm, unique_labels, print_results=True)
-
 		# Metric 2: Agreement between score pairs
 		metric2_exact = data_normclass.apply(human_performance.find_pairwise_agreement, axis=1, precision=0).mean()
 		pairwise_dist.append(metric2_exact)
@@ -131,12 +154,14 @@ else:
 		metric2_nearmiss = data_normclass.apply(human_performance.find_pairwise_agreement, axis=1, precision=1).mean()
 		pairwise_nearmiss.append(metric2_nearmiss)
 
-		# Generate example confusion matrix for Metric 2
+		# Keep one representative iteration's data/matrices for the example plots and tables below
 		if i == 42:
+			example_normclass = data_normclass.copy()
+			metric1_cm = full_cm
+			metric1_scorer_cms = human_performance.generate_scorer_cms(data_long_noNA)
+
 			score_pairs_df = human_performance.extract_score_pairs(data_normclass)
-			cm = confusion_matrix(score_pairs_df["ScoreA"], score_pairs_df["ScoreB"])
-			human_performance.plot_confusion_matrix(cm, unique_labels, ["Individual Score A", "Individual Score B"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric2_cm.png"))
-			break
+			metric2_cm = confusion_matrix(score_pairs_df["ScoreA"], score_pairs_df["ScoreB"])
 
 	result_df = pd.DataFrame({
 		"agreement_dist": agreement_dist,
@@ -147,12 +172,35 @@ else:
 	result_df.to_csv(results_path, index=False)
 ```
 
+### 2.1 Metric 1: agreement with the Median Severity Score
+
+```{python}
+# 2.1
+human_performance.plot_confusion_matrix(metric1_cm, unique_labels, ["Median Severity Score", "Severity Score"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric1_cm.png"))
+
+metric1_table = scorer_accuracy_table(metric1_scorer_cms, unique_labels)
+print(metric1_table.round(1).to_string(index=False))
+```
+
+**Discussion:**
+_Add notes here._
+
+### 2.2 Metric 2: pairwise agreement between raters
+
+```{python}
+# 2.2
+human_performance.plot_confusion_matrix(metric2_cm, unique_labels, ["Severity Score A", "Severity Score B"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric2_cm.png"))
+
+metric2_table = pairwise_scorer_accuracy_table(example_normclass)
+print(metric2_table.round(1).to_string(index=False))
+```
+
 **Discussion:**
 _Add notes here._
 
 ## 3. Distribution statistics
 
-### 3.1 Summary statistics (mean, 95% CI, SD)
+### 3.1 Metric 1: summary statistics (mean, 95% CI, SD)
 
 ```{python}
 # 3.1
@@ -168,38 +216,27 @@ def get_dist_stats(dist, name):
 	print(f"95% CI: {ci_diff}, ({ci_agreement[0]:.5f}, {ci_agreement[1]:.5f})")
 	print(f"SD: {std_agreement:.4f}\n")
 
-get_dist_stats(agreement_dist, "Exact agreement with median")
-get_dist_stats(agreement_nearmiss, "Near-miss agreement with median")
-get_dist_stats(pairwise_dist, "Exact pairwise agreement")
-get_dist_stats(pairwise_nearmiss, "Near-miss pairwise agreement")
+get_dist_stats(agreement_dist, "Exact Accuracy (Metric 1: agreement with the Median Severity Score)")
+get_dist_stats(agreement_nearmiss, "Near-Miss Accuracy (Metric 1: agreement with the Median Severity Score)")
 ```
 
-Exact agreement with median
-Mean: 0.7365
-95% CI: 0.00011580908514785548, (0.73642, 0.73666)
-SD: 0.0019
+**Discussion:**
+_Add notes here._
 
-Near-miss agreement with median
-Mean: 0.9680
-95% CI: 5.338195615733898e-05, (0.96797, 0.96808)
-SD: 0.0009
+### 3.2 Metric 2: summary statistics (mean, 95% CI, SD)
 
-Exact pairwise agreement
-Mean: 0.5174
-95% CI: 0.0001902703267429029, (0.51725, 0.51763)
-SD: 0.0031
-
-Near-miss pairwise agreement
-Mean: 0.9038
-95% CI: 0.0001186831432825608, (0.90366, 0.90390)
-SD: 0.0019
+```{python}
+# 3.2
+get_dist_stats(pairwise_dist, "Exact Accuracy (Metric 2: pairwise agreement)")
+get_dist_stats(pairwise_nearmiss, "Near-Miss Accuracy (Metric 2: pairwise agreement)")
+```
 
 **Discussion:**
 _Add notes here._
 
 ## 4. Distribution plots
 
-### 4.1 Histograms of agreement distributions
+### 4.1 Metric 1: histograms of agreement distributions
 
 ```{python}
 # 4.1
@@ -207,7 +244,7 @@ def plot_distribution(dist, name, x_label):
 	mean_agreement = np.mean(dist)
 
 	plt.figure(figsize=(10, 6))
-	plt.hist(dist, bins='auto', alpha=0.75, color='green', edgecolor='black')
+	plt.hist(dist, bins='auto', alpha=0.75, color='skyblue', edgecolor='black')
 	plt.axvline(mean_agreement, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_agreement:.4f}')
 	plt.xlabel(x_label)
 	plt.ylabel('Frequency')
@@ -217,179 +254,20 @@ def plot_distribution(dist, name, x_label):
 	plt.show()
 
 plots_dir = str(repo_root / "analyses" / "03_human_performance" / "supp_plots")
-plot_distribution(agreement_dist, f"{plots_dir}/metric1_exact.png", "Exact agreement with median")
-plot_distribution(agreement_nearmiss, f"{plots_dir}/metric1_nearmiss.png", "Near-miss agreement with median")
-plot_distribution(pairwise_dist, f"{plots_dir}/metric2_exact.png", "Exact pairwise agreement")
-plot_distribution(pairwise_nearmiss, f"{plots_dir}/metric2_nearmiss.png", "Near-miss pairwise agreement")
+plot_distribution(agreement_dist, f"{plots_dir}/metric1_exact.png", "Exact Accuracy (agreement with the Median Severity Score)")
+plot_distribution(agreement_nearmiss, f"{plots_dir}/metric1_nearmiss.png", "Near-Miss Accuracy (agreement with the Median Severity Score)")
 ```
 
 **Discussion:**
 _Add notes here._
 
-## 5. Leave-one-out variant of Metric 1
-
-Metric 1 compares each individual score to the CDA median — but that median **includes the score being
-evaluated**, so a scorer automatically matches whenever they were the middle of the three (the median of
-an odd set is one of its members). This inflates Metric 1. The leave-one-out (LOO) variant removes the
-confound: each score is compared to the median of the **other two** scorers on that CDA. With two
-remaining scorers the LOO reference is their mean, which is a half-integer whenever they disagree by an
-odd amount — so no integer score can match it *exactly*. LOO **exact** agreement is therefore necessarily
-stricter than Metric 1, and the **near-miss** (within ±1) figure is the more directly comparable one.
-
-Computed the same way as Metric 1: across 1,000 class-normalised downsamples, reporting the distribution
-of exact and near-miss agreement. Results are cached to `loo_metric1_results.csv`.
+### 4.2 Metric 2: histograms of agreement distributions
 
 ```{python}
-# 5
-loo_results_path = repo_root / "analyses" / "03_human_performance" / "loo_metric1_results.csv"
-
-def loo_metric1_accuracy(df_wide, precision):
-	"""Agreement of each score with the leave-one-out median (mean) of the other two scorers."""
-	s = df_wide[["Score1", "Score2", "Score3"]].to_numpy(dtype=float)
-	diffs = []
-	for k in range(3):
-		others = np.delete(s, k, axis=1)        # the other two scorers
-		ref = np.nanmean(others, axis=1)        # median of two = their mean
-		diffs.append(np.abs(s[:, k] - ref))
-	d = np.concatenate(diffs)
-	d = d[~np.isnan(d)]
-	return float(np.mean(d <= precision))
-
-if loo_results_path.exists():
-	print("Loading pre-computed results from loo_metric1_results.csv")
-	loo_df = pd.read_csv(loo_results_path)
-	loo_exact_dist    = loo_df["loo_exact_dist"].tolist()
-	loo_nearmiss_dist = loo_df["loo_nearmiss_dist"].tolist()
-else:
-	print("Running 1000-iteration LOO loop...")
-	loo_exact_dist, loo_nearmiss_dist = [], []
-	for i in range(1, 1001):
-		data_normclass = human_performance.downsample_score_classes_csv(data, seed=i)
-		loo_exact_dist.append(loo_metric1_accuracy(data_normclass, 0))
-		loo_nearmiss_dist.append(loo_metric1_accuracy(data_normclass, 1))
-	pd.DataFrame({"loo_exact_dist": loo_exact_dist,
-	              "loo_nearmiss_dist": loo_nearmiss_dist}).to_csv(loo_results_path, index=False)
-
-get_dist_stats(loo_exact_dist,    "LOO exact agreement (vs other two scorers' median)")
-get_dist_stats(loo_nearmiss_dist, "LOO near-miss agreement (vs other two scorers' median)")
+# 4.2
+plot_distribution(pairwise_dist, f"{plots_dir}/metric2_exact.png", "Exact Accuracy (pairwise agreement)")
+plot_distribution(pairwise_nearmiss, f"{plots_dir}/metric2_nearmiss.png", "Near-Miss Accuracy (pairwise agreement)")
 ```
-
-### 5.1 Distribution plots
-
-```{python}
-# 5.1
-plot_distribution(loo_exact_dist,    f"{plots_dir}/loo_metric1_exact.png",    "LOO exact agreement with other scorers' median")
-plot_distribution(loo_nearmiss_dist, f"{plots_dir}/loo_metric1_nearmiss.png", "LOO near-miss agreement with other scorers' median")
-```
-
-**What this shows:**
-
-- Exact LOO agreement (~36%) is far below Metric 1's 74%: most of Metric 1's apparent agreement was scorers matching a median they themselves helped define.
-- The near-miss LOO figure (~89%) is close to Metric 2's pairwise near-miss (~90%), as expected — both measure agreement against *other* scorers with no self-reference.
-- Exact LOO sits below even Metric 2's exact pairwise agreement (~52%) partly because the half-integer LOO reference makes exact matches impossible when the other two scorers disagree by an odd amount; near-miss is the fairer comparison.
-
-**Discussion:**
-_Add notes here._
-
-## 6. Inter-rater vs intra-rater agreement (non-zero CDAs)
-
-For the five scorers who completed the rescore task, we can directly compare how consistently each scorer agrees with **themselves** (intra-rater, from `06_intra_rater_reliability`) versus how consistently they agree with **other scorers** on the same CDAs (inter-rater, computed here from the canonical data). Both metrics are restricted to non-zero median CDAs, since zero-score CDAs are near-unanimously agreed upon and would inflate both figures.
-
-If intra-rater > inter-rater: individual biases are a genuine additional source of disagreement on top of task ambiguity.
-If intra-rater ≈ inter-rater: the task is inherently ambiguous and even self-consistency is low.
-
-### 6.1 Per-scorer comparison (dumbbell plot)
-
-```{python}
-# 6.1.1
-# Load intra-rater summary (non-zero CDAs only, since all rescored CDAs had median > 0)
-intra_summary = pd.read_csv(str(repo_root / "analyses" / "06_intra_rater_reliability" / "intra_rater_summary.csv"))
-intra_summary['Scorer'] = intra_summary['Scorer'].astype(int)
-rescored_scorers = intra_summary['Scorer'].tolist()
-
-# Compute per-scorer average pairwise agreement on non-zero CDAs from canonical data
-data_nonzero = data[data['Median_Score'] != 0].copy()
-for i in [1, 2, 3]:
-    data_nonzero[f'Scorer{i}'] = pd.to_numeric(data_nonzero[f'Scorer{i}'], errors='coerce')
-    data_nonzero[f'Score{i}']  = pd.to_numeric(data_nonzero[f'Score{i}'],  errors='coerce')
-
-pairs = []
-for i, j in [(1, 2), (1, 3), (2, 3)]:
-    sub = data_nonzero[['Basename', 'Row', 'Col', 'Pos',
-                         f'Scorer{i}', f'Score{i}',
-                         f'Scorer{j}', f'Score{j}']].copy()
-    sub.columns = ['Basename', 'Row', 'Col', 'Pos',
-                   'ScorerA', 'ScoreA', 'ScorerB', 'ScoreB']
-    pairs.append(sub)
-
-pairs_df = (pd.concat(pairs)
-              .dropna(subset=['ScorerA', 'ScorerB', 'ScoreA', 'ScoreB'])
-              .assign(ScorerA=lambda d: d['ScorerA'].astype(int),
-                      ScorerB=lambda d: d['ScorerB'].astype(int),
-                      ScoreA =lambda d: d['ScoreA'].astype(int),
-                      ScoreB =lambda d: d['ScoreB'].astype(int),
-                      Agree  =lambda d: d['ScoreA'] == d['ScoreB']))
-
-sym = pd.concat([
-    pairs_df[['ScorerA', 'Agree']].rename(columns={'ScorerA': 'Scorer'}),
-    pairs_df[['ScorerB', 'Agree']].rename(columns={'ScorerB': 'Scorer'})
-])
-per_scorer_inter = (sym.groupby('Scorer')['Agree'].mean() * 100).reset_index()
-per_scorer_inter.columns = ['Scorer', 'Inter_rater']
-per_scorer_inter = per_scorer_inter[per_scorer_inter['Scorer'].isin(rescored_scorers)]
-
-# Merge with intra-rater data
-comp = (intra_summary[['Scorer', 'intra_exact']]
-        .rename(columns={'intra_exact': 'Intra_rater'})
-        .merge(per_scorer_inter, on='Scorer'))
-
-mean_intra = comp['Intra_rater'].mean()
-mean_inter = comp['Inter_rater'].mean()
-comp['Scorer'] = comp['Scorer'].astype(str)
-comp_plot = comp.copy()
-
-print(comp_plot.round(1).to_string(index=False))
-print(f"\nMean intra-rater: {mean_intra:.1f}%")
-print(f"Mean inter-rater: {mean_inter:.1f}%")
-```
-
-```{python}
-# 6.1.2
-fig, ax = plt.subplots(figsize=(8, 5))
-
-for i, row in comp_plot.iterrows():
-    ax.plot([row['Intra_rater'], row['Inter_rater']], [i, i],
-            color='grey', linewidth=1.5, zorder=1)
-
-ax.scatter(comp_plot['Intra_rater'], range(len(comp_plot)),
-           color='steelblue', s=90, zorder=2, label='Intra-rater (self-consistency)')
-ax.scatter(comp_plot['Inter_rater'], range(len(comp_plot)),
-           color='firebrick', s=90, zorder=2, label='Inter-rater (pairwise with others)')
-
-ax.axvline(mean_intra, color='steelblue', linestyle='--', linewidth=1.2, alpha=0.6,
-           label=f'Mean intra-rater ({mean_intra:.1f}%)')
-ax.axvline(mean_inter, color='firebrick', linestyle='--', linewidth=1.2, alpha=0.6,
-           label=f'Mean inter-rater ({mean_inter:.1f}%)')
-
-ax.set_yticks(range(len(comp_plot)))
-ax.set_yticklabels(comp_plot['Scorer'].tolist(), fontsize=13)
-ax.set_xlabel('Exact agreement on non-zero CDAs (%)', fontsize=14)
-ax.set_ylabel('Scorer', fontsize=14)
-ax.legend(fontsize=11, loc='lower right')
-ax.grid(axis='x', alpha=0.3)
-ax.tick_params(axis='x', labelsize=12)
-
-plt.tight_layout()
-out = str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "inter_vs_intra_rater.png")
-plt.savefig(out, dpi=300, bbox_inches='tight')
-plt.show()
-```
-
-**What this shows:**
-
-- For most scorers, intra-rater consistency exceeds inter-rater agreement, meaning each individual is more consistent with themselves than with others. This confirms that systematic individual biases contribute to inter-rater disagreement on top of genuine task ambiguity.
-- The mean intra-rater reference line sets a natural ceiling for inter-rater agreement: different scorers cannot reliably agree more than a single scorer agrees with themselves.
-- Scorer 9 is the exception: their intra-rater consistency (~30%) is lower than their inter-rater agreement with others. Score change analysis in `06_intra_rater_reliability` shows this is not random noise — scorer 9 consistently scored 1–2 classes *higher* when rescoring, indicating a systematic upward calibration shift between the two scoring sessions. Their original scores are therefore more representative of their calibration at the time of dataset collection.
 
 **Discussion:**
 _Add notes here._
