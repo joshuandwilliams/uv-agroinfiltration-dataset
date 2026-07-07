@@ -11,9 +11,9 @@ Date: 2026-06-15
 
 **Goal:**
 
-Determine whether scorers' over- and under-scoring errors are *independent* per CDA, or whether they
+Determine whether raters' over- and under-scoring errors are *independent* per CDA, or whether they
 **cluster** — either in time (a sequential momentum / anchoring effect, where having just scored high
-makes the next score more likely to be high) or by image (an experiment-level effect, where a scorer's
+makes the next score more likely to be high) or by image (an experiment-level effect, where a rater's
 deviation is consistent within a leaf/image but shifts between images).
 
 **Hypothesis:**
@@ -23,24 +23,18 @@ deviation is consistent within a leaf/image but shifts between images).
 2. In the original scoring (CDAs scored in image order), residual disagreement will appear autocorrelated,
    but this will be an **image-blocking** effect (consecutive CDAs share a leaf) rather than genuine
    temporal momentum.
-3. Between-scorer disagreement will carry a modest but real **image-level** component: two scorers'
+3. Between-rater disagreement will carry a modest but real **image-level** component: two raters'
    relative offset is more consistent within an image than between images.
 
 **Rationale:**
 
 This follows up a question raised in `06_intra_rater_reliability`: do over-/under-scoring patterns occur
-in groups? The danger is mistaking experimental structure for scorer psychology. Original scoring is not
+in groups? The danger is mistaking experimental structure for rater psychology. Original scoring is not
 random — infiltration layouts place controls (0s) together, leaves differ in lighting/background, and
 neighbouring spots on a leaf share treatment — so consecutive scores are correlated for reasons that have
 nothing to do with sequential anchoring. We therefore (a) use the *randomised-order* rescore as a clean
 temporal test, (b) decompose the original-scoring autocorrelation into within- vs across-image, and
 (c) test image-level structure directly with a confound-free pairwise comparison.
-
-**Experimental plan:**
-
-1. Rescore drift autocorrelation (randomised order → clean temporal test).
-2. Original-scoring residual autocorrelation, decomposed into within-image vs across-image consecutive pairs.
-3. Between-scorer pairwise disagreement: variance decomposition (ICC) by image, with and without 0-median CDAs.
 
 ---
 
@@ -64,7 +58,7 @@ library(scales)
 # 1.2
 source(here("src", "plotting_helpers.R"))
 
-# Canonical three-scorer panel (one row per CDA).
+# Canonical three-rater panel (one row per CDA).
 canon <- read_csv(
   here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv"),
   show_col_types = FALSE
@@ -99,11 +93,11 @@ runs_p <- function(x) {
 
 The rescore originals were presented in a randomised order, so consecutive trials are unrelated images.
 Any autocorrelation in the drift `new − old` is therefore a **pure sequential effect**. The cost is
-power: only ~100 trials per scorer.
+power: only ~100 trials per rater.
 
 ```{r}
 # 2.1
-# rescore_anon/ holds one file per scorer, already anonymised (filename and
+# rescore_anon/ holds one file per rater, already anonymised (filename and
 # `scorer` column both give the same ID).
 rescore_files <- list.files(
   here("analyses", "06_intra_rater_reliability", "rescore_anon"),
@@ -151,7 +145,7 @@ cat(sprintf(
 p <- ggplot(rescore, aes(seq, cum)) +
   geom_hline(yintercept = 0, color = "grey60") +
   geom_line(color = "steelblue") +
-  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
   labs(x = "Rescoring order", y = "Cumulative\nmean-centred drift") +
   theme_minimal() +
   theme(
@@ -166,24 +160,21 @@ save_plot(p, "rescore_drift_sequence.png", width = 14, height = 3.5)
 **What this shows:**
 
 - The cumulative drift wanders in long excursions — but a cumulative sum of *independent* noise is a random walk that wanders identically, so the eye is unreliable here; the formal tests are what count.
-- Every scorer's runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.
-
-**Discussion:**
-_Add notes here._
+- Every rater's runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.
 
 ---
 
 ## 3. Temporal test 2 — original scoring (image-ordered)
 
-The original scoring was done in image order, with thousands of scores per scorer — far more power, but
+The original scoring was done in image order, with thousands of scores per rater — far more power, but
 consecutive CDAs usually share an image. Each score is compared to the **leave-one-out consensus** (the
-median, i.e. mean, of the *other two* scorers on that CDA), giving a residual `score − consensus`. Scores
+median, i.e. mean, of the *other two* raters on that CDA), giving a residual `score − consensus`. Scores
 are matched to the canonical panel by image and CDA position; the leave-one-out reference removes the
 self-inclusion that would otherwise force a score to match its own median.
 
 ```{r}
 # 3
-# data/cdascorer_anon/ holds one file per scorer, named Scorer<ID>.csv - see
+# data/cdascorer_anon/ holds one file per rater, named Scorer<ID>.csv - see
 # the anonymisation script under scripts/.
 read_raw_set <- function(set) {
   files <- list.files(here("data", "cdascorer_anon", set), pattern = "[.]csv$", full.names = TRUE)
@@ -212,7 +203,7 @@ raw_resid <- bind_rows(read_raw_set("set1"), read_raw_set("set2")) %>%
 
 cat(
   "Matched raw scores:", nrow(raw_resid), "across",
-  n_distinct(paste(raw_resid$Scorer, raw_resid$Set)), "scorer-sessions\n"
+  n_distinct(paste(raw_resid$Scorer, raw_resid$Set)), "rater-sessions\n"
 )
 
 session_stats <- raw_resid %>%
@@ -278,9 +269,6 @@ save_plot(p, "raw_image_boundary_autocorrelation.png", width = 6, height = 4.5)
 - Pooled across the original scoring the residual is strongly positively autocorrelated — but this is **entirely a within-image effect**. ~97% of consecutive scores share an image; the lag-1 autocorrelation is large and highly significant for same-image pairs yet indistinguishable from zero across image boundaries (CI spans 0).
 - This matches §2: when the context changes — randomised rescore order, or crossing an image boundary — there is no residual momentum. The apparent clustering is image-blocking, not sequential anchoring.
 
-**Discussion:**
-_Add notes here._
-
 ---
 
 ## 4. Image-level structure of disagreement (confound-free)
@@ -288,14 +276,14 @@ _Add notes here._
 The temporal tests show disagreement is organised at the image level, but the raw-score autocorrelation
 conflates several things (the experimental layout, the abundance of agreed 0s, per-image bias). A cleaner
 test, free of temporal order and of the self-vs-median issue, looks at the **difference between two
-scorers** on the same CDA: the true severity cancels, leaving only their relative disagreement. If that
+raters** on the same CDA: the true severity cancels, leaving only their relative disagreement. If that
 difference is consistent within an image but shifts between images, disagreement has an image-level
 component. This is the intraclass correlation (ICC) of the pairwise difference with image as the grouping
 factor: the fraction of disagreement variance attributable to *which image* a CDA is on.
 
 ```{r}
 # 4
-# All within-CDA scorer pairs, oriented lower-ID minus higher-ID, with image label.
+# All within-CDA rater pairs, oriented lower-ID minus higher-ID, with image label.
 mk_pair <- function(d, a, b) {
   d %>%
     transmute(Basename, Median_Score,
@@ -311,7 +299,7 @@ mk_pair <- function(d, a, b) {
 pairs <- bind_rows(mk_pair(canon, 1, 2), mk_pair(canon, 1, 3), mk_pair(canon, 2, 3)) %>%
   select(pair, Basename, Median_Score, diff)
 
-# Random-effects (one-way ANOVA) ICC of the difference by image, for one scorer-pair.
+# Random-effects (one-way ANOVA) ICC of the difference by image, for one rater-pair.
 icc_by_pair <- function(df) {
   g <- df %>%
     group_by(Basename) %>%
@@ -371,7 +359,7 @@ p <- ggplot(icc_res, aes(subset, icc, fill = subset)) +
     "Non-zero median only" = "#3182bd"
   ), guide = "none") +
   scale_y_continuous(limits = c(0, NA)) +
-  labs(x = NULL, y = "ICC of pairwise difference by image\n(per scorer-pair)") +
+  labs(x = NULL, y = "ICC of pairwise difference by image\n(per rater-pair)") +
   theme_minimal() +
   theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
 p
@@ -380,12 +368,9 @@ save_plot(p, "pairwise_image_icc.png", width = 7, height = 5)
 
 **What this shows:**
 
-- Each point is one scorer-pair; the ICC is the share of their disagreement variance explained by image.
-- The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two scorers' relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).
+- Each point is one rater-pair; the ICC is the share of their disagreement variance explained by image.
+- The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two raters' relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).
 - Crucially, **removing the abundant agreed-0 CDAs raises the ICC** rather than lowering it — so the image-level structure is not an artefact of zero-heavy control regions; it is strongest among genuinely contested CDAs.
-
-**Discussion:**
-_Add notes here._
 
 ### 4.2 Illustration: per-image mean difference for the best-sampled pairs
 
@@ -420,7 +405,7 @@ p <- ggplot(img_means, aes(img_rank, mean_diff)) +
   facet_wrap(~pair, scales = "free_x", labeller = label_both) +
   labs(
     x = "Image (ranked by mean difference)",
-    y = "Mean score difference\n(scorer A − scorer B)"
+    y = "Mean score difference\n(rater A − rater B)"
   ) +
   theme_minimal() +
   theme(
@@ -434,24 +419,39 @@ save_plot(p, "pairwise_per_image_mean_diff.png", width = 12, height = 4.5)
 
 **What this shows:**
 
-- For the best-sampled scorer-pairs, each point is the mean difference on one image with its 95% CI.
-- The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two scorers' relative offset shifts from image to image while being comparatively settled within each image.
-
-**Discussion:**
-_Add notes here._
+- For the best-sampled rater-pairs, each point is the mean difference on one image with its 95% CI.
+- The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two raters' relative offset shifts from image to image while being comparatively settled within each image.
 
 ---
 
-## 5. Discussion — confounds and interpretation
+## 5. Discussion
+
+### 5.1 Rescore drift autocorrelation (temporal test 1)
+
+_Add notes here._
+
+### 5.2 Original-scoring residual autocorrelation (temporal test 2)
+
+_Add notes here._
+
+### 5.3 ICC of pairwise disagreement by image
+
+_Add notes here._
+
+### 5.4 Illustration: per-image mean difference for the best-sampled pairs
+
+_Add notes here._
+
+### 5.5 Overall narrative — confounds and interpretation
 
 **Same image = same experiment.** Original scoring is not a random sequence. CDAs on one image are spots
 on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two
-effects follow: (i) the underlying severities are correlated, and (ii) a scorer's *reading* of that leaf
+effects follow: (i) the underlying severities are correlated, and (ii) a rater's *reading* of that leaf
 (exposure, contrast, what counts as "necrotic" under that lighting) is correlated. The §3 within-image
 autocorrelation and the §4 ICC both capture this image-level structure; neither is evidence of temporal
 anchoring, which the randomised rescore (§2) and the across-image boundary (§3.1) both rule out.
 
-**The abundance of 0s and non-random layout.** Infiltration layouts group controls together, so a scorer
+**The abundance of 0s and non-random layout.** Infiltration layouts group controls together, so a rater
 genuinely does see runs of 0s — but those are near-universally agreed, so they contribute *agreement*,
 not disagreement structure. This is why the analyses use **residuals / pairwise differences** rather than
 raw scores (which would be trivially autocorrelated by the design), and why the §4 ICC is computed both
@@ -462,16 +462,13 @@ structure lives in the contested mid-range CDAs, not in the clustered controls.
 or re-weighting score classes destroys the true adjacency of the sequence, so a "lag-1" on a balanced
 series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not
 raw scores) and the within/across-image split, both of which are done. For the *image-level* ICC, balance
-is handled implicitly: the difference between two scorers already removes the severity (class) signal, and
+is handled implicitly: the difference between two raters already removes the severity (class) signal, and
 reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant
 0 class.
 
-**Overall.** Over-/under-scoring does **not** have temporal momentum across contexts — a scorer's last
+**Overall.** Over-/under-scoring does **not** have temporal momentum across contexts — a rater's last
 score does not pull their next one once the image changes. What is real is a modest **image-level**
-structure to disagreement: two scorers' relative calibration drifts somewhat from image to image
+structure to disagreement: two raters' relative calibration drifts somewhat from image to image
 (plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within
 an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an
 individual cell-death area.
-
-**Discussion:**
-_Add notes here._
