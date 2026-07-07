@@ -10,7 +10,7 @@ from sklearn.utils import shuffle
 
 
 def generate_scorer_key(
-    data: pd.DataFrame, random_state: int = 42, output_path: str = "anonymisation_key.csv"
+    data: pd.DataFrame, random_state: int = 42, output_path: str | None = None
 ) -> dict[int, str]:
     """
     Generates an anonymization key by shuffling the unique scorers from the
@@ -22,14 +22,16 @@ def generate_scorer_key(
             A DataFrame containing a column 'Scorer1' with scorer names.
     random_state : int, optional (default=42)
             Random seed for shuffling to ensure reproducibility.
-    output_path : str, optional (default='anonymisation_key.csv')
-            Path to save the generated anonymization key.
+    output_path : str, optional (default=None)
+            Path to save the generated anonymization key. If None, the key is
+            not saved to disk - only returned. There is deliberately no
+            relative-path default: callers must be explicit about where the
+            key (which is the only record of real scorer names) is written.
 
     Returns:
     --------
     Dict[int, str]
             A dictionary mapping anonymous integer IDs (1-based) to scorer names.
-            The key is also saved to 'anonymisation_key.csv'.
     """
     if "Scorer1" not in data.columns or data["Scorer1"].isnull().all():
         raise ValueError("The 'Scorer1' column is missing or empty in the provided data.")
@@ -38,7 +40,10 @@ def generate_scorer_key(
     shuffled_scorers = shuffle(scorer_list, random_state=random_state)
     key = {idx + 1: scorer for idx, scorer in enumerate(shuffled_scorers)}
 
-    pd.DataFrame(list(key.items()), columns=["ID", "Scorer_Name"]).to_csv(output_path, index=False)
+    if output_path is not None:
+        pd.DataFrame(list(key.items()), columns=["ID", "Scorer_Name"]).to_csv(
+            output_path, index=False
+        )
 
     return key
 
