@@ -11,7 +11,7 @@ Date: 2/6/2024
 
 **Goal:**
 
-Quantify, for each median (ground-truth) severity score, how often the three scorers agreed. Each CDA falls into one of three mutually exclusive groups: all three scorers agreed (unanimous), two of three agreed with the median (majority), or all three gave a different score (no agreement).
+Quantify, for each median (ground-truth) severity score, how often the three raters agreed. Each CDA falls into one of three mutually exclusive groups: all three raters agreed (unanimous), two of three agreed with the median (majority), or all three gave a different score (no agreement).
 
 **Hypothesis:**
 
@@ -20,10 +20,6 @@ Extreme scores (0 and 6) will have a higher proportion of unanimous annotations 
 **Rationale:**
 
 Understanding which score classes have reliable ground truth labels informs model training and evaluation strategies.
-
-**Experimental plan:**
-
-Compute the agreement breakdown directly from the canonical score data and present it both as a table and as a stacked bar chart of CDA counts at each median score level (0–6).
 
 ---
 
@@ -93,7 +89,7 @@ confidence_table <- conf_cda %>%
 knitr::kable(confidence_table, align = "c")
 ```
 
-Each CDA is categorised by how many of its three scorers agreed with the median: *All-3-Agree* (unanimous), *2-of-3-Agree* (a majority match the median, one differs), and *All-3-Disagree* (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two scorers; in every case the two present scores match the median, so they fall in the *2-of-3-Agree* group.
+Each CDA is categorised by how many of its three raters agreed with the median: *All-3-Agree* (unanimous), *2-of-3-Agree* (a majority match the median, one differs), and *All-3-Disagree* (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two raters; in every case the two present scores match the median, so they fall in the *2-of-3-Agree* group.
 
 ---
 
@@ -115,10 +111,10 @@ agree_pal <- c(
 p <- ggplot(conf_counts, aes(x = factor(`Median Score`), y = n, fill = Agreement)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(
-    values = agree_pal, name = "Scorer agreement",
+    values = agree_pal, name = "Rater Agreement",
     guide = guide_legend(reverse = TRUE)
   ) +
-  labs(x = "Median Score", y = "Frequency") +
+  labs(x = "Median Severity Score", y = "Frequency") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -135,7 +131,20 @@ save_plot(p, "stackedbar.png", width = 8, height = 6)
 - Median-0 CDAs are overwhelmingly unanimous, reflecting the dominance of negative controls and their visual clarity.
 - Median-6 is the next most unanimous; both extremes are easier to identify consistently.
 - Intermediate scores (1–5) are dominated by partial or full disagreement, highlighting the difficulty of distinguishing adjacent severity levels.
-- All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two scorers to have given that extreme value.
+- All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two raters to have given that extreme value.
 
-**Discussion:**
+---
+
+## 4. Discussion
+
+### 4.1 Agreement breakdown by median score
+
+_Add notes here._
+
+### 4.2 Stacked bar of agreement by median score
+
+_Add notes here._
+
+### 4.3 Overall narrative
+
 _Add notes here._

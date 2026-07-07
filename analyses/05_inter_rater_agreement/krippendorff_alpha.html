@@ -127,17 +127,15 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Quantify the overall inter-rater reliability of the human scorer panel using Krippendorff’s alpha, and characterise the structure of scorer disagreement via Pearson correlation of score residuals.</p>
+<p>Quantify the overall inter-rater reliability of the human rater panel using Krippendorff’s alpha, and characterise the structure of rater disagreement via Pearson correlation of score residuals.</p>
 <p><strong>Hypothesis:</strong></p>
 <ol type="1">
-<li>Krippendorff’s alpha on raw scores will be high (&gt;0.8), reflecting that scorers broadly agree on severity ordering even when they differ by ±1.</li>
-<li>Alpha on residuals (score − median) will be substantially lower, indicating that scorers do not share structured error patterns.</li>
-<li>Residual correlations between scorer pairs will be positive but moderate — scorers make similar errors but not identical ones.</li>
+<li>Krippendorff’s alpha on raw scores will be high (&gt;0.8), reflecting that raters broadly agree on severity ordering even when they differ by ±1.</li>
+<li>Alpha on residuals (score − median) will be substantially lower, indicating that raters do not share structured error patterns.</li>
+<li>Residual correlations between rater pairs will be positive but moderate — raters make similar errors but not identical ones.</li>
 </ol>
 <p><strong>Rationale:</strong></p>
-<p>Pairwise % agreement (see <code>pairwise_agreement.qmd</code>) captures agreement on exact score matches but does not give a single overall reliability estimate. Krippendorff’s alpha is the standard metric for ordinal inter-rater reliability and handles missing data (not all scorers rated all CDAs). Residual correlation is ported from the model ensemble analysis in <code>AutoCDAScorer_Models/analyses/10_model_scoring_patterns/model_error_independence.Rmd</code> where it was used to assess whether model errors were structured or independent.</p>
-<p><strong>Experimental plan:</strong></p>
-<p>Compute Krippendorff’s alpha on raw scores (ordinal metric) and on score residuals (interval metric), bootstrap each to obtain 95% CIs, then compute and visualise pairwise Pearson correlation of residuals.</p>
+<p>Pairwise % agreement (see <code>pairwise_agreement.qmd</code>) captures agreement on exact score matches but does not give a single overall reliability estimate. Krippendorff’s alpha is the standard metric for ordinal inter-rater reliability and handles missing data (not all raters rated all CDAs). Residual correlation is ported from the model ensemble analysis in <code>AutoCDAScorer_Models/analyses/10_model_scoring_patterns/model_error_independence.Rmd</code> where it was used to assess whether model errors were structured or independent.</p>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -228,10 +226,10 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>save_plot <span class="ot">&lt;-</span> <span class="fu">make_save_plot</span>(<span class="st">"05_inter_rater_agreement"</span>)</span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>scorer_matrix <span class="ot">&lt;-</span> <span class="fu">build_scorer_matrix</span>(score_data)</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Scorer matrix dimensions:"</span>, <span class="fu">nrow</span>(scorer_matrix), <span class="st">"scorers ×"</span>, <span class="fu">ncol</span>(scorer_matrix), <span class="st">"CDAs</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Rater matrix dimensions:"</span>, <span class="fu">nrow</span>(scorer_matrix), <span class="st">"raters ×"</span>, <span class="fu">ncol</span>(scorer_matrix), <span class="st">"CDAs</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Scorer matrix dimensions: 10 scorers × 6364 CDAs</code></pre>
+<pre><code>Rater matrix dimensions: 10 raters × 6364 CDAs</code></pre>
 </div>
 <details>
 <summary>Code</summary>
@@ -246,7 +244,7 @@ Attaching package: 'dplyr'</code></pre>
 </section>
 <section id="krippendorffs-alpha-raw-scores" class="level2">
 <h2 class="anchored" data-anchor-id="krippendorffs-alpha-raw-scores">2. Krippendorff’s Alpha — Raw Scores</h2>
-<p>Krippendorff’s alpha is computed on the full scorer × CDA matrix directly (no median involved). Two distance metrics are compared as a robustness check on the assumed measurement level: <strong>ordinal</strong> (treats 0–6 as ordered categories) and <strong>interval</strong> (treats 0–6 as equally spaced). If the two estimates agree, the reliability conclusion doesn’t hinge on which scale assumption is correct. Missing values are handled automatically: expected agreement is estimated from all rated pairs.</p>
+<p>Krippendorff’s alpha is computed on the full rater × CDA matrix directly (no median involved). Two distance metrics are compared as a robustness check on the assumed measurement level: <strong>ordinal</strong> (treats 0–6 as ordered categories) and <strong>interval</strong> (treats 0–6 as equally spaced). If the two estimates agree, the reliability conclusion doesn’t hinge on which scale assumption is correct. Missing values are handled automatically: expected agreement is estimated from all rated pairs.</p>
 <section id="ordinal-metric" class="level3">
 <h3 class="anchored" data-anchor-id="ordinal-metric">2.1 Ordinal metric</h3>
 <div class="cell">
@@ -342,11 +340,10 @@ Attaching package: 'dplyr'</code></pre>
 <li>The dotted line marks the Hayes &amp; Krippendorff reliability threshold of α = 0.8.</li>
 <li>The width of the distribution reflects sampling variability across random draws of 500 CDAs.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="interval-metric" class="level3">
 <h3 class="anchored" data-anchor-id="interval-metric">2.2 Interval metric</h3>
-<p>Same scorer × CDA matrix as §2.1, but with <code>method = "interval"</code> instead of <code>"ordinal"</code> — no residuals or medians involved, just a different distance metric applied to the same raw scores.</p>
+<p>Same rater × CDA matrix as §2.1, but with <code>method = "interval"</code> instead of <code>"ordinal"</code> — no residuals or medians involved, just a different distance metric applied to the same raw scores.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -439,13 +436,12 @@ Attaching package: 'dplyr'</code></pre>
 <li>The bootstrap distribution of interval Krippendorff’s alpha on the same raw scores as §2.1.</li>
 <li>Near-identical to the ordinal estimate (§2.1) — reliability here is robust to whether the 0–6 scale is treated as ordered categories or as equally-spaced values.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 </section>
 <section id="krippendorffs-alpha-score-residuals" class="level2">
 <h2 class="anchored" data-anchor-id="krippendorffs-alpha-score-residuals">3. Krippendorff’s Alpha — Score Residuals</h2>
-<p>Residuals are computed as (individual score − CDA median score), then Krippendorff’s alpha is recomputed on the residual matrix. A high residual alpha would indicate that scorers share structured error patterns (they make the same mistakes); a low residual alpha indicates independent errors.</p>
+<p>Residuals are computed as (individual score − CDA median score), then Krippendorff’s alpha is recomputed on the residual matrix. A high residual alpha would indicate that raters share structured error patterns (they make the same mistakes); a low residual alpha indicates independent errors.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -538,21 +534,20 @@ Attaching package: 'dplyr'</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>The bootstrap distribution of interval Krippendorff’s alpha computed on score residuals (score − median), centred on the bootstrap mean.</li>
-<li>A low alpha here indicates that scorer errors are largely independent — scorers do not share structured biases across the same CDAs.</li>
+<li>A low alpha here indicates that rater errors are largely independent — raters do not share structured biases across the same CDAs.</li>
 <li>Comparing this distribution to the raw-score alpha (section 2) shows how much of the inter-rater agreement is driven by absolute severity ordering vs shared error patterns.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 </section>
 <section id="pearson-correlation-of-score-residuals" class="level2">
 <h2 class="anchored" data-anchor-id="pearson-correlation-of-score-residuals">4. Pearson Correlation of Score Residuals</h2>
-<p>For each pair of scorers who shared at least one CDA, compute the Pearson correlation of their residuals across those shared CDAs. A high correlation means their errors tend to go in the same direction; a low or near-zero correlation means their errors are largely independent (good for ensemble/median robustness).</p>
+<p>For each pair of raters who shared at least one CDA, compute the Pearson correlation of their residuals across those shared CDAs. A high correlation means their errors tend to go in the same direction; a low or near-zero correlation means their errors are largely independent (good for ensemble/median robustness).</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.1</span></span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co"># rownames(scorer_matrix) are in pivot order, not sorted, so map each scorer ID</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co"># rownames(scorer_matrix) are in pivot order, not sorted, so map each rater ID</span></span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co"># back to its matrix row and build pairs ordered by ID (Scorer.x &lt; Scorer.y).</span></span>
 <span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This keeps every tile in the upper-left triangle like the other heatmaps.</span></span>
 <span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>scorer_ids <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">rownames</span>(scorer_matrix))</span>
@@ -624,7 +619,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">midpoint =</span> <span class="dv">0</span>, <span class="at">name =</span> <span class="st">"Pearson r"</span>,</span>
 <span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.value =</span> <span class="st">"white"</span>, <span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
 <span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer X"</span>, <span class="at">y =</span> <span class="st">"Scorer Y"</span>) <span class="sc">+</span></span>
+<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
 <span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.major =</span> <span class="fu">element_blank</span>(),</span>
@@ -650,7 +645,30 @@ Attaching package: 'dplyr'</code></pre>
 <li>Pairs near zero have largely independent errors — useful for the median being a robust ground truth.</li>
 <li>Blank / grey cells indicate pairs who shared too few CDAs (&lt;10) to estimate a reliable correlation.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+<hr>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">5. Discussion</h2>
+<section id="krippendorffs-alpha-ordinal-metric-raw-scores" class="level3">
+<h3 class="anchored" data-anchor-id="krippendorffs-alpha-ordinal-metric-raw-scores">5.1 Krippendorff’s alpha, ordinal metric (raw scores)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="krippendorffs-alpha-interval-metric-raw-scores" class="level3">
+<h3 class="anchored" data-anchor-id="krippendorffs-alpha-interval-metric-raw-scores">5.2 Krippendorff’s alpha, interval metric (raw scores)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="krippendorffs-alpha-on-score-residuals" class="level3">
+<h3 class="anchored" data-anchor-id="krippendorffs-alpha-on-score-residuals">5.3 Krippendorff’s alpha on score residuals</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="pearson-correlation-of-score-residuals-1" class="level3">
+<h3 class="anchored" data-anchor-id="pearson-correlation-of-score-residuals-1">5.4 Pearson correlation of score residuals</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative">5.5 Overall narrative</h3>
+<p><em>Add notes here.</em></p>
+</section>
 </section>
 
 </main>

@@ -127,13 +127,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Investigate changes to average pairwise agreement when each scorer is removed. Investigate differences in agreement across raw agroinfiltration images.</p>
+<p>Investigate changes to average pairwise agreement when each rater is removed. Investigate differences in agreement across raw agroinfiltration images.</p>
 <p><strong>Hypothesis:</strong></p>
-<p>Excluding scores from scorers with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity.</p>
+<p>Excluding scores from raters with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity.</p>
 <p><strong>Rationale:</strong></p>
-<p>Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which scorers most reduce overall agreement informs future data collection decisions.</p>
-<p><strong>Experimental plan:</strong></p>
-<p>Compute pairwise % agreement between all scorer pairs, visualise as a heatmap (with and without median-0 CDAs), count shared CDAs per pair, compute leave-one-out average agreement for each scorer, verify with random sampling, and compute the agreement pattern plots.</p>
+<p>Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which raters most reduce overall agreement informs future data collection decisions.</p>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -268,8 +266,8 @@ Attaching package: 'scales'</code></pre>
 <hr>
 </section>
 </section>
-<section id="pairwise-agreement-between-scorers" class="level2">
-<h2 class="anchored" data-anchor-id="pairwise-agreement-between-scorers">2. Pairwise % Agreement Between Scorers</h2>
+<section id="pairwise-agreement-between-raters" class="level2">
+<h2 class="anchored" data-anchor-id="pairwise-agreement-between-raters">2. Pairwise % Agreement Between Raters</h2>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -313,7 +311,7 @@ Attaching package: 'scales'</code></pre>
 <span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_discrete</span>(<span class="at">limits =</span> <span class="fu">as.character</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)) <span class="sc">+</span></span>
 <span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_discrete</span>(<span class="at">limits =</span> <span class="fu">as.character</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)) <span class="sc">+</span></span>
 <span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">10</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">10</span>)) <span class="sc">+</span></span>
-<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer X"</span>, <span class="at">y =</span> <span class="st">"Scorer Y"</span>, <span class="at">title =</span> title) <span class="sc">+</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>, <span class="at">title =</span> title) <span class="sc">+</span></span>
 <span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_ira</span>() <span class="sc">+</span></span>
 <span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>, <span class="at">face =</span> <span class="st">"bold"</span>))</span>
 <span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>}</span>
@@ -361,10 +359,9 @@ Removed 9 rows containing missing values or values outside the scale range
 (`geom_text()`).</code></pre>
 </div>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <section id="off-by-one-disagreement-rate" class="level3">
 <h3 class="anchored" data-anchor-id="off-by-one-disagreement-rate">2.1 Off-by-one disagreement rate</h3>
-<p>How often do two scorers differ by <em>exactly</em> one severity point? Pooled across all unordered scorer pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1) minus the exact rate (diff = 0).</p>
+<p>How often do two raters differ by <em>exactly</em> one severity point? Pooled across all unordered rater pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1) minus the exact rate (diff = 0).</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -429,16 +426,15 @@ Removed 9 rows containing missing values or values outside the scale range
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Across all CDAs, two scorers differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which scorers almost always agree exactly.</li>
-<li>Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two scorers.</li>
+<li>Across all CDAs, two raters differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which raters almost always agree exactly.</li>
+<li>Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two raters.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
 </section>
-<section id="shared-cda-count-per-scorer-pair" class="level2">
-<h2 class="anchored" data-anchor-id="shared-cda-count-per-scorer-pair">3. Shared CDA Count per Scorer Pair</h2>
-<p>How many CDAs did each pair of scorers both score?</p>
+<section id="shared-cda-count-per-rater-pair" class="level2">
+<h2 class="anchored" data-anchor-id="shared-cda-count-per-rater-pair">3. Shared CDA Count per Rater Pair</h2>
+<p>How many CDAs did each pair of raters both score?</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -454,7 +450,7 @@ Removed 9 rows containing missing values or values outside the scale range
 <span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
 <span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(Total), <span class="st">""</span>, Total)), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">size =</span> <span class="dv">5</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
 <span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>, <span class="at">name =</span> <span class="st">"Shared CDAs"</span>, <span class="at">na.value =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
-<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer X"</span>, <span class="at">y =</span> <span class="st">"Scorer Y"</span>) <span class="sc">+</span></span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
 <span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_ira</span>()</span>
 <span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
@@ -466,11 +462,10 @@ Removed 9 rows containing missing values or values outside the scale range
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"shared_cda_count.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
-<section id="effect-of-removing-each-scorer-on-average-pairwise-agreement" class="level2">
-<h2 class="anchored" data-anchor-id="effect-of-removing-each-scorer-on-average-pairwise-agreement">4. Effect of Removing Each Scorer on Average Pairwise Agreement</h2>
+<section id="effect-of-removing-each-rater-on-average-pairwise-agreement" class="level2">
+<h2 class="anchored" data-anchor-id="effect-of-removing-each-rater-on-average-pairwise-agreement">4. Effect of Removing Each Rater on Average Pairwise Agreement</h2>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -500,7 +495,7 @@ Removed 9 rows containing missing values or values outside the scale range
 <span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>()</span>
 <span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>  avg_T <span class="ot">&lt;-</span> <span class="fu">average_pairwise_agreement</span>(<span class="fu">pairwise_score_data</span>(subset_T))</span>
 <span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">Scorer_Removed =</span> scorer, <span class="at">Score_Count =</span> n_cdas_sub,</span>
+<span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">Rater_Removed =</span> scorer, <span class="at">Score_Count =</span> n_cdas_sub,</span>
 <span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">Avg_Pairwise_Agreement =</span> avg_T</span>
 <span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a>})</span>
@@ -515,23 +510,23 @@ Removed 9 rows containing missing values or values outside the scale range
 <span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a>result_df <span class="sc">%&gt;%</span></span>
 <span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
-<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>    Scorer_Removed, Score_Count, Avg_Pairwise_Agreement,</span>
+<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>    Rater_Removed, Score_Count, Avg_Pairwise_Agreement,</span>
 <span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a>    Images_Lost, Agreement_Change_Per_Img_Lost, Change_Per_Img_x1000</span>
 <span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>   Scorer_Removed Score_Count Avg_Pairwise_Agreement Images_Lost
-1        Original        6364               64.21579           0
-2               1        6008               64.32521         356
-3               2        5457               68.66642         907
-4               3        5589               67.56600         775
-5               4        5575               67.55789         789
-6               5        6092               67.15591         272
-7               6        5585               67.50054         779
-8               7        6043               64.02519         321
-9               8        5474               68.48121         890
-10              9        5474               68.37027         890
-11             10        5617               69.71530         747
+<pre><code>   Rater_Removed Score_Count Avg_Pairwise_Agreement Images_Lost
+1       Original        6364               64.21579           0
+2              1        6008               64.32521         356
+3              2        5457               68.66642         907
+4              3        5589               67.56600         775
+5              4        5575               67.55789         789
+6              5        6092               67.15591         272
+7              6        5585               67.50054         779
+8              7        6043               64.02519         321
+9              8        5474               68.48121         890
+10             9        5474               68.37027         890
+11            10        5617               69.71530         747
    Agreement_Change_Per_Img_Lost Change_Per_Img_x1000
 1                            NaN                  NaN
 2                   0.0003073504                 0.31
@@ -546,9 +541,8 @@ Removed 9 rows containing missing values or values outside the scale range
 11                  0.0073621240                 7.36</code></pre>
 </div>
 </div>
-<p>Why does pairwise agreement increase for most scorer removals?</p>
-<p>When a scorer is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each scorer removal also removes a further 36% of the CDAs that scorer uniquely shared, biasing the remaining pool toward agreement.</p>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+<p>Why does pairwise agreement increase for most rater removals?</p>
+<p>When a rater is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each rater removal also removes a further 36% of the CDAs that rater uniquely shared, biasing the remaining pool toward agreement.</p>
 <hr>
 </section>
 <section id="verification-random-sampling-gives-the-same-average-agreement" class="level2">
@@ -590,11 +584,10 @@ Removed 9 rows containing missing values or values outside the scale range
 <pre><code>Random sample of 1,000 pairs: 61.8 %</code></pre>
 </div>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
-<section id="agreement-patterns-between-scorer-pairs" class="level2">
-<h2 class="anchored" data-anchor-id="agreement-patterns-between-scorer-pairs">6. Agreement Patterns Between Scorer Pairs</h2>
+<section id="agreement-patterns-between-rater-pairs" class="level2">
+<h2 class="anchored" data-anchor-id="agreement-patterns-between-rater-pairs">6. Agreement Patterns Between Rater Pairs</h2>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -656,7 +649,7 @@ Removed 9 rows containing missing values or values outside the scale range
 <span id="cb46-56"><a href="#cb46-56" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
 <span id="cb46-57"><a href="#cb46-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(Scorer.y <span class="sc">~</span> Scorer.x, <span class="at">switch =</span> <span class="st">"both"</span>) <span class="sc">+</span></span>
 <span id="cb46-58"><a href="#cb46-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb46-59"><a href="#cb46-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer X"</span>, <span class="at">y =</span> <span class="st">"Scorer Y"</span>) <span class="sc">+</span></span>
+<span id="cb46-59"><a href="#cb46-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
 <span id="cb46-60"><a href="#cb46-60" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(</span>
 <span id="cb46-61"><a href="#cb46-61" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.25</span>, <span class="st">"lines"</span>),</span>
 <span id="cb46-62"><a href="#cb46-62" aria-hidden="true" tabindex="-1"></a>      <span class="at">strip.placement =</span> <span class="st">"outside"</span>,</span>
@@ -1794,16 +1787,15 @@ Removed 9 rows containing missing values or values outside the scale range
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Scorer 5 systematically scores higher than others across all facets.</li>
-<li>The Scorer 8 vs Scorer 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.</li>
-<li>Removing 0s makes individual scorer biases more visible.</li>
+<li>Rater 5 systematically scores higher than others across all facets.</li>
+<li>The Rater 8 vs Rater 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.</li>
+<li>Removing 0s makes individual rater biases more visible.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 <hr>
 </section>
-<section id="per-scorer-agreement-with-median" class="level2">
-<h2 class="anchored" data-anchor-id="per-scorer-agreement-with-median">7. Per-Scorer Agreement with Median</h2>
-<p>Stacked bar chart showing each scorer’s exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from <code>AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd</code> (human-only, no model results).</p>
+<section id="per-rater-agreement-with-median" class="level2">
+<h2 class="anchored" data-anchor-id="per-rater-agreement-with-median">7. Per-Rater Agreement with Median</h2>
+<p>Stacked bar chart showing each rater’s exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from <code>AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd</code> (human-only, no model results).</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -1853,7 +1845,7 @@ Removed 9 rows containing missing values or values outside the scale range
 <span id="cb418-44"><a href="#cb418-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"Exact agreement"</span>, <span class="st">"Additional within ±1"</span>)</span>
 <span id="cb418-45"><a href="#cb418-45" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb418-46"><a href="#cb418-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb418-47"><a href="#cb418-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer"</span>, <span class="at">y =</span> <span class="st">"Agreement with Median Score"</span>) <span class="sc">+</span></span>
+<span id="cb418-47"><a href="#cb418-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Agreement with Median Severity Score"</span>) <span class="sc">+</span></span>
 <span id="cb418-48"><a href="#cb418-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb418-49"><a href="#cb418-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb418-50"><a href="#cb418-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -1873,11 +1865,46 @@ Removed 9 rows containing missing values or values outside the scale range
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Scorer 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.</li>
-<li>The majority of scorers achieve &gt;70% exact agreement and &gt;95% within-±1 agreement.</li>
+<li>Rater 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.</li>
+<li>The majority of raters achieve &gt;70% exact agreement and &gt;95% within-±1 agreement.</li>
 <li>The “Avg” bar summarises the overall human performance baseline comparable to model evaluation metrics.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+<hr>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">8. Discussion</h2>
+<section id="pairwise-agreement-between-raters-1" class="level3">
+<h3 class="anchored" data-anchor-id="pairwise-agreement-between-raters-1">8.1 Pairwise % agreement between raters</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="off-by-one-disagreement-rate-1" class="level3">
+<h3 class="anchored" data-anchor-id="off-by-one-disagreement-rate-1">8.2 Off-by-one disagreement rate</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="shared-cda-count-per-rater-pair-1" class="level3">
+<h3 class="anchored" data-anchor-id="shared-cda-count-per-rater-pair-1">8.3 Shared CDA count per rater pair</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="effect-of-removing-each-rater-on-average-pairwise-agreement-1" class="level3">
+<h3 class="anchored" data-anchor-id="effect-of-removing-each-rater-on-average-pairwise-agreement-1">8.4 Effect of removing each rater on average pairwise agreement</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="verification-random-sampling" class="level3">
+<h3 class="anchored" data-anchor-id="verification-random-sampling">8.5 Verification: random sampling</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="agreement-patterns-between-rater-pairs-1" class="level3">
+<h3 class="anchored" data-anchor-id="agreement-patterns-between-rater-pairs-1">8.6 Agreement patterns between rater pairs</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="per-rater-agreement-with-median-1" class="level3">
+<h3 class="anchored" data-anchor-id="per-rater-agreement-with-median-1">8.7 Per-rater agreement with median</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative">8.8 Overall narrative</h3>
+<p><em>Add notes here.</em></p>
+</section>
 </section>
 
 </main>
