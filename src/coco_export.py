@@ -5,9 +5,9 @@ The COCO JSON uses median scores as the annotation category.
 The multi-rater CSV uses the score_table pivot format (one column per scorer ID)
 so it can be used directly for inter-rater reliability analyses.
 """
+
 import json
 from pathlib import Path
-from typing import Dict, Optional
 
 import pandas as pd
 from PIL import Image
@@ -17,7 +17,7 @@ def generate_coco_json(
     median_data: pd.DataFrame,
     images_dir: Path,
     output_path: Path,
-    info: Optional[Dict] = None,
+    info: dict | None = None,
 ) -> None:
     """
     Generate a COCO-format JSON for the CDA dataset.
@@ -50,15 +50,16 @@ def generate_coco_json(
         "date_created": "2025",
     }
 
-    licenses = [{
-        "id": 1,
-        "name": "Creative Commons Attribution-NonCommercial 4.0 International",
-        "url": "https://creativecommons.org/licenses/by-nc/4.0/",
-    }]
+    licenses = [
+        {
+            "id": 1,
+            "name": "Creative Commons Attribution-NonCommercial 4.0 International",
+            "url": "https://creativecommons.org/licenses/by-nc/4.0/",
+        }
+    ]
 
     categories = [
-        {"id": i, "name": str(i), "supercategory": "cell_death_severity"}
-        for i in range(7)
+        {"id": i, "name": str(i), "supercategory": "cell_death_severity"} for i in range(7)
     ]
 
     images, annotations = [], []
@@ -72,19 +73,23 @@ def generate_coco_json(
         with Image.open(file_path) as img:
             width, height = img.size
 
-        images.append({
-            "id": image_id,
-            "file_name": f"{score}/{filename}",
-            "width": width,
-            "height": height,
-            "license": 1,
-        })
+        images.append(
+            {
+                "id": image_id,
+                "file_name": f"{score}/{filename}",
+                "width": width,
+                "height": height,
+                "license": 1,
+            }
+        )
 
-        annotations.append({
-            "id": image_id,
-            "image_id": image_id,
-            "category_id": score,
-        })
+        annotations.append(
+            {
+                "id": image_id,
+                "image_id": image_id,
+                "category_id": score,
+            }
+        )
 
     coco = {
         "info": info,
@@ -123,8 +128,7 @@ def generate_multi_rater_csv(
     id_vars = ["Basename", "Row", "Col", "Pos", "Median_Score"]
     chunks = []
     for i in range(1, 4):
-        cols = id_vars + [f"Scorer{i}", f"Score{i}",
-                          f"X1_{i}", f"X2_{i}", f"Y1_{i}", f"Y2_{i}"]
+        cols = id_vars + [f"Scorer{i}", f"Score{i}", f"X1_{i}", f"X2_{i}", f"Y1_{i}", f"Y2_{i}"]
         subset = median_data[cols].copy()
         subset.columns = id_vars + ["Scorer_ID", "Score", "X1", "X2", "Y1", "Y2"]
         chunks.append(subset)

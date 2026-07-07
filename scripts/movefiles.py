@@ -10,6 +10,7 @@ Run once before annotation began for each dataset part.
 Inputs:  randomised_info.csv, image_info.csv
 Output:  TIF files copied to SCORING_DIR/<scorer>/ folders
 """
+
 import os
 import subprocess
 
@@ -27,18 +28,20 @@ SET = 1  # Dataset part to distribute (1 or 2)
 SCORING_DIR = SCORING_DIRS[SET]
 
 data = pd.read_csv("analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv")
-data = data[data['Set'] == SET]
+data = data[data["Set"] == SET]
 image_info = pd.read_csv("analyses/01_generate_raw_data/01_allocation_info/image_info.csv")
 
-for index, row in data.iterrows():
+for index, _row in data.iterrows():
     print(f"Progress: {index + 1} / {len(data)}")
-    img_path = data.loc[index, 'Path']
+    img_path = data.loc[index, "Path"]
 
-    out_dest_1 = os.path.join(SCORING_DIR, data.loc[index, 'scorer1'])
-    out_dest_2 = os.path.join(SCORING_DIR, data.loc[index, 'scorer2'])
-    out_dest_3 = os.path.join(SCORING_DIR, data.loc[index, 'scorer3'])
+    out_dest_1 = os.path.join(SCORING_DIR, data.loc[index, "scorer1"])
+    out_dest_2 = os.path.join(SCORING_DIR, data.loc[index, "scorer2"])
+    out_dest_3 = os.path.join(SCORING_DIR, data.loc[index, "scorer3"])
 
-    orientation = image_info['Orientation'][image_info['Image'] == os.path.basename(img_path)].values[0]
+    orientation = image_info["Orientation"][
+        image_info["Image"] == os.path.basename(img_path)
+    ].values[0]
 
     if orientation != 0:
         print(f"  Rotating {os.path.basename(img_path)} by {orientation * 90}° clockwise")

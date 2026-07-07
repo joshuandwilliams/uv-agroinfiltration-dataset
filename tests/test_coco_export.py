@@ -1,40 +1,55 @@
 import json
-import numpy as np
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
-from pathlib import Path
-from unittest.mock import patch
 from PIL import Image
 
 from coco_export import generate_coco_json, generate_multi_rater_csv
 
 
-
 @pytest.fixture
 def median_data():
-    return pd.DataFrame({
-        "Basename": ["img1.tif", "img1.tif", "img2.tif"],
-        "Row":      [1, 1, 2],
-        "Col":      [1, 2, 1],
-        "Pos":      [1, 1, 1],
-        "Median_Score": [0.0, 3.0, 6.0],
-    })
+    return pd.DataFrame(
+        {
+            "Basename": ["img1.tif", "img1.tif", "img2.tif"],
+            "Row": [1, 1, 2],
+            "Col": [1, 2, 1],
+            "Pos": [1, 1, 1],
+            "Median_Score": [0.0, 3.0, 6.0],
+        }
+    )
 
 
 @pytest.fixture
 def median_df():
-    return pd.DataFrame({
-        "Basename": ["img1.tif", "img2.tif"],
-        "Row": [1, 1], "Col": [1, 2], "Pos": [1, 1],
-        "Median_Score": [3.0, 0.0],
-        "Scorer1": [1, 1], "Score1": [3.0, 0.0],
-        "X1_1": [100, 200], "X2_1": [200, 300], "Y1_1": [100, 200], "Y2_1": [200, 300],
-        "Scorer2": [2, 2], "Score2": [3.0, 0.0],
-        "X1_2": [110, 210], "X2_2": [210, 310], "Y1_2": [110, 210], "Y2_2": [210, 310],
-        "Scorer3": [pd.NA, pd.NA], "Score3": [pd.NA, pd.NA],
-        "X1_3": [pd.NA, pd.NA], "X2_3": [pd.NA, pd.NA],
-        "Y1_3": [pd.NA, pd.NA], "Y2_3": [pd.NA, pd.NA],
-    })
+    return pd.DataFrame(
+        {
+            "Basename": ["img1.tif", "img2.tif"],
+            "Row": [1, 1],
+            "Col": [1, 2],
+            "Pos": [1, 1],
+            "Median_Score": [3.0, 0.0],
+            "Scorer1": [1, 1],
+            "Score1": [3.0, 0.0],
+            "X1_1": [100, 200],
+            "X2_1": [200, 300],
+            "Y1_1": [100, 200],
+            "Y2_1": [200, 300],
+            "Scorer2": [2, 2],
+            "Score2": [3.0, 0.0],
+            "X1_2": [110, 210],
+            "X2_2": [210, 310],
+            "Y1_2": [110, 210],
+            "Y2_2": [210, 310],
+            "Scorer3": [pd.NA, pd.NA],
+            "Score3": [pd.NA, pd.NA],
+            "X1_3": [pd.NA, pd.NA],
+            "X2_3": [pd.NA, pd.NA],
+            "Y1_3": [pd.NA, pd.NA],
+            "Y2_3": [pd.NA, pd.NA],
+        }
+    )
 
 
 @pytest.fixture
@@ -77,7 +92,7 @@ class TestGenerateCocoJson:
             output = tmp_path / "coco.json"
             generate_coco_json(median_data, tmp_path, output)
             coco = json.load(open(output))
-            for ann, score in zip(coco["annotations"], median_data["Median_Score"]):
+            for ann, score in zip(coco["annotations"], median_data["Median_Score"], strict=False):
                 assert ann["category_id"] == int(score)
 
     def test_image_ids_are_unique(self, median_data, mock_image, tmp_path):

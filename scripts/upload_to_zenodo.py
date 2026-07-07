@@ -11,6 +11,7 @@ You will be prompted for your Zenodo API token (Account → Applications →
 Personal access tokens → deposit:write scope). Alternatively, set the
 ZENODO_TOKEN environment variable before running.
 """
+
 import getpass
 import os
 import sys
