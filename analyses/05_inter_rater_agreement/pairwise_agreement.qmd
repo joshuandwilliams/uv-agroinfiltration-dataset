@@ -144,12 +144,11 @@ save_plot(p_agree, "pairwise_agreement.png", width = 22, height = 10)
 
 ### 2.1 Off-by-one disagreement rate
 
-How often do two raters differ by *exactly* one severity point? Pooled across all
-unordered rater pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1)
-minus the exact rate (diff = 0).
-
 ```{r}
 # 2.1
+# How often do two raters differ by exactly one severity point? Pooled across
+# all unordered rater pairs per CDA, the off-by-one rate is the near-miss rate
+# (|diff| <= 1) minus the exact rate (diff = 0).
 pairwise_diffs <- function(score_data_long) {
   d <- score_data_long %>%
     mutate(Score = as.numeric(Score)) %>%
@@ -181,16 +180,9 @@ cat(sprintf(
 ))
 ```
 
-**What this shows:**
-
-- Across all CDAs, two raters differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which raters almost always agree exactly.
-- Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two raters.
-
 ---
 
 ## 3. Shared CDA Count per Rater Pair
-
-How many CDAs did each pair of raters both score?
 
 ```{r fig.width=11, fig.height=10}
 #| fig-width: 11
@@ -263,10 +255,6 @@ result_df %>%
     Images_Lost, Agreement_Change_Per_Img_Lost, Change_Per_Img_x1000
   )
 ```
-
-Why does pairwise agreement increase for most rater removals?
-
-When a rater is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each rater removal also removes a further 36% of the CDAs that rater uniquely shared, biasing the remaining pool toward agreement.
 
 ---
 
@@ -381,22 +369,19 @@ p_patterns
 save_plot(p_patterns, "agreement_patterns.png", width = 11, height = 10)
 ```
 
-**What this shows:**
-
-- Rater 5 systematically scores higher than others across all facets.
-- The Rater 8 vs Rater 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.
-- Removing 0s makes individual rater biases more visible.
-
 ---
 
 ## 7. Per-Rater Agreement with Median
-
-Stacked bar chart showing each rater's exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from `AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd` (human-only, no model results).
 
 ```{r fig.width=8, fig.height=6}
 #| fig-width: 8
 #| fig-height: 6
 # 7
+# Stacked bar chart showing each rater's exact agreement and within-+/-1
+# agreement with the CDA median score, computed across all CDAs scored by
+# that individual. Adapted from
+# AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd
+# (human-only, no model results).
 scorer_accuracy <- score_data_long %>%
   filter(!is.na(Score), Score != "[]") %>%
   mutate(Score = as.integer(Score)) %>%
@@ -454,12 +439,6 @@ p
 save_plot(p, "scorer_accuracy.png", width = 8, height = 6)
 ```
 
-**What this shows:**
-
-- Rater 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.
-- The majority of raters achieve >70% exact agreement and >95% within-±1 agreement.
-- The "Avg" bar summarises the overall human performance baseline comparable to model evaluation metrics.
-
 ---
 
 ## 8. Agreement breakdown by median score
@@ -498,11 +477,11 @@ confidence_table <- conf_cda %>%
     `All-3-Disagree %` = round(mean(Agreement == "All 3 differed") * 100, 1),
     .groups = "drop"
   )
+# 148 CDAs were scored by only two raters; in every case the two present
+# scores match the median, so they fall in the 2-of-3-Agree group.
 
 knitr::kable(confidence_table, align = "c")
 ```
-
-Each CDA is categorised by how many of its three raters agreed with the median: *All-3-Agree* (unanimous), *2-of-3-Agree* (a majority match the median, one differs), and *All-3-Disagree* (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two raters; in every case the two present scores match the median, so they fall in the *2-of-3-Agree* group.
 
 ---
 
@@ -539,25 +518,19 @@ p
 save_plot(p, "stackedbar.png", width = 8, height = 6)
 ```
 
-**What this shows:**
-
-- Median-0 CDAs are overwhelmingly unanimous, reflecting the dominance of negative controls and their visual clarity.
-- Median-6 is the next most unanimous; both extremes are easier to identify consistently.
-- Intermediate scores (1–5) are dominated by partial or full disagreement, highlighting the difficulty of distinguishing adjacent severity levels.
-- All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two raters to have given that extreme value.
-
 ---
 
 ## 10. Temporal test 2 — original scoring (image-ordered)
 
-The original scoring was done in image order, with thousands of scores per rater — far more power, but
-consecutive CDAs usually share an image. Each score is compared to the **leave-one-out consensus** (the
-median, i.e. mean, of the *other two* raters on that CDA), giving a residual `score − consensus`. Scores
-are matched to the canonical panel by image and CDA position; the leave-one-out reference removes the
-self-inclusion that would otherwise force a score to match its own median.
-
 ```{r}
 # 10
+# The original scoring was done in image order, with thousands of scores per
+# rater - far more power, but consecutive CDAs usually share an image. Each
+# score is compared to the leave-one-out consensus (the median, i.e. mean, of
+# the other two raters on that CDA), giving a residual score - consensus.
+# Scores are matched to the canonical panel by image and CDA position; the
+# leave-one-out reference removes the self-inclusion that would otherwise
+# force a score to match its own median.
 # Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).
 runs_p <- function(x) {
   s <- sign(x[x != 0])
@@ -628,11 +601,11 @@ print(as.data.frame(session_stats))
 
 ### 10.1 Within-image vs across-image autocorrelation
 
-If the autocorrelation is genuine temporal momentum it should persist when consecutive scores come from
-*different* images; if it is image-blocking it should vanish at image boundaries.
-
 ```{r}
 # 10.1.1
+# If the autocorrelation is genuine temporal momentum it should persist when
+# consecutive scores come from different images; if it is image-blocking it
+# should vanish at image boundaries.
 raw_lag <- raw_resid %>%
   group_by(Scorer, Set) %>%
   arrange(seq, .by_group = TRUE) %>%
@@ -674,25 +647,22 @@ p
 save_plot(p, "raw_image_boundary_autocorrelation.png", width = 6, height = 4.5)
 ```
 
-**What this shows:**
-
-- Pooled across the original scoring the residual is strongly positively autocorrelated — but this is **entirely a within-image effect**. ~97% of consecutive scores share an image; the lag-1 autocorrelation is large and highly significant for same-image pairs yet indistinguishable from zero across image boundaries (CI spans 0).
-- This matches the rescore drift autocorrelation test in `06_intra_rater_reliability`: when the context changes — randomised rescore order, or crossing an image boundary — there is no residual momentum. The apparent clustering is image-blocking, not sequential anchoring.
-
 ---
 
 ## 11. Image-level structure of disagreement (confound-free)
 
-The temporal tests show disagreement is organised at the image level, but the raw-score autocorrelation
-conflates several things (the experimental layout, the abundance of agreed 0s, per-image bias). A cleaner
-test, free of temporal order and of the self-vs-median issue, looks at the **difference between two
-raters** on the same CDA: the true severity cancels, leaving only their relative disagreement. If that
-difference is consistent within an image but shifts between images, disagreement has an image-level
-component. This is the intraclass correlation (ICC) of the pairwise difference with image as the grouping
-factor: the fraction of disagreement variance attributable to *which image* a CDA is on.
-
 ```{r}
 # 11
+# The temporal tests show disagreement is organised at the image level, but
+# the raw-score autocorrelation conflates several things (the experimental
+# layout, the abundance of agreed 0s, per-image bias). A cleaner test, free of
+# temporal order and of the self-vs-median issue, looks at the difference
+# between two raters on the same CDA: the true severity cancels, leaving only
+# their relative disagreement. If that difference is consistent within an
+# image but shifts between images, disagreement has an image-level component.
+# This is the intraclass correlation (ICC) of the pairwise difference with
+# image as the grouping factor: the fraction of disagreement variance
+# attributable to which image a CDA is on.
 # All within-CDA rater pairs, oriented lower-ID minus higher-ID, with image label.
 mk_pair <- function(d, a, b) {
   d %>%
@@ -776,12 +746,6 @@ p
 save_plot(p, "pairwise_image_icc.png", width = 7, height = 5)
 ```
 
-**What this shows:**
-
-- Each point is one rater-pair; the ICC is the share of their disagreement variance explained by image.
-- The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two raters' relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).
-- Crucially, **removing the abundant agreed-0 CDAs raises the ICC** rather than lowering it — so the image-level structure is not an artefact of zero-heavy control regions; it is strongest among genuinely contested CDAs.
-
 ### 11.2 Illustration: per-image mean difference for the best-sampled pairs
 
 ```{r fig.width=12, fig.height=4.5}
@@ -827,95 +791,33 @@ p
 save_plot(p, "pairwise_per_image_mean_diff.png", width = 12, height = 4.5)
 ```
 
-**What this shows:**
-
-- For the best-sampled rater-pairs, each point is the mean difference on one image with its 95% CI.
-- The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two raters' relative offset shifts from image to image while being comparatively settled within each image.
-
 ---
 
-## 12. Discussion
+## 12. Interpretation and Discussion
 
-### 12.1 Pairwise % agreement between raters
-
-_Add notes here._
-
-### 12.2 Off-by-one disagreement rate
-
-_Add notes here._
-
-### 12.3 Shared CDA count per rater pair
-
-_Add notes here._
-
-### 12.4 Effect of removing each rater on average pairwise agreement
-
-_Add notes here._
-
-### 12.5 Verification: random sampling
-
-_Add notes here._
-
-### 12.6 Agreement patterns between rater pairs
-
-_Add notes here._
-
-### 12.7 Per-rater agreement with median
-
-_Add notes here._
-
-### 12.8 Agreement breakdown by median score
-
-_Add notes here._
-
-### 12.9 Stacked bar of agreement by median score
-
-_Add notes here._
-
-### 12.10 Temporal test 2 — original scoring (image-ordered)
-
-_Add notes here._
-
-### 12.11 ICC of pairwise disagreement by image
-
-_Add notes here._
-
-### 12.12 Illustration: per-image mean difference for the best-sampled pairs
-
-_Add notes here._
-
-### 12.13 Confounds and interpretation (image-level structure)
-
-**Same image = same experiment.** Original scoring is not a random sequence. CDAs on one image are spots
-on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two
-effects follow: (i) the underlying severities are correlated, and (ii) a rater's *reading* of that leaf
-(exposure, contrast, what counts as "necrotic" under that lighting) is correlated. The §10 within-image
-autocorrelation and the §11 ICC both capture this image-level structure; neither is evidence of temporal
-anchoring, which the randomised rescore (see `06_intra_rater_reliability`) and the across-image boundary
-(§10.1) both rule out.
-
-**The abundance of 0s and non-random layout.** Infiltration layouts group controls together, so a rater
-genuinely does see runs of 0s — but those are near-universally agreed, so they contribute *agreement*,
-not disagreement structure. This is why the analyses use **residuals / pairwise differences** rather than
-raw scores (which would be trivially autocorrelated by the design), and why the §11 ICC is computed both
-with and without 0s. The result is reassuring: excluding 0s *increases* the image-level ICC, so the
-structure lives in the contested mid-range CDAs, not in the clustered controls.
-
-**Is class balancing necessary?** For the *temporal* tests, no — and it would be harmful: down-sampling
-or re-weighting score classes destroys the true adjacency of the sequence, so a "lag-1" on a balanced
-series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not
-raw scores) and the within/across-image split, both of which are done. For the *image-level* ICC, balance
-is handled implicitly: the difference between two raters already removes the severity (class) signal, and
-reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant
-0 class.
-
-**Overall.** Over-/under-scoring does **not** have temporal momentum across contexts — a rater's last
-score does not pull their next one once the image changes. What is real is a modest **image-level**
-structure to disagreement: two raters' relative calibration drifts somewhat from image to image
-(plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within
-an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an
-individual cell-death area.
-
-### 12.14 Overall narrative
+- Across all CDAs, two raters differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which raters almost always agree exactly.
+- Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two raters.
+- Why does pairwise agreement increase for most rater removals? When a rater is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each rater removal also removes a further 36% of the CDAs that rater uniquely shared, biasing the remaining pool toward agreement.
+- Rater 5 systematically scores higher than others across all facets.
+- The Rater 8 vs Rater 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.
+- Removing 0s makes individual rater biases more visible.
+- Rater 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.
+- The majority of raters achieve >70% exact agreement and >95% within-±1 agreement.
+- The "Avg" bar summarises the overall human performance baseline comparable to model evaluation metrics.
+- Median-0 CDAs are overwhelmingly unanimous, reflecting the dominance of negative controls and their visual clarity.
+- Median-6 is the next most unanimous; both extremes are easier to identify consistently.
+- Intermediate scores (1–5) are dominated by partial or full disagreement, highlighting the difficulty of distinguishing adjacent severity levels.
+- All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two raters to have given that extreme value.
+- Pooled across the original scoring the residual is strongly positively autocorrelated — but this is entirely a within-image effect. ~97% of consecutive scores share an image; the lag-1 autocorrelation is large and highly significant for same-image pairs yet indistinguishable from zero across image boundaries (CI spans 0).
+- This matches the rescore drift autocorrelation test in `06_intra_rater_reliability`: when the context changes — randomised rescore order, or crossing an image boundary — there is no residual momentum. The apparent clustering is image-blocking, not sequential anchoring.
+- Each point is one rater-pair; the ICC is the share of their disagreement variance explained by image.
+- The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two raters' relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).
+- Crucially, removing the abundant agreed-0 CDAs raises the ICC rather than lowering it — so the image-level structure is not an artefact of zero-heavy control regions; it is strongest among genuinely contested CDAs.
+- For the best-sampled rater-pairs, each point is the mean difference on one image with its 95% CI.
+- The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two raters' relative offset shifts from image to image while being comparatively settled within each image.
+- Same image = same experiment. Original scoring is not a random sequence. CDAs on one image are spots on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two effects follow: (i) the underlying severities are correlated, and (ii) a rater's reading of that leaf (exposure, contrast, what counts as "necrotic" under that lighting) is correlated. The §10 within-image autocorrelation and the §11 ICC both capture this image-level structure; neither is evidence of temporal anchoring, which the randomised rescore (see `06_intra_rater_reliability`) and the across-image boundary (§10.1) both rule out.
+- The abundance of 0s and non-random layout. Infiltration layouts group controls together, so a rater genuinely does see runs of 0s — but those are near-universally agreed, so they contribute agreement, not disagreement structure. This is why the analyses use residuals / pairwise differences rather than raw scores (which would be trivially autocorrelated by the design), and why the §11 ICC is computed both with and without 0s. The result is reassuring: excluding 0s increases the image-level ICC, so the structure lives in the contested mid-range CDAs, not in the clustered controls.
+- Is class balancing necessary? For the temporal tests, no — and it would be harmful: down-sampling or re-weighting score classes destroys the true adjacency of the sequence, so a "lag-1" on a balanced series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not raw scores) and the within/across-image split, both of which are done. For the image-level ICC, balance is handled implicitly: the difference between two raters already removes the severity (class) signal, and reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant 0 class.
+- Overall, over-/under-scoring does not have temporal momentum across contexts — a rater's last score does not pull their next one once the image changes. What is real is a modest image-level structure to disagreement: two raters' relative calibration drifts somewhat from image to image (plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an individual cell-death area.
 
 _Add notes here._
