@@ -46,7 +46,6 @@ library(forcats)
 library(patchwork)
 library(scales)
 library(here)
-library(RColorBrewer)
 library(irr)
 ```
 
@@ -54,11 +53,11 @@ library(irr)
 
 ```{r}
 # 1.2.1
-anon_key <- read_csv(
-  here("analyses", "01_generate_raw_data", "02_combining_cdascorer_outputs", "anonymisation_key.csv"),
-  show_col_types = FALSE
-)
-name_to_id <- setNames(as.integer(anon_key$ID), anon_key$Scorer_Name)
+source(here("src", "data_helpers.R"))
+source(here("src", "agreement_metrics.R"))
+source(here("src", "plotting_helpers.R"))
+
+name_to_id <- load_scorer_key()
 
 rescore_files <- list(
   here("analyses", "06_intra_rater_reliability", "rescore_JoshW.csv"),
@@ -96,18 +95,7 @@ print(rescore_data %>% filter(is.na(old_score)) %>% count(Scorer))
 
 ```{r}
 # 1.2.2
-save_plot <- function(p, filename, width, height) {
-  ggsave(here("analyses", "06_intra_rater_reliability", "supp_plots", filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
-
-# Selected headline figures are also written to thesis_plots/ for the thesis.
-save_thesis <- function(p, filename, width, height) {
-  ggsave(here("analyses", "06_intra_rater_reliability", "thesis_plots", filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
+save_plot <- make_save_plot("06_intra_rater_reliability")
 ```
 
 ---
@@ -170,8 +158,6 @@ Agreement with the original median score (ground truth) was consistently lower a
 #| fig-width: 12
 #| fig-height: 5
 # 3
-# Sequential YlOrRd severity palette (colourblind-safe), matching 02_score_distributions.
-sev_pal <- setNames(brewer.pal(7, "YlOrRd"), as.character(0:6))
 scorer_levels <- levels(rescore_data$Scorer)
 
 rescore_prop <- rescore_data %>%
@@ -244,7 +230,7 @@ p <- ggplot(class_prop, aes(x = factor(Median_Score), y = prop, fill = fillkey, 
   )
 p
 save_plot(p, "rescore_class_distribution.png", width = 12, height = 5)
-save_thesis(p, "rescore_class_distribution.png", width = 12, height = 5)
+save_plot(p, "rescore_class_distribution.png", width = 12, height = 5, dir = "thesis_plots")
 ```
 
 **What this shows:**
@@ -448,7 +434,7 @@ p <- ggplot(
   )
 p
 save_plot(p, "score_change_distribution.png", width = 12, height = 5)
-save_thesis(p, "score_change_distribution.png", width = 12, height = 5)
+save_plot(p, "score_change_distribution.png", width = 12, height = 5, dir = "thesis_plots")
 ```
 
 **What this shows:**
@@ -535,7 +521,7 @@ p <- ggplot(change_summary, aes(x = Scorer, y = pct_changed / 100)) +
   )
 p
 save_plot(p, "median_label_changes.png", width = 7, height = 5)
-save_thesis(p, "median_label_changes.png", width = 7, height = 5)
+save_plot(p, "median_label_changes.png", width = 7, height = 5, dir = "thesis_plots")
 ```
 
 **What this shows:**
@@ -719,10 +705,7 @@ intra_alpha <- rescore_data %>%
   group_modify(~ {
     m <- rbind(.x$old_score, .x$new_score)
     a <- kripp.alpha(m, method = "ordinal")$value
-    boot <- replicate(1000, {
-      idx <- sample(ncol(m), replace = TRUE)
-      suppressWarnings(kripp.alpha(m[, idx], method = "ordinal")$value)
-    })
+    boot <- bootstrap_kripp_alpha(m, method = "ordinal", replace = TRUE, seed = NULL, suppress_warnings = TRUE)
     tibble(
       alpha = a,
       lo = quantile(boot, 0.025, na.rm = TRUE),
@@ -817,11 +800,10 @@ intra_raw_mat <- rbind(
 
 alpha_intra_raw <- kripp.alpha(intra_raw_mat, method = "ordinal")$value
 
-set.seed(42)
-alpha_intra_raw_boot <- replicate(1000, {
-  idx <- sample(ncol(intra_raw_mat), replace = TRUE)
-  suppressWarnings(kripp.alpha(intra_raw_mat[, idx], method = "ordinal")$value)
-})
+alpha_intra_raw_boot <- bootstrap_kripp_alpha(
+  intra_raw_mat,
+  method = "ordinal", replace = TRUE, suppress_warnings = TRUE
+)
 
 cat("Pooled intra-rater α (ordinal, raw):", round(alpha_intra_raw, 4), "\n")
 cat("Bootstrap mean α:", round(mean(alpha_intra_raw_boot), 4), "\n")
@@ -894,11 +876,10 @@ replacement). This shows directly how much the two reliabilities overlap. (The i
 
 ```{r}
 # 7.5.1
-set.seed(42)
-alpha_inter_boot <- replicate(1000, {
-  idx <- sample(ncol(inter_mat), replace = TRUE)
-  suppressWarnings(kripp.alpha(inter_mat[, idx], method = "ordinal")$value)
-})
+alpha_inter_boot <- bootstrap_kripp_alpha(
+  inter_mat,
+  method = "ordinal", replace = TRUE, suppress_warnings = TRUE
+)
 
 cat(
   "Intra-rater α: mean", round(mean(alpha_intra_raw_boot), 3),

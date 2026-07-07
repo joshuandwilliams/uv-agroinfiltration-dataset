@@ -62,11 +62,10 @@ library(scales)
 
 ```{r}
 # 1.2
-anon_key <- read_csv(
-  here("analyses", "01_generate_raw_data", "02_combining_cdascorer_outputs", "anonymisation_key.csv"),
-  show_col_types = FALSE
-)
-name_to_id <- setNames(as.integer(anon_key$ID), anon_key$Scorer_Name)
+source(here("src", "data_helpers.R"))
+source(here("src", "plotting_helpers.R"))
+
+name_to_id <- load_scorer_key()
 
 # Canonical three-scorer panel (one row per CDA).
 canon <- read_csv(
@@ -79,11 +78,7 @@ canon <- read_csv(
     across(c(Score1, Score2, Score3, Median_Score), as.numeric)
   )
 
-save_plot <- function(p, filename, width, height) {
-  ggsave(here("analyses", "08_disagreement_structure", "supp_plots", filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
+save_plot <- make_save_plot("08_disagreement_structure")
 
 # Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).
 runs_p <- function(x) {

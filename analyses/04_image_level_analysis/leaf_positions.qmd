@@ -58,11 +58,8 @@ library(here)
 path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
 score_data <- read_csv(path_data, show_col_types = FALSE)
 
-save_plot <- function(p, filename, width, height, dir = "supp_plots") {
-  ggsave(here("analyses", "04_image_level_analysis", dir, filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
+source(here("src", "plotting_helpers.R"))
+save_plot <- make_save_plot("04_image_level_analysis")
 ```
 
 ---
