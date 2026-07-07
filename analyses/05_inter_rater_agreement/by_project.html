@@ -208,35 +208,38 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"03_checking_collected_coords"</span>, <span class="st">"combined_cda_data_checked_2.csv"</span></span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>count_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"image_info.csv"</span>)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>alloc_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"randomised_info.csv"</span>)</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>score_data_1 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(score1_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>score_data_2 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(score2_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>image_info <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(count_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>randomised_info <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(alloc_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Anonymised project labels (Project A, Project B, ...), shared key</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>project_key <span class="ot">&lt;-</span> <span class="fu">load_project_key</span>()</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Scorer columns (scorer1/2/3) are already anonymised IDs in this file - see</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># scripts/generate_anonymised_raw_data.py.</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>alloc_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"randomised_info_anon.csv"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>score_data_1 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(score1_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>score_data_2 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(score2_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>image_info <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(count_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>randomised_info <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(alloc_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">c</span>(scorer1, scorer2, scorer3), as.character))</span>
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Project membership is taken from image_info.csv (authoritative), not from the</span></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co"># allocation paths in randomised_info.csv, which mislabel some images. The Path</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co"># column is recorded once per folder, so it is filled downwards; the top-level</span></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co"># folder is the real project, which is then mapped to its anonymised label.</span></span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>project_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_key<span class="sc">$</span>Anon_Label, project_key<span class="sc">$</span>Project)</span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>dual_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_key<span class="sc">$</span>Dual_Infiltration, project_key<span class="sc">$</span>Anon_Label)</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>basename_to_folder <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span></span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(Path, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">unname</span>(project_lookup[<span class="fu">sub</span>(<span class="st">"/.*"</span>, <span class="st">""</span>, Path)])) <span class="sc">%&gt;%</span></span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Image, Folder) <span class="sc">%&gt;%</span></span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  {</span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">setNames</span>(.<span class="sc">$</span>Folder, .<span class="sc">$</span>Image)</span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>count_data_1 <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">1</span>)</span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>count_data_2 <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">2</span>)</span>
-<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>allocation_data_1 <span class="ot">&lt;-</span> randomised_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">1</span>)</span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>allocation_data_2 <span class="ot">&lt;-</span> randomised_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Anonymised project labels (Project A, Project B, ...), shared key</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>project_key <span class="ot">&lt;-</span> <span class="fu">load_project_key</span>()</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Project membership is taken from image_info.csv (authoritative), not from the</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co"># allocation paths in randomised_info.csv, which mislabel some images. The Path</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># column is recorded once per folder, so it is filled downwards; the top-level</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co"># folder is the real project, which is then mapped to its anonymised label.</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>project_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_key<span class="sc">$</span>Anon_Label, project_key<span class="sc">$</span>Project)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>dual_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_key<span class="sc">$</span>Dual_Infiltration, project_key<span class="sc">$</span>Anon_Label)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>basename_to_folder <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(Path, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">unname</span>(project_lookup[<span class="fu">sub</span>(<span class="st">"/.*"</span>, <span class="st">""</span>, Path)])) <span class="sc">%&gt;%</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Image, Folder) <span class="sc">%&gt;%</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>  {</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">setNames</span>(.<span class="sc">$</span>Folder, .<span class="sc">$</span>Image)</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>count_data_1 <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>count_data_2 <span class="ot">&lt;-</span> image_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">2</span>)</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>allocation_data_1 <span class="ot">&lt;-</span> randomised_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>allocation_data_2 <span class="ot">&lt;-</span> randomised_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Set <span class="sc">==</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>Add <code>CDA_Per_Leaf</code>, <code>Folder</code> (project), and a <code>Dual_Infiltration</code> flag to the allocation data.</p>
@@ -266,7 +269,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>allocation_data_combined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(allocation_data_1, allocation_data_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>Convert to long form (one row per scorer assignment), with anonymised scorer IDs.</p>
+<p>Convert to long form (one row per scorer assignment). <code>ScorerName</code> is already an anonymised ID (see 2.2.1).</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -277,11 +280,9 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>Scorer, ScorerName, Dual_Infiltration, count, <span class="sc">-</span>Path, <span class="sc">-</span>index)</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>name_to_id <span class="ot">&lt;-</span> <span class="fu">load_scorer_key</span>(<span class="at">as_character =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>allocation_long_1 <span class="ot">&lt;-</span> <span class="fu">allocation_long</span>(allocation_data_1) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">ScorerName =</span> name_to_id[ScorerName])</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>allocation_long_2 <span class="ot">&lt;-</span> <span class="fu">allocation_long</span>(allocation_data_2) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">ScorerName =</span> name_to_id[ScorerName])</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>allocation_long_combined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(allocation_long_1, allocation_long_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>allocation_long_1 <span class="ot">&lt;-</span> <span class="fu">allocation_long</span>(allocation_data_1)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>allocation_long_2 <span class="ot">&lt;-</span> <span class="fu">allocation_long</span>(allocation_data_2)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>allocation_long_combined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(allocation_long_1, allocation_long_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>

@@ -69,12 +69,15 @@ score2_path <- here(
   "analyses", "01_generate_raw_data", "03_checking_collected_coords", "combined_cda_data_checked_2.csv"
 )
 count_path <- here("analyses", "01_generate_raw_data", "01_allocation_info", "image_info.csv")
-alloc_path <- here("analyses", "01_generate_raw_data", "01_allocation_info", "randomised_info.csv")
+# Scorer columns (scorer1/2/3) are already anonymised IDs in this file - see
+# the anonymisation script under scripts/.
+alloc_path <- here("analyses", "01_generate_raw_data", "01_allocation_info", "randomised_info_anon.csv")
 
 score_data_1 <- read_csv(score1_path, show_col_types = FALSE)
 score_data_2 <- read_csv(score2_path, show_col_types = FALSE)
 image_info <- read_csv(count_path, show_col_types = FALSE)
-randomised_info <- read_csv(alloc_path, show_col_types = FALSE)
+randomised_info <- read_csv(alloc_path, show_col_types = FALSE) %>%
+  mutate(across(c(scorer1, scorer2, scorer3), as.character))
 
 # Anonymised project labels (Project A, Project B, ...), shared key
 project_key <- load_project_key()
@@ -126,7 +129,8 @@ allocation_data_2 <- new_columns(allocation_data_2, count_data_2)
 allocation_data_combined <- rbind(allocation_data_1, allocation_data_2)
 ```
 
-Convert to long form (one row per scorer assignment), with anonymised scorer IDs.
+Convert to long form (one row per scorer assignment). `ScorerName` is already
+an anonymised ID (see 2.2.1).
 
 ```{r}
 # 2.2.3
@@ -136,10 +140,8 @@ allocation_long <- function(allocation_data) {
     select(-Scorer, ScorerName, Dual_Infiltration, count, -Path, -index)
 }
 
-name_to_id <- load_scorer_key(as_character = TRUE)
-
-allocation_long_1 <- allocation_long(allocation_data_1) %>% mutate(ScorerName = name_to_id[ScorerName])
-allocation_long_2 <- allocation_long(allocation_data_2) %>% mutate(ScorerName = name_to_id[ScorerName])
+allocation_long_1 <- allocation_long(allocation_data_1)
+allocation_long_2 <- allocation_long(allocation_data_2)
 allocation_long_combined <- rbind(allocation_long_1, allocation_long_2)
 ```
 
