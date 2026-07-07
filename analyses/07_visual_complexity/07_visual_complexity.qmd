@@ -246,8 +246,7 @@ image_info["Path"] = image_info["Path"].ffill()
 image_info["Project"] = image_info["Path"].str.split("/").str[0]
 
 # Anonymise project names (Project A, Project B, ...) using the shared key
-project_key = pd.read_csv(repo_root / "analyses" / "01_generate_raw_data" /
-                          "01_allocation_info" / "project_anonymisation_key.csv")
+project_key = pd.read_csv(repo_root / "anonymisation_keys" / "project_anonymisation_key.csv")
 project_lookup = dict(zip(project_key["Project"], project_key["Anon_Label"]))
 image_info["Project"] = image_info["Project"].map(project_lookup)
 

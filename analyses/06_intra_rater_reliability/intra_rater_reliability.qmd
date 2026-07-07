@@ -53,23 +53,19 @@ library(irr)
 
 ```{r}
 # 1.2.1
-source(here("src", "data_helpers.R"))
 source(here("src", "agreement_metrics.R"))
 source(here("src", "plotting_helpers.R"))
 
-name_to_id <- load_scorer_key()
-
-rescore_files <- list(
-  here("analyses", "06_intra_rater_reliability", "rescore_JoshW.csv"),
-  here("analyses", "06_intra_rater_reliability", "rescore_JoshB.csv"),
-  here("analyses", "06_intra_rater_reliability", "rescore_Emma.csv"),
-  here("analyses", "06_intra_rater_reliability", "rescore_Raf.csv"),
-  here("analyses", "06_intra_rater_reliability", "rescore_Clem.csv")
+# rescore_anon/ holds one file per scorer, already anonymised (filename and
+# `scorer` column both give the same ID) - see the anonymisation script under scripts/.
+rescore_files <- list.files(
+  here("analyses", "06_intra_rater_reliability", "rescore_anon"),
+  pattern = "[.]csv$", full.names = TRUE
 )
 
 rescore_data <- bind_rows(lapply(rescore_files, read_csv, show_col_types = FALSE)) %>%
   mutate(
-    Scorer        = name_to_id[scorer],
+    Scorer        = scorer,
     old_score     = as.integer(old_score),
     new_score     = as.integer(new_score),
     median_score  = as.integer(median_score),
@@ -705,7 +701,14 @@ intra_alpha <- rescore_data %>%
   group_modify(~ {
     m <- rbind(.x$old_score, .x$new_score)
     a <- kripp.alpha(m, method = "ordinal")$value
-    boot <- bootstrap_kripp_alpha(m, method = "ordinal", replace = TRUE, seed = NULL, suppress_warnings = TRUE)
+    boot <- bootstrap_kripp_alpha(
+      m,
+      method = "ordinal", replace = TRUE, seed = NULL, suppress_warnings = TRUE,
+      cache_path = here(
+        "analyses", "06_intra_rater_reliability", "bootstrap_cache",
+        paste0("intra_alpha_scorer_", .y$Scorer, ".rds")
+      )
+    )
     tibble(
       alpha = a,
       lo = quantile(boot, 0.025, na.rm = TRUE),
@@ -802,7 +805,8 @@ alpha_intra_raw <- kripp.alpha(intra_raw_mat, method = "ordinal")$value
 
 alpha_intra_raw_boot <- bootstrap_kripp_alpha(
   intra_raw_mat,
-  method = "ordinal", replace = TRUE, suppress_warnings = TRUE
+  method = "ordinal", replace = TRUE, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_intra_raw.rds")
 )
 
 cat("Pooled intra-rater α (ordinal, raw):", round(alpha_intra_raw, 4), "\n")
@@ -878,7 +882,8 @@ replacement). This shows directly how much the two reliabilities overlap. (The i
 # 7.5.1
 alpha_inter_boot <- bootstrap_kripp_alpha(
   inter_mat,
-  method = "ordinal", replace = TRUE, suppress_warnings = TRUE
+  method = "ordinal", replace = TRUE, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_inter.rds")
 )
 
 cat(

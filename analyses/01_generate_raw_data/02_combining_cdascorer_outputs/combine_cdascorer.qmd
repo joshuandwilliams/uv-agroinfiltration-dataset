@@ -66,8 +66,9 @@ combined_CDA_data1 = dataset_preparation.combine_CDA_dataframes(cda_dataframes1,
 combined_CDA_data2 = dataset_preparation.combine_CDA_dataframes(cda_dataframes2, scorer_info)
 out_dir = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
 # Generate anonymisation key from all unique scorer names across both sets and
-# all three scorer columns. The key is the only place real names are recorded —
-# it is not uploaded to Zenodo.
+# all three scorer columns. The key is the only place real names are recorded,
+# kept in anonymisation_keys/ (repo root) rather than alongside the pipeline
+# output - it is not uploaded to Zenodo.
 combined_both = pd.concat([combined_CDA_data1, combined_CDA_data2], ignore_index=True)
 all_scorer_names = pd.concat([
     combined_both['Scorer1'].dropna(),
@@ -77,7 +78,7 @@ all_scorer_names = pd.concat([
 key = human_performance.generate_scorer_key(
     pd.DataFrame({'Scorer1': all_scorer_names}),
     random_state=42,
-    output_path=str(out_dir / "anonymisation_key.csv"),
+    output_path=str(repo_root / "anonymisation_keys" / "anonymisation_key.csv"),
 )
 print(f"Anonymisation key: {len(key)} scorers")
 
