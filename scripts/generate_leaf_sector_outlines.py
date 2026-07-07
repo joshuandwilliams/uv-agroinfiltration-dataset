@@ -1,8 +1,8 @@
-"""Generate leaf sector-outline CSVs used by analyses/04_image_level_analysis/leaf_positions.qmd.
+"""Generate leaf sector-outline CSVs used by analyses/08_leaf_positions/leaf_positions.qmd.
 
 Segments benth_leaf.jpeg (in this same directory) into N radial sectors for
 N=5, 6, and 8, and writes the polygon vertex coordinates for each to
-analyses/04_image_level_analysis/leaf_sector_csv_{N}.csv.
+analyses/08_leaf_positions/leaf_sector_csv_{N}.csv.
 
 Run this only if those CSVs are missing or the reference leaf image changes.
 """
@@ -16,7 +16,7 @@ import pandas as pd
 from shapely.geometry import Polygon
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = SCRIPT_DIR.parents[0] / "analyses" / "04_image_level_analysis"
+OUTPUT_DIR = SCRIPT_DIR.parents[0] / "analyses" / "08_leaf_positions"
 
 # 1. Create leaf outline
 

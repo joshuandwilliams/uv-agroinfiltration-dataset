@@ -1,5 +1,5 @@
 ---
-title: "Plots by raw image / CDA image"
+title: "Plots by source image / CDA image"
 format:
   html:
     code-fold: true
@@ -18,6 +18,7 @@ Visualise the image dataset in a way that allows all scores / images to be seen.
 ### 1.1 Load required packages
 
 ```{r}
+#| output: false
 # 1.1.1
 library(readr)
 library(ggplot2)
@@ -56,11 +57,11 @@ score_data_long <- long_score_table(score_data)
 
 ## 2. Dataset overview (Materials & Methods)
 
-Summary tables describing the raw image dataset. All counts here are in **raw images**, not CDA images.
+Summary tables describing the source image dataset. All counts here are in **source images**, not CDA images.
 
 ### 2.1 Load allocation metadata
 
-`image_info.csv` has one row per raw image. The `Path` column records the source folder, but is only written once per folder, so we fill it downwards. The top-level folder is taken as the project, which is then replaced with an anonymised label (`Project A`, `Project B`, …) using the shared key in `01_allocation_info/project_anonymisation_key.csv`.
+`image_info.csv` has one row per source image. The `Path` column records the source folder, but is only written once per folder, so we fill it downwards. The top-level folder is taken as the project, which is then replaced with an anonymised label (`Project A`, `Project B`, …) using the shared key in `01_allocation_info/project_anonymisation_key.csv`.
 
 ```{r}
 # 2.1.1
@@ -95,7 +96,7 @@ image_info <- image_info %>%
   )
 ```
 
-### 2.2 Total number of raw images
+### 2.2 Total number of source images
 
 Counted two ways as a cross-check: directly from the image files in `data/raw_images_rotated`, and from the allocation metadata. The images are split across two collection sets.
 
@@ -110,7 +111,7 @@ tibble(
   Source = c("Image files (data/raw_images_rotated)", "Allocation metadata (image_info.csv)"),
   Raw_Images = c(n_from_files, n_from_meta)
 ) %>%
-  knitr::kable(caption = "Total number of raw images")
+  knitr::kable(caption = "Total number of source images")
 ```
 
 Per-set totals:
@@ -120,7 +121,7 @@ Per-set totals:
 image_info %>%
   count(Set, name = "Raw_Images") %>%
   mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
-  knitr::kable(caption = "Raw images per set")
+  knitr::kable(caption = "Source images per set")
 ```
 
 ### 2.3 Number of raters per set
@@ -145,7 +146,7 @@ raters_long %>%
   knitr::kable(caption = "Distinct raters per set")
 ```
 
-### 2.4 Distribution of raw images across projects
+### 2.4 Distribution of source images across projects
 
 ```{r}
 # 2.4.1
@@ -153,7 +154,7 @@ image_info %>%
   count(Set, Project, name = "Raw_Images") %>%
   arrange(desc(Raw_Images)) %>%
   mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
-  knitr::kable(caption = "Raw images per project")
+  knitr::kable(caption = "Source images per project")
 ```
 
 The same breakdown, but counting CDAs in the cleaned dataset (`combined_cda_data_median.csv`) rather than raw source images:
@@ -170,7 +171,7 @@ score_data %>%
 
 ### 2.5 Projects, layouts and counts (combined)
 
-One row per project, showing its set, total raw image count, and the CDA-per-leaf layout(s) it contains. Where a project mixes layouts, each is listed as `CDAs per leaf (raw images)`.
+One row per project, showing its set, total source image count, and the CDA-per-leaf layout(s) it contains. Where a project mixes layouts, each is listed as `CDAs per leaf (source images)`.
 
 ```{r}
 # 2.5
@@ -185,14 +186,14 @@ image_info %>%
   ) %>%
   arrange(Set, desc(Count)) %>%
   knitr::kable(
-    caption = "Set, project, raw image count and leaf layout(s)",
+    caption = "Set, project, source image count and leaf layout(s)",
     escape = FALSE
   )
 ```
 
 ### 2.6 Distribution of leaf layouts (cell death areas per leaf)
 
-Each raw image uses a fixed layout: every leaf in the image is divided into a set number of cell death areas (CDAs). We report the layout two ways.
+Each source image uses a fixed layout: every leaf in the image is divided into a set number of cell death areas (CDAs). We report the layout two ways.
 
 **Method 1 — from the allocation record** (`CDA_Per_Leaf` in `image_info.csv`, with the 16 manual corrections from §2.1 applied):
 
@@ -248,7 +249,7 @@ layout_compare %>%
   knitr::kable(caption = "Corrected layout vs. layout observed from scored positions")
 ```
 
-## 3. Score proportions per raw image
+## 3. Score proportions per source image
 
 The dotplots of all individual scores (sorted and faceted by median score) now live at the top of `02_score_distributions`, alongside the raw score-count plots.
 
@@ -339,7 +340,7 @@ save_plot(p, "score_proportion_violins.png", width = 10, height = 6)
 
 - Some images had no 0s. This is interesting because there are normally control infiltrations.
 - Some images had almost all 0s.
-- Non-0 scores rarely comprised more than 50% of cell death areas in a raw image, with a couple of excepions for 2s and 6s.
+- Non-0 scores rarely comprised more than 50% of cell death areas in a source image, with a couple of excepions for 2s and 6s.
 
 ### 3.3 Heatmap of proportions sorted by most common score
 
@@ -379,7 +380,7 @@ save_plot(p, "heatmap_proportion_sorted_by_most_common_score.png", 8, 16)
 
 **What this shows:**
 
-- Like the CDA images themselves, in many of the raw agroinfiltration images the most common score was 0.
+- Like the CDA images themselves, in many of the source agroinfiltration images the most common score was 0.
 - For images where the most common score was 5 or 6, there tended to be very few scores between 1 and 3.
 - For images where the most common score was 3, there tended to be very few extreme scores (0 or 6).
 
