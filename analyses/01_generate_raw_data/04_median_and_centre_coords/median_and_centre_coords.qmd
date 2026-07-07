@@ -14,23 +14,6 @@ Date: 19/06/2025
 Combine the manually checked annotation dataframes and produce a clean dataset
 with median scores and central coordinates.
 
-**Hypothesis:**
-
-N/A
-
-**Rationale:**
-
-N/A
-
-**Experimental plan:**
-
-1. Load and combine the checked annotation data from both dataset parts
-2. Clean coordinates (fix ordering, remove zero-length boxes)
-3. Remove CDAs with insufficient or disagreeing score annotations
-4. Add median score column
-5. Add central coordinate column (the set of coordinates whose centre is closest to the centre of the overlap between all coordinate sets)
-6. Save output
-
 ### 1. Required packages
 ```{python}
 # 1
@@ -56,7 +39,7 @@ data_combined = pd.concat([data1, data2]).reset_index(drop=True)
 ```{python}
 # 3
 
-# clean_coordinates nulls any scorer's coordinates + score if the bounding box is degenerate or has a missing coordinate (only 7 scores got nulled this way)
+# clean_coordinates nulls any rater's coordinates + score if the bounding box is degenerate or has a missing coordinate (only 7 scores got nulled this way)
 
 # clean_scores drops a CDA row entirely if:
 # >=2 of the 3 scores are missing (356)
@@ -82,3 +65,7 @@ cleaned_data["Centre_Coords"] = cleaned_data.apply(dataset_preparation.get_centr
 print(f"Missing Centre_Coords values: {cleaned_data['Centre_Coords'].isna().sum()}")
 cleaned_data.to_csv(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv", index=False)
 ```
+
+## Discussion
+
+_Add notes here._

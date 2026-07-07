@@ -14,13 +14,8 @@ Date: 02/06/2026
 Generate a JPEG annotation image for every raw agroinfiltration image in both
 dataset parts, showing all collected bounding boxes overlaid on the image.
 
-**Experimental plan:**
-
-1. Load the checked annotation data for both dataset parts
-2. For each unique agroinfiltration image, save an annotated JPEG to data/annotations/
-3. Requires connection to the lab network drive
-
 ### 1. Import required packages
+Requires connection to the lab network drive.
 ```{python}
 # 1
 import pandas as pd
@@ -55,3 +50,7 @@ save_all_annotation_images(data1, SCORING_DIRS[1], output_dir, skip_existing=Tru
 data2 = pd.read_csv(checked_dir / "combined_cda_data_checked_2.csv")
 save_all_annotation_images(data2, SCORING_DIRS[2], output_dir, skip_existing=True)
 ```
+
+## Discussion
+
+_Add notes here._

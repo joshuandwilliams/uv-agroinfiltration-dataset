@@ -18,17 +18,11 @@ images, to check and verify collected annotations.
 
 Annotation mistakes will be present and need to be identified visually.
 
-**Experimental plan:**
-
+### 1. Import required packages
 Run in 'cda' mode to step through one CDA at a time, or 'raw' mode to see all
 CDAs for a full agroinfiltration image at once. Press spacebar to save the current
-view as a JPEG. Requires connection to the lab network drive.
-
-Corrections to coordinate placements were recorded manually in
-combined_cda_data_checked_1.csv and combined_cda_data_checked_2.csv.
-
-### 1. Import required packages
-Note: The Tkinter window closes when you close the interactive session — this is expected.
+view as a JPEG. Requires connection to the lab network drive. Note: the Tkinter
+window closes when you close the interactive session — this is expected.
 ```{python}
 # 1
 from pathlib import Path
@@ -58,3 +52,7 @@ view_annotations(
     starting_row=0,
 )
 ```
+
+## Discussion
+
+_Add notes here._

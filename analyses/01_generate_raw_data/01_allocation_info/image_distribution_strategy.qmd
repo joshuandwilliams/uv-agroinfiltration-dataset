@@ -8,19 +8,21 @@ jupyter: python3
 
 Date: 08/06/2026
 
-## Goal
+## GOHREP
 
-Document how raw agroinfiltration images were allocated to scorers, so that the
-expected number of scores collected by each scorer (and each scorer pair) can be
+**Goal:**
+
+Document how raw agroinfiltration images were allocated to raters, so that the
+expected number of scores collected by each rater (and each rater pair) can be
 reasoned about in the downstream analyses.
 
 ## Strategy
 
 - The estimated total number of cell death areas (CDAs) per raw agro image was taken as `leaf_count * pos_per_leaf`.
 - Image order was randomised.
-- Images were divided equally (by CDA count) between scorers using a staggered approach, so that some scorers never scored the same image:
+- Images were divided equally (by CDA count) between raters using a staggered approach, so that some raters never scored the same image:
 
-| Dataset portion (all equal in size) | Scorer1 | Scorer2 | Scorer3 |
+| Dataset portion (all equal in size) | Rater 1 | Rater 2 | Rater 3 |
 |-------------------------------------|---------|---------|---------|
 | A                                   | 1       | 2       | 3       |
 | B                                   | 2       | 3       | 4       |
@@ -57,7 +59,7 @@ images_per_set = image_info.drop_duplicates(subset=["Path", "Image"]).groupby("S
 images_per_set
 ```
 
-## 3. Scorers
+## 3. Raters
 
 ```{python}
 # 3.1
@@ -93,3 +95,7 @@ assert randomised_info[scorer_cols].notna().all().all(), "expected scorer1/2/3 p
 annotations_per_cda = len(scorer_cols)
 annotations_per_cda
 ```
+
+## Discussion
+
+_Add notes here._
