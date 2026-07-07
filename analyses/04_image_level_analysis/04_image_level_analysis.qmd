@@ -57,14 +57,13 @@ score_data_long <- long_score_table(score_data)
 
 ## 2. Dataset overview (Materials & Methods)
 
-Summary tables describing the source image dataset. All counts here are in **source images**, not CDA images.
-
 ### 2.1 Load allocation metadata
-
-`image_info.csv` has one row per source image. The `Path` column records the source folder, but is only written once per folder, so we fill it downwards. The top-level folder is taken as the project, which is then replaced with an anonymised label (`Project A`, `Project B`, …) using the shared key in `01_allocation_info/project_anonymisation_key.csv`.
 
 ```{r}
 # 2.1.1
+# image_info.csv has one row per source image. Path is recorded once per
+# folder, so we fill it downwards; the top-level folder is the project,
+# mapped to its anonymised label via project_anonymisation_key.csv.
 project_key <- load_project_key()
 project_lookup <- setNames(project_key$Anon_Label, project_key$Project)
 
@@ -76,10 +75,12 @@ image_info <- read_csv(
   mutate(Project = unname(project_lookup[sub("/.*", "", Path)]))
 ```
 
-The allocation metadata over-counts the CDAs-per-leaf for 16 source images: inspecting the source images confirmed these leaves carry only 5 CDAs, not the recorded 6 or 8. We correct the in-memory copy used for these tables only — `image_info.csv` (which drives the allocation pipeline) is intentionally left unchanged. The original allocated value is retained as `CDA_Per_Leaf_Alloc`.
-
 ```{r}
 # 2.1.2
+# The allocation metadata over-counts CDAs-per-leaf for 16 source images:
+# inspecting them confirmed these leaves carry only 5 CDAs, not the recorded
+# 6 or 8. Corrected here in-memory only; image_info.csv (which drives the
+# allocation pipeline) is left unchanged. Original value kept as CDA_Per_Leaf_Alloc.
 layout5_images <- c(
   # Project E batch: allocation recorded 8 CDAs/leaf, true layout is 5
   "_DSC9258.tif", "_DSC9259.tif", "_DSC9260.tif", "_DSC9261.tif",
@@ -98,35 +99,22 @@ image_info <- image_info %>%
 
 ### 2.2 Total number of source images
 
-Counted two ways as a cross-check: directly from the image files in `data/raw_images_rotated`, and from the allocation metadata. The images are split across two collection sets.
-
 ```{r}
-# 2.2.1
+# 2.2
 n_from_files <- length(list.files(here("data", "raw_images_rotated"),
   pattern = "(?i)\\.tif$"
 ))
-n_from_meta <- n_distinct(image_info$Image)
 
-tibble(
-  Source = c("Image files (data/raw_images_rotated)", "Allocation metadata (image_info.csv)"),
-  Raw_Images = c(n_from_files, n_from_meta)
-) %>%
+tibble(Source_Images = n_from_files) %>%
   knitr::kable(caption = "Total number of source images")
-```
 
-Per-set totals:
-
-```{r}
-# 2.2.2
 image_info %>%
-  count(Set, name = "Raw_Images") %>%
-  mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
+  count(Set, name = "Source_Images") %>%
+  mutate(Percent = round(100 * Source_Images / sum(Source_Images), 1)) %>%
   knitr::kable(caption = "Source images per set")
 ```
 
 ### 2.3 Number of raters per set
-
-Each CDA was scored by up to three raters (`Scorer1`–`Scorer3` in `combined_cda_data_median.csv`). Counting the distinct raters that contributed to the images in each set:
 
 ```{r}
 # 2.3
@@ -151,13 +139,11 @@ raters_long %>%
 ```{r}
 # 2.4.1
 image_info %>%
-  count(Set, Project, name = "Raw_Images") %>%
-  arrange(desc(Raw_Images)) %>%
-  mutate(Percent = round(100 * Raw_Images / sum(Raw_Images), 1)) %>%
+  count(Set, Project, name = "Source_Images") %>%
+  arrange(desc(Source_Images)) %>%
+  mutate(Percent = round(100 * Source_Images / sum(Source_Images), 1)) %>%
   knitr::kable(caption = "Source images per project")
 ```
-
-The same breakdown, but counting CDAs in the cleaned dataset (`combined_cda_data_median.csv`) rather than raw source images:
 
 ```{r}
 # 2.4.2
@@ -170,8 +156,6 @@ score_data %>%
 ```
 
 ### 2.5 Projects, layouts and counts (combined)
-
-One row per project, showing its set, total source image count, and the CDA-per-leaf layout(s) it contains. Where a project mixes layouts, each is listed as `CDAs per leaf (source images)`.
 
 ```{r}
 # 2.5
@@ -193,65 +177,22 @@ image_info %>%
 
 ### 2.6 Distribution of leaf layouts (cell death areas per leaf)
 
-Each source image uses a fixed layout: every leaf in the image is divided into a set number of cell death areas (CDAs). We report the layout two ways.
-
-**Method 1 — from the allocation record** (`CDA_Per_Leaf` in `image_info.csv`, with the 16 manual corrections from §2.1 applied):
-
 ```{r}
-# 2.6.1
-layout_alloc <- image_info %>%
-  count(CDA_Per_Leaf, name = "Raw_Images") %>%
-  arrange(CDA_Per_Leaf)
-
-layout_alloc %>%
-  knitr::kable(caption = "CDAs per leaf, from the (corrected) allocation record")
-```
-
-The 16 corrected images, showing the originally allocated layout against the verified one:
-
-```{r}
-# 2.6.2
-image_info %>%
-  filter(Image %in% layout5_images) %>%
-  count(Project, CDA_Per_Leaf_Alloc, CDA_Per_Leaf, name = "Raw_Images") %>%
-  arrange(desc(Raw_Images)) %>%
-  knitr::kable(caption = "Manually corrected layouts (allocated vs verified)")
-```
-
-**Method 2 — independently derived from the scored positions** in `combined_cda_data_median.csv`. The `Pos` column indexes the CDA within a leaf, so the layout of an image is the maximum `Pos` it contains (taken over all leaves, since individual leaves may have unscored positions):
-
-```{r}
-# 2.6.3
+# 2.6
+# Layout derived independently from scored positions in combined_cda_data_median.csv:
+# Pos indexes the CDA within a leaf, so an image's layout is the max Pos it
+# contains (over all leaves, since individual leaves may have unscored positions).
 layout_positions <- score_data %>%
   group_by(Basename) %>%
   summarise(CDA_Per_Leaf = max(Pos), .groups = "drop") %>%
-  count(CDA_Per_Leaf, name = "Raw_Images") %>%
+  count(CDA_Per_Leaf, name = "Source_Images") %>%
   arrange(CDA_Per_Leaf)
 
 layout_positions %>%
   knitr::kable(caption = "CDAs per leaf, derived from scored positions")
 ```
 
-**Reconciliation of the two methods.** After the corrections, the two methods agree for most images. Where the (corrected) layout still exceeds the highest scored position, the image is **dual-infiltration**: each leaf carried both yellow/green and orange cell death areas, and the orange ones were ignored during scoring, so their positions are never scored and the position-based method reports a smaller layout. These are Project C and Project H.
-
-```{r}
-# 2.6.4
-layout_compare <- score_data %>%
-  group_by(Basename) %>%
-  summarise(Obs_CDA_Per_Leaf = max(Pos), .groups = "drop") %>%
-  inner_join(select(image_info, Image, Layout_CDA_Per_Leaf = CDA_Per_Leaf),
-    by = c("Basename" = "Image")
-  )
-
-layout_compare %>%
-  count(Layout_CDA_Per_Leaf, Obs_CDA_Per_Leaf, name = "Raw_Images") %>%
-  arrange(Layout_CDA_Per_Leaf, Obs_CDA_Per_Leaf) %>%
-  knitr::kable(caption = "Corrected layout vs. layout observed from scored positions")
-```
-
 ## 3. Score proportions per source image
-
-The dotplots of all individual scores (sorted and faceted by median score) now live at the top of `02_score_distributions`, alongside the raw score-count plots.
 
 ### 3.1 Compute proportions
 
@@ -336,12 +277,6 @@ p
 save_plot(p, "score_proportion_violins.png", width = 10, height = 6)
 ```
 
-**What this shows:**
-
-- Some images had no 0s. This is interesting because there are normally control infiltrations.
-- Some images had almost all 0s.
-- Non-0 scores rarely comprised more than 50% of cell death areas in a source image, with a couple of excepions for 2s and 6s.
-
 ### 3.3 Heatmap of proportions sorted by most common score
 
 ```{r fig.width=8, fig.height=16}
@@ -378,23 +313,41 @@ p
 save_plot(p, "heatmap_proportion_sorted_by_most_common_score.png", 8, 16)
 ```
 
-**What this shows:**
+## 4. Interpretation and Discussion
 
+- Some images had no 0s. This is interesting because there are normally control infiltrations.
+- Some images had almost all 0s.
+- Non-0 scores rarely comprised more than 50% of cell death areas in a source image, with a couple of excepions for 2s and 6s.
+- The images with no 0s are mostly images where two infiltrations were applied to the same leaf. In the case that there was none of the usual green cell death, there was an orange cell death of the other infiltration, and the annotators were instructed to ignore those cell death areas because they did not represent true "no cell death" examples.
 - Like the CDA images themselves, in many of the source agroinfiltration images the most common score was 0.
 - For images where the most common score was 5 or 6, there tended to be very few scores between 1 and 3.
 - For images where the most common score was 3, there tended to be very few extreme scores (0 or 6).
-
-## 4. Discussion
-
-### 4.1 Distribution of each score's proportion across images (violins)
-
-- The images with no 0s are mostly images where two infiltrations were applied to the same leaf. In the case that there was none of the usual green cell death, there was an orange cell death of the other infiltration, and the annotators were instructed to ignore those cell death areas because they did not represent true "no cell death" examples.
-
-### 4.2 Heatmap of proportions sorted by most common score
-
 - The images for which most scores were extreme (0 or 5/6) were likely from biological systems that showed strong presence/absence phenotypes.
 - The images with very few 0s were likely from images where each cell death area received two infiltrations, and those with no green cell death were excluded from annotation.
 
-### 4.3 Overall narrative
-
 _Add notes here._
+
+## 5. Additional Information
+
+### 5.1 Leaf layout distribution (from the allocation record)
+
+```{r}
+# 5.1
+layout_alloc <- image_info %>%
+  count(CDA_Per_Leaf, name = "Source_Images") %>%
+  arrange(CDA_Per_Leaf)
+
+layout_alloc %>%
+  knitr::kable(caption = "CDAs per leaf, from the (corrected) allocation record")
+```
+
+### 5.2 Manually corrected layouts (allocated vs verified)
+
+```{r}
+# 5.2
+image_info %>%
+  filter(Image %in% layout5_images) %>%
+  count(Project, CDA_Per_Leaf_Alloc, CDA_Per_Leaf, name = "Source_Images") %>%
+  arrange(desc(Source_Images)) %>%
+  knitr::kable(caption = "Manually corrected layouts (allocated vs verified)")
+```
