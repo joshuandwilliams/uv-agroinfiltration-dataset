@@ -47,6 +47,7 @@ Given this large number of variables, there is likely to be more variability in 
 ### 1.1 Import required libraries
 
 ```{python}
+#| output: false
 # 1.1
 import os
 import sys
@@ -217,7 +218,7 @@ plot_pca(undersampled_labels, undersampled_images_pca, undersampled_variance_exp
 
 ### 3.2 Plot PCs 1 and 2 coloured by project
 
-Each cropped CDA image comes from a raw image belonging to one project. The cropped filenames are formatted `<Basename>_<Row>_<Col>_<Pos>.tif`, so stripping the trailing `_Row_Col_Pos` recovers the raw-image basename, which we map to a project via `image_info.csv` (the `Path` column is recorded once per folder, so it is filled downwards; the top-level folder is the project).
+Each cropped CDA image comes from a source image belonging to one project. The cropped filenames are formatted `<Basename>_<Row>_<Col>_<Pos>.tif`, so stripping the trailing `_Row_Col_Pos` recovers the source-image basename, which we map to a project via `image_info.csv` (the `Path` column is recorded once per folder, so it is filled downwards; the top-level folder is the project).
 
 ```{python}
 # 3.2.1

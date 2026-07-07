@@ -11,7 +11,7 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Interactively view CDA bounding box annotations overlaid on raw agroinfiltration
+Interactively view CDA bounding box annotations overlaid on source agroinfiltration
 images, to check and verify collected annotations.
 
 **Hypothesis:**

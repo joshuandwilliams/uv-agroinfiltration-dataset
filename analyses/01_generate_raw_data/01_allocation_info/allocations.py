@@ -1,5 +1,5 @@
 """
-Randomly allocates raw agroinfiltration TIF images to scorers.
+Randomly allocates source agroinfiltration TIF images to scorers.
 
 Reads image_paths.csv (TIF file paths) and image_info.csv (estimated CDA counts
 per image), shuffles images randomly, and saves the shuffled list as
