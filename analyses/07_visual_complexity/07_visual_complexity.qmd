@@ -27,15 +27,6 @@ Images of the same score are likely to be more similar than images of different 
 
 Due to variation in human scoring, even with the median of three scores taken, there may be human errors or biases which result in image misclassifications. However, these images that appear to be misclassified may instead just be uncommon.
 
-**Experimental plan:**
-
-1. Load in the images and lables.
-2. Cluster the images using PCA, paying careful attention to the variance explained for different PCs.
-3. Visually inspect PCs 1 and 2, with points labelled by score, describing any trends.
-4. Identify images that cluster most distantly from others in their class and look for trends amongst them - are there any likely mislabelled images or are they just uncommon?
-5. Cluster using k nearest neighbours, finding the best k using average silhouette score, which measures how well separated clusters are.
-6. Find the pairwise average distances between clusters.
-
 ## Background
 
 ### How does PCA work?
@@ -192,9 +183,6 @@ undersampled_variance_explained = plot_eigenvalues(undersampled_pca, "undersampl
 
 **Answer:** The first two eigenvalues have magnitudes of 34.46% and 8.72%. They tell us the percentage of variation in the images explained by that eigenvector. Despite the large number of input variables, the first two PCs capture 43.18% of the data.
 
-**Discussion:**
-_Add notes here._
-
 ## 3. PCA scatter plots coloured by score
 
 ### 3.1 Plot PCs 1 and 2 coloured by label
@@ -214,9 +202,9 @@ def plot_pca(labels, images_pca, variance_explained, name):
 
     plt.xlabel(f'PC1 ({variance_explained[0]*100:.2f}%)')
     plt.ylabel(f'PC2 ({variance_explained[1]*100:.2f}%)')
-    plt.legend(title='Score', loc='upper left', bbox_to_anchor=(1, 1))
+    plt.legend(title='Severity Score', loc='upper left', bbox_to_anchor=(1, 1))
     suffix = "" if name == "original" else f"_{name}"
-    plt.savefig(str(plots_dir / f"pca_scatter{suffix}.png"))
+    plt.savefig(str(plots_dir / f"pca_scatter{suffix}.png"), bbox_inches="tight")
     plt.show()
 
 plot_pca(labels, images_pca, variance_explained, "original")
@@ -226,9 +214,6 @@ plot_pca(undersampled_labels, undersampled_images_pca, undersampled_variance_exp
 **Question:** Do PCs 1 and 2 coloured by score show any trends/patterns?
 
 **Answer:** There is a visible trend of increasing score as PC1 increases and PC2 decreases. However, there are large overlaps between images of different scores, particularly in the middle scores.
-
-**Discussion:**
-_Add notes here._
 
 ### 3.2 Plot PCs 1 and 2 coloured by project
 
@@ -288,9 +273,6 @@ plot_pca_by_project(projects, images_pca, variance_explained, "original")
 ```
 
 **Question:** Do PCs 1 and 2 coloured by project show any clustering by project (i.e. is image source a confound in the PCA)?
-
-**Discussion:**
-_Add notes here._
 
 ## 4. Identifying outlier images
 
@@ -376,7 +358,7 @@ for idx, index in enumerate(ranked_indices[:10]):
 
 # Custom legend
 legend = plt.legend(handles=legend_handles, labels=legend_labels,
-                    title='Score', loc='upper left', bbox_to_anchor=(1, 1))
+                    title='Severity Score', loc='upper left', bbox_to_anchor=(1, 1))
 
 for handle in legend.legend_handles:
     handle.set_alpha(1)
@@ -386,9 +368,6 @@ plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.2f}%)')
 plt.savefig(str(plots_dir / "pca_top10_ranked.png"), dpi=300, bbox_inches='tight')
 plt.show()
 ```
-
-**Discussion:**
-_Add notes here._
 
 ### 4.3 Display top 10 ranking images
 
@@ -426,9 +405,6 @@ plt.show()
 **Question:** Looking at the images which are both most distant from others of their class, and whose nearest neighbouring datapoint is of another class, are there any trends that stand out?
 
 **Answer:** Whilst a high distance from others of their class may be indicative of mislabelling, it could equally as likely just be an unusual type of image. For example, the shapes of the CDAs in rank 2, 3, 4, and 6 are not the typical circular shape, and also all contain large dark areas of non-leaf. 2, 3, 4, and 6 all cluster fairly closely on the PCA plot also, so it may just be that that type of image is infrequent in the dataset.
-
-**Discussion:**
-_Add notes here._
 
 ## 5. k-Nearest-Neighbour clustering
 
@@ -564,7 +540,7 @@ def nearest_neighbour_clustering(true_labels, images_pca, name):
         plt.scatter(images_pca[mask, 0], images_pca[mask, 1], color=colors_pred[i], label=f'{label}', s=10, alpha=0.5)
     plt.xlabel('PC1')
     plt.ylabel('PC2')
-    plt.legend(title='Score', loc='upper left', bbox_to_anchor=(1, 1))
+    plt.legend(title='Severity Score', loc='upper left', bbox_to_anchor=(1, 1))
     plt.savefig(str(plots_dir / f"knn_predictions_{name}.png"), dpi=300, bbox_inches='tight')
     plt.show()
 
@@ -581,17 +557,48 @@ undersampled_best_ari, undersampled_best_k = nearest_neighbour_clustering(unders
 
 **Answer:** Silhouette scores lie between -1 and 1, and denote how close each image is to others of its own cluster vs adjacent clusters. The best average silhouette score was -0.012 for a k value of 9. This is roughly zero, and indicates on average each image is close to the decision boundary between two clusters. This value indicates that the average distance between the points in one cluster are roughly equal to the average distance between them and the adjacent cluster.
 
-**Discussion:**
-_Add notes here._
-
 **Question:** Do adjacent scores cluster more closely than distant ones?
 
 **Answer:** The heatmap shows that the average distance between clusters increases in all cases when the distance between scores increases.
 
-**Discussion:**
-_Add notes here._
-
 The ARI is 0.319. This means roughly 32% of the variablility in the clustering assignments can be explained by the true class labels. This means there is some agreement between the clusters assigned based on k-NN and the true labels.
 
-**Discussion:**
+---
+
+## 6. Discussion
+
+### 6.1 Eigenvalue plots
+
+_Add notes here._
+
+### 6.2 PCA scatter plot coloured by label
+
+_Add notes here._
+
+### 6.3 PCA scatter plot coloured by project
+
+_Add notes here._
+
+### 6.4 PCA scatter plot highlighting top 10 most-distant images
+
+_Add notes here._
+
+### 6.5 Top 10 ranking images
+
+_Add notes here._
+
+### 6.6 Silhouette scores
+
+_Add notes here._
+
+### 6.7 Distance between adjacent vs distant scores
+
+_Add notes here._
+
+### 6.8 Adjusted Rand Index
+
+_Add notes here._
+
+### 6.9 Overall narrative
+
 _Add notes here._
