@@ -31,20 +31,20 @@ containing both individual scores and the median, and clear README documentation
 Zenodo allows a maximum of 100 files per record, so images are bundled into
 ZIP archives. Output files are written to data/zenodo/ and are gitignored.
 
-### Import required packages
+### 1. Import required packages
 ```{python}
+# 1
 import zipfile
 import pandas as pd
 from pathlib import Path
-import sys
 
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
-sys.path.append(str(repo_root / 'src'))
 from coco_export import generate_multi_rater_csv
 ```
 
-### Set paths
+### 2. Set paths
 ```{python}
+# 2
 combined_dir      = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
 median_path       = repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"
 images_dir        = repo_root / "data/cropped_images"
@@ -54,8 +54,9 @@ output_dir        = repo_root / "data/zenodo"
 output_dir.mkdir(parents=True, exist_ok=True)
 ```
 
-### Generate anonymised multi-rater CSV
+### 3. Generate anonymised multi-rater CSV
 ```{python}
+# 3
 median_data = pd.read_csv(median_path)
 generate_multi_rater_csv(
     median_data=median_data,
@@ -63,8 +64,9 @@ generate_multi_rater_csv(
 )
 ```
 
-### Zip cropped images
+### 4. Zip cropped images
 ```{python}
+# 4
 zip_path = output_dir / "cropped_images.zip"
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -79,8 +81,9 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
 print(f"Saved cropped_images.zip: {len(zf.namelist())} files")
 ```
 
-### Convert raw rotated images to JPEG and zip
+### 5. Convert raw rotated images to JPEG and zip
 ```{python}
+# 5
 # Raw TIFs are ~43 MB each (9.2 GB total). JPEG at quality 92 reduces this to
 # ~700 MB–1 GB while preserving pixel dimensions, so bounding box coordinates
 # in the dataset remain valid for re-extracting crops from these images.
@@ -106,8 +109,9 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
 print(f"\nSaved raw_images.zip: {len(tif_files)} images")
 ```
 
-### Zip annotation images
+### 6. Zip annotation images
 ```{python}
+# 6
 annotations_dir = repo_root / "data/annotations"
 zip_path = output_dir / "annotated_raw_images.zip"
 

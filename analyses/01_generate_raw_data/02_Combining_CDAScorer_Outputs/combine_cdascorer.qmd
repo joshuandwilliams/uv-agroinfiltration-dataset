@@ -35,28 +35,29 @@ With a median score:
 6. Generate an anonymisation key mapping scorer names to integer IDs.
 7. Anonymise scorer columns and save the combined tables. The key (anonymisation_key.csv) is the only record of real names and is not uploaded to Zenodo.
 
-### Import required packages
+### 1. Import required packages
 ```{python}
+# 1
 # Public packages
 import pandas as pd
 from pathlib import Path
-import sys
 
 # Custom functions
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
-sys.path.append(str(repo_root / 'src'))
 import dataset_preparation
 import human_performance
 ```
 
-### Read in all the CDAScorer data tables
+### 2. Read in all the CDAScorer data tables
 ```{python}
+# 2
 cda_dataframes1 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/set1"))
 cda_dataframes2 = dataset_preparation.read_CDAScorer_data(str(repo_root / "data/cdascorer/set2"))
 ```
 
-### Create new combined data table
+### 3. Create new combined data table
 ```{python}
+# 3
 # Both sets use the same combined randomised_info.csv (Set column distinguishes them).
 # combine_CDA_dataframes filters to the relevant rows via a left join on basename.
 scorer_info = repo_root / "analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv"
@@ -85,4 +86,42 @@ combined_CDA_data2 = human_performance.anonymise_scorers(combined_CDA_data2, key
 combined_CDA_data1.to_csv(out_dir / "combined_cda_data_1.csv", index=False)
 combined_CDA_data2.to_csv(out_dir / "combined_cda_data_2.csv", index=False)
 print("Anonymised outputs saved.")
+```
+
+### 4. Annotation counts
+```{python}
+# 4.1
+n_annotations_set1 = combined_CDA_data1[["Score1", "Score2", "Score3"]].notna().sum().sum()
+n_annotations_set1
+```
+
+```{python}
+# 4.2
+n_annotations_set2 = combined_CDA_data2[["Score1", "Score2", "Score3"]].notna().sum().sum()
+n_annotations_set2
+```
+
+```{python}
+# 4.3
+n_annotations_total = n_annotations_set1 + n_annotations_set2
+n_annotations_total
+```
+
+### 5. CDA counts
+```{python}
+# 5.1
+n_cdas_set1 = len(combined_CDA_data1)
+n_cdas_set1
+```
+
+```{python}
+# 5.2
+n_cdas_set2 = len(combined_CDA_data2)
+n_cdas_set2
+```
+
+```{python}
+# 5.3
+n_cdas_total = n_cdas_set1 + n_cdas_set2
+n_cdas_total
 ```
