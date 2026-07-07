@@ -232,7 +232,15 @@ def plot_confusion_matrix(
             # Add a black border if it's on the diagonal (i == j)
             if i == j:
                 ax.add_patch(
-                    Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, edgecolor="black", linewidth=1)
+                    Rectangle(
+                        (j - 0.5, i - 0.5),
+                        1,
+                        1,
+                        fill=False,
+                        edgecolor="black",
+                        linewidth=1,
+                        joinstyle="bevel",
+                    )
                 )
 
     plt.ylabel(axis_labels[0])
