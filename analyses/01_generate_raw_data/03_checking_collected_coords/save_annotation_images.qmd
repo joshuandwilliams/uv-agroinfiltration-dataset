@@ -1,5 +1,5 @@
 ---
-title: "Save annotation images for all raw agroinfiltration images"
+title: "Save annotation images for all source agroinfiltration images"
 format:
   html:
     code-fold: true
@@ -11,7 +11,7 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Generate a JPEG annotation image for every raw agroinfiltration image in both
+Generate a JPEG annotation image for every source agroinfiltration image in both
 dataset parts, showing all collected bounding boxes overlaid on the image.
 
 ### 1. Import required packages

@@ -1,5 +1,5 @@
 """
-Distributes raw agroinfiltration TIF images to scorer folders for annotation.
+Distributes source agroinfiltration TIF images to scorer folders for annotation.
 
 Reads randomised_info.csv (scorer assignments per image) and image_info.csv
 (orientation values), then copies each image to the three assigned scorer folders

@@ -127,12 +127,12 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Document how raw agroinfiltration images were allocated to raters, so that the expected number of scores collected by each rater (and each rater pair) can be reasoned about in the downstream analyses.</p>
+<p>Document how source agroinfiltration images were allocated to raters, so that the expected number of scores collected by each rater (and each rater pair) can be reasoned about in the downstream analyses.</p>
 </section>
 <section id="strategy" class="level2">
 <h2 class="anchored" data-anchor-id="strategy">Strategy</h2>
 <ul>
-<li>The estimated total number of cell death areas (CDAs) per raw agro image was taken as <code>leaf_count * pos_per_leaf</code>.</li>
+<li>The estimated total number of cell death areas (CDAs) per source agro image was taken as <code>leaf_count * pos_per_leaf</code>.</li>
 <li>Image order was randomised.</li>
 <li>Images were divided equally (by CDA count) between raters using a staggered approach, so that some raters never scored the same image:</li>
 </ul>
@@ -204,8 +204,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </table>
 <p>The allocation itself is produced by <code>allocations.py</code> and recorded in <code>randomised_info.csv</code> (per-image scorer assignments) and <code>image_info.csv</code> (per-image CDA counts).</p>
 </section>
-<section id="total-raw-images" class="level2">
-<h2 class="anchored" data-anchor-id="total-raw-images">1. Total raw images</h2>
+<section id="total-source-images" class="level2">
+<h2 class="anchored" data-anchor-id="total-source-images">1. Total source images</h2>
 <div class="cell" data-execution_count="1">
 <details>
 <summary>Code</summary>
@@ -223,8 +223,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 </div>
 </section>
-<section id="raw-images-per-set" class="level2">
-<h2 class="anchored" data-anchor-id="raw-images-per-set">2. Raw images per set</h2>
+<section id="source-images-per-set" class="level2">
+<h2 class="anchored" data-anchor-id="source-images-per-set">2. Source images per set</h2>
 <div class="cell" data-execution_count="2">
 <details>
 <summary>Code</summary>
