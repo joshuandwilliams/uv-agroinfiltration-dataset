@@ -204,7 +204,7 @@ p_all <- ggplot(all_counts, aes(x = Score, y = Count, fill = Score)) +
   geom_text(aes(label = Count), vjust = -0.5, size = 5) +
   scale_fill_manual(values = sev_pal, guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
-  labs(x = "Score", y = "Frequency (All Raters)") +
+  labs(x = "Severity Score", y = "Frequency") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -218,7 +218,7 @@ p_median <- ggplot(median_counts, aes(x = Median_Score, y = Count, fill = Median
   geom_text(aes(label = Count), vjust = -0.5, size = 5) +
   scale_fill_manual(values = sev_pal, guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
-  labs(x = "Median Severity Score", y = "Frequency (Median Only)") +
+  labs(x = "Median Severity Score", y = "Frequency") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -259,7 +259,7 @@ p <- ggplot(score_data_random, aes(x = row_index, y = as.numeric(Score))) +
   geom_point(aes(y = as.numeric(Score2)), color = "black", alpha = 0.2, na.rm = TRUE) +
   geom_point(aes(y = as.numeric(Score3)), color = "black", alpha = 0.2, na.rm = TRUE) +
   scale_y_continuous(limits = c(0, 6)) +
-  labs(x = "CDA Index", y = "Score") +
+  labs(x = "Annotation Index", y = "Severity Score") +
   theme_minimal() +
   facet_wrap(~Median_Score, ncol = 2) +
   theme(
@@ -313,7 +313,7 @@ p <- ggplot(score_pct, aes(x = Scorer, y = factor(Score), fill = proportion)) +
   scale_fill_gradient(name = "Percentage\n(within Rater)", low = "white", high = "firebrick") +
   scale_x_discrete(labels = scorer_labels) +
   coord_equal() +
-  labs(x = "Rater", y = "Score") +
+  labs(x = "Rater", y = "Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -432,7 +432,7 @@ p <- ggplot(score_data_sorted, aes(x = row_index, y = Score)) +
     hjust = 0, fontface = "bold", size = 5
   ) +
   scale_y_continuous(breaks = 0:6, limits = c(0, 6.6)) +
-  labs(x = "CDA Index", y = "Score") +
+  labs(x = "Annotation Index", y = "Severity Score") +
   theme_minimal() +
   theme(
     axis.text    = element_text(size = 13),
@@ -454,9 +454,9 @@ p <- ggplot(score_freq, aes(x = Scorer, y = Score)) +
   geom_point(aes(size = Count, color = factor(Score)), stat = "identity") +
   geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
   scale_size_continuous(name = "Frequency", range = c(0.06, 25)) +
-  scale_color_manual(name = "Score", values = sev_pal) +
+  scale_color_manual(name = "Severity Score", values = sev_pal) +
   scale_y_continuous(breaks = 0:6) +
-  labs(x = "Rater", y = "Score") +
+  labs(x = "Rater", y = "Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
