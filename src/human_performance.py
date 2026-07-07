@@ -247,7 +247,7 @@ def plot_confusion_matrix(
     plt.xlabel(axis_labels[1])
     plt.tight_layout()
 
-    plt.savefig(output)
+    plt.savefig(output, dpi=300)
     plt.show()
 
 
