@@ -127,22 +127,14 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <section id="gohrep" class="level2">
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
-<p>Quantify how consistently each scorer scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).</p>
+<p>Quantify how consistently each rater scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).</p>
 <p><strong>Hypothesis:</strong></p>
 <ol type="1">
-<li>Scorers will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).</li>
+<li>Raters will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).</li>
 <li>Rescoring will not systematically improve or worsen agreement with the median — any changes will reflect genuine scoring uncertainty rather than learning.</li>
 </ol>
 <p><strong>Rationale:</strong></p>
-<p>Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each scorer was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.</p>
-<p><strong>Experimental plan:</strong></p>
-<ol type="1">
-<li>Load and anonymise all rescore CSVs.</li>
-<li>Intra-rater reliability: compare <code>old_score</code> vs <code>new_score</code> per scorer, including self-agreement by original score class.</li>
-<li>Score change distribution: characterise the direction and magnitude of score changes.</li>
-<li>Ground truth labels: assess how often rescoring disagreements would change the median label.</li>
-<li>Within- vs between-scorer variation: compare intra-rater disagreement (this analysis) with inter-rater disagreement (analysis 04).</li>
-</ol>
+<p>Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each rater was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.</p>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -212,8 +204,8 @@ Attaching package: 'scales'</code></pre>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"src"</span>, <span class="st">"agreement_metrics.R"</span>))</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"src"</span>, <span class="st">"plotting_helpers.R"</span>))</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># rescore_anon/ holds one file per scorer, already anonymised (filename and</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># `scorer` column both give the same ID) - see scripts/generate_anonymised_raw_data.py.</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># rescore_anon/ holds one file per rater, already anonymised (filename and</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># `scorer` column both give the same ID) - see the anonymisation script under scripts/.</span></span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>rescore_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
 <span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"06_intra_rater_reliability"</span>, <span class="st">"rescore_anon"</span>),</span>
 <span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">"[.]csv$"</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span></span>
@@ -236,17 +228,17 @@ Attaching package: 'scales'</code></pre>
 <span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">levels =</span> <span class="fu">sort</span>(<span class="fu">unique</span>(rescore_data<span class="sc">$</span>Scorer))</span>
 <span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Scorers:"</span>, <span class="fu">paste</span>(<span class="fu">levels</span>(rescore_data<span class="sc">$</span>Scorer), <span class="at">collapse =</span> <span class="st">", "</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Raters:"</span>, <span class="fu">paste</span>(<span class="fu">levels</span>(rescore_data<span class="sc">$</span>Scorer), <span class="at">collapse =</span> <span class="st">", "</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Scorers: 1, 2, 4, 6, 9 </code></pre>
+<pre><code>Raters: 1, 2, 4, 6, 9 </code></pre>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"CDAs per scorer:</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"CDAs per rater:</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>CDAs per scorer:</code></pre>
+<pre><code>CDAs per rater:</code></pre>
 </div>
 <details>
 <summary>Code</summary>
@@ -333,7 +325,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 #   mean_abs_change &lt;dbl&gt;</code></pre>
 </div>
 </div>
-<p>Pooled across all rescored CDAs (all scorers combined), the off-by-one rate is the near-miss rate (|old − new| ≤ 1) minus the exact rate (old = new): how often a scorer’s repeat score differed from their original by exactly one severity point.</p>
+<p>Pooled across all rescored CDAs (all raters combined), the off-by-one rate is the near-miss rate (|old − new| ≤ 1) minus the exact rate (old = new): how often a rater’s repeat score differed from their original by exactly one severity point.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -369,10 +361,6 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <pre><code>Off-by-one disagreement (diff == 1):      35.01%</code></pre>
 </div>
 </div>
-<p><strong>Discussion:</strong></p>
-<p>All scorers rescored 100 CDAs. Some scorers skipped CDAs in the original scoring, which is why three scorers only have 99 collected scores in the original scores.</p>
-<p>On these non-zero-median CDAs, scorers’ exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Scorer 9 stnd out as significantly lower than the other four Scorers, achieving an exact self-agreement rate of just 30%.</p>
-<p>Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.</p>
 <hr>
 </section>
 <section id="score-class-distribution-of-rescored-cdas" class="level2">
@@ -440,8 +428,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb33-58"><a href="#cb33-58" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"Original"</span>, <span class="fu">as.character</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>)), <span class="at">name =</span> <span class="cn">NULL</span></span>
 <span id="cb33-59"><a href="#cb33-59" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb33-60"><a href="#cb33-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.12</span>))) <span class="sc">+</span></span>
-<span id="cb33-61"><a href="#cb33-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
-<span id="cb33-62"><a href="#cb33-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Median score"</span>, <span class="at">y =</span> <span class="st">"Proportion of non-zero CDAs"</span>) <span class="sc">+</span></span>
+<span id="cb33-61"><a href="#cb33-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
+<span id="cb33-62"><a href="#cb33-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Median Severity Score"</span>, <span class="at">y =</span> <span class="st">"Proportion of non-zero CDAs"</span>) <span class="sc">+</span></span>
 <span id="cb33-63"><a href="#cb33-63" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb33-64"><a href="#cb33-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb33-65"><a href="#cb33-65" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.5</span>, <span class="st">"lines"</span>),</span>
@@ -464,20 +452,16 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>This plot visualises whether each scorer’s rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.</li>
+<li>This plot visualises whether each rater’s rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.</li>
 <li>Scores collected during rescoring were not uniformally distributed. Some scores were collected more often during rescoring than others.</li>
-<li>The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that scorer.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.</li>
+<li>The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that rater.</li>
 </ul>
 <hr>
 </section>
 <section id="intra-rater-consistency-old-vs-new-score" class="level2">
 <h2 class="anchored" data-anchor-id="intra-rater-consistency-old-vs-new-score">4. Intra-rater consistency: old vs new score</h2>
-<section id="exact-and-within-1-intra-rater-agreement-per-scorer" class="level3">
-<h3 class="anchored" data-anchor-id="exact-and-within-1-intra-rater-agreement-per-scorer">4.1 Exact and within-±1 intra-rater agreement per scorer</h3>
+<section id="exact-and-within-1-intra-rater-agreement-per-rater" class="level3">
+<h3 class="anchored" data-anchor-id="exact-and-within-1-intra-rater-agreement-per-rater">4.1 Exact and within-±1 intra-rater agreement per rater</h3>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -504,7 +488,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"Exact agreement"</span>, <span class="st">"Near-miss agreement (±1)"</span>)</span>
 <span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb35-23"><a href="#cb35-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer"</span>, <span class="at">y =</span> <span class="st">"Intra-rater agreement"</span>) <span class="sc">+</span></span>
+<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Intra-rater agreement"</span>) <span class="sc">+</span></span>
 <span id="cb35-25"><a href="#cb35-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb35-26"><a href="#cb35-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb35-27"><a href="#cb35-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -524,13 +508,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>This plot shows the self agreement rates of each scorer split by the original score class.</li>
-<li>The per-class self agreement patterns differed between scorers. Scorer 6 had a similar achievement rate across score classes, whilst Scorer 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).</li>
-<li>Scorer 4 was the only scorer to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>I’m not going to investigate this further. Some reasons that different scorers may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.</li>
+<li>This plot shows the self agreement rates of each rater split by the original score class.</li>
+<li>The per-class self agreement patterns differed between raters. Rater 6 had a similar achievement rate across score classes, whilst Rater 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).</li>
+<li>Rater 4 was the only rater to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.</li>
 </ul>
 </section>
 <section id="intra-rater-self-agreement-by-original-score" class="level3">
@@ -552,8 +532,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">1.05</span>),</span>
 <span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.05</span>))</span>
 <span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
-<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Original score"</span>, <span class="at">y =</span> <span class="st">"Self-agreement (exact)"</span>) <span class="sc">+</span></span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Original Severity Score"</span>, <span class="at">y =</span> <span class="st">"Self-agreement (exact)"</span>) <span class="sc">+</span></span>
 <span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.5</span>, <span class="st">"lines"</span>),</span>
@@ -575,17 +555,13 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Each bar (and its label) is the proportion of CDAs a scorer re-scored identically to their original score, for that original score class.</li>
-<li>Classes a scorer rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.</li>
+<li>Each bar (and its label) is the proportion of CDAs a rater re-scored identically to their original score, for that original score class.</li>
+<li>Classes a rater rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.</li>
 <li>Extreme scores (1, 6) are expected to be reproduced more consistently than mid-scale scores (3–4).</li>
 </ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.</li>
-</ul>
 </section>
-<section id="confusion-matrix-of-original-vs-rescore-per-scorer" class="level3">
-<h3 class="anchored" data-anchor-id="confusion-matrix-of-original-vs-rescore-per-scorer">4.3 Confusion matrix of original vs rescore per scorer</h3>
+<section id="confusion-matrix-of-original-vs-rescore-per-rater" class="level3">
+<h3 class="anchored" data-anchor-id="confusion-matrix-of-original-vs-rescore-per-rater">4.3 Confusion matrix of original vs rescore per rater</h3>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -600,7 +576,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
 <span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">ifelse</span>(n <span class="sc">&gt;</span> <span class="dv">0</span>, n, <span class="st">""</span>)), <span class="at">size =</span> <span class="fl">2.5</span>) <span class="sc">+</span></span>
 <span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#238b45"</span>, <span class="at">name =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
-<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
 <span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_equal</span>() <span class="sc">+</span></span>
 <span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Original"</span>, <span class="at">y =</span> <span class="st">"Rescore"</span>) <span class="sc">+</span></span>
 <span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
@@ -625,22 +601,18 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>This plot shows one confusion matrix per scorer. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.</li>
-<li>The highest counts for most scorers lie on the diagonal.</li>
-<li>Scorer 9 consistently rescored higher than their original score.</li>
-<li>No median-zero CDAs were rescored, but some scorers still scored 0s, even when they had previously given a non-zero score.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li></li>
+<li>This plot shows one confusion matrix per rater. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.</li>
+<li>The highest counts for most raters lie on the diagonal.</li>
+<li>Rater 9 consistently rescored higher than their original score.</li>
+<li>No median-zero CDAs were rescored, but some raters still scored 0s, even when they had previously given a non-zero score.</li>
 </ul>
 <hr>
 </section>
 </section>
 <section id="score-change-distribution" class="level2">
 <h2 class="anchored" data-anchor-id="score-change-distribution">5. Score change distribution</h2>
-<section id="distribution-of-new_score-old_score-per-scorer" class="level3">
-<h3 class="anchored" data-anchor-id="distribution-of-new_score-old_score-per-scorer">5.1 Distribution of new_score − old_score per scorer</h3>
+<section id="distribution-of-new_score-old_score-per-rater" class="level3">
+<h3 class="anchored" data-anchor-id="distribution-of-new_score-old_score-per-rater">5.1 Distribution of new_score − old_score per rater</h3>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -671,7 +643,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="sc">-</span><span class="dv">6</span><span class="sc">:</span><span class="dv">6</span>) <span class="sc">+</span></span>
 <span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
-<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
+<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
 <span id="cb41-29"><a href="#cb41-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Score change (rescore − original)"</span>, <span class="at">y =</span> <span class="st">"Proportion"</span>) <span class="sc">+</span></span>
 <span id="cb41-30"><a href="#cb41-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb41-31"><a href="#cb41-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
@@ -696,12 +668,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>This plot shows the distribution of scores compared to their original. The red bars show where the rescore was higher than the original. The blue bars show where the rescore was lower than the original.</li>
-<li>For four of the five scorers, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.</li>
-<li>For Scorer 9, almost all disagreements were above the original score, most commonly 2 above the original.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>Scorer 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.</li>
+<li>For four of the five raters, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.</li>
+<li>For Rater 9, almost all disagreements were above the original score, most commonly 2 above the original.</li>
 </ul>
 <hr>
 </section>
@@ -766,8 +734,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 5 9        100        27        27  </code></pre>
 </div>
 </div>
-<section id="proportion-of-cdas-where-the-median-label-would-change-per-scorer" class="level3">
-<h3 class="anchored" data-anchor-id="proportion-of-cdas-where-the-median-label-would-change-per-scorer">6.1 Proportion of CDAs where the median label would change per scorer</h3>
+<section id="proportion-of-cdas-where-the-median-label-would-change-per-rater" class="level3">
+<h3 class="anchored" data-anchor-id="proportion-of-cdas-where-the-median-label-would-change-per-rater">6.1 Proportion of CDAs where the median label would change per rater</h3>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -781,7 +749,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.5</span>),</span>
 <span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.05</span>))</span>
 <span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer"</span>, <span class="at">y =</span> <span class="st">"% CDAs with changed median label"</span>) <span class="sc">+</span></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"% CDAs with changed median label"</span>) <span class="sc">+</span></span>
 <span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -800,27 +768,21 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>If we substituted each scorer’s new score for their old score in the original three-scorer panel and recomputed the median, how many CDAs would receive a different label?</li>
+<li>If we substituted each rater’s new score for their old score in the original three-rater panel and recomputed the median, how many CDAs would receive a different label?</li>
 <li>Between 13% and 27% of scores (non-0) would change if the rescores replaced the original scores.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.</li>
-<li>The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.</li>
-<li>There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label’s own lack of stability.</li>
 </ul>
 <hr>
 </section>
 </section>
-<section id="within--vs-between-scorer-variation" class="level2">
-<h2 class="anchored" data-anchor-id="within--vs-between-scorer-variation">7. Within- vs between-scorer variation</h2>
+<section id="within--vs-between-rater-variation" class="level2">
+<h2 class="anchored" data-anchor-id="within--vs-between-rater-variation">7. Within- vs between-rater variation</h2>
 <p>This section compares two kinds of disagreement on the same set of non-zero-median CDAs:</p>
 <ol type="1">
-<li>Within-scorer: For each rescored CDA, what is the difference between the new and old score.</li>
-<li>Between-scorer: For each CDA, what is the difference between each pair of original scorers (Scorer1 - Scorer2, Scorer1 - Scorer3, Scorer2 - Scorer3). Pairwise scorer-vs-scorer comparison, not a comparison to the median.</li>
+<li>Within-rater: For each rescored CDA, what is the difference between the new and old score.</li>
+<li>Between-rater: For each CDA, what is the difference between each pair of original raters (Scorer1 - Scorer2, Scorer1 - Scorer3, Scorer2 - Scorer3). Pairwise rater-vs-rater comparison, not a comparison to the median.</li>
 </ol>
 <p>Both are restricted to non-zero-median CDAs.</p>
-<p>If the within- and between-scorer spreads are similar, most label noise is irreducible scoring uncertainty rather than systematic between-scorer bias.</p>
+<p>If the within- and between-rater spreads are similar, most label noise is irreducible scoring uncertainty rather than systematic between-rater bias.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -836,7 +798,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb47-10"><a href="#cb47-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">c</span>(Score1, Score2, Score3, Median_Score), as.numeric)) <span class="sc">%&gt;%</span></span>
 <span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Median_Score <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
 <span id="cb47-12"><a href="#cb47-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb47-13"><a href="#cb47-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Within-scorer differences (one per rescored CDA) and between-scorer pairwise differences.</span></span>
+<span id="cb47-13"><a href="#cb47-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Within-rater differences (one per rescored CDA) and between-rater pairwise differences.</span></span>
 <span id="cb47-14"><a href="#cb47-14" aria-hidden="true" tabindex="-1"></a>within_diff <span class="ot">&lt;-</span> rescore_data <span class="sc">%&gt;%</span></span>
 <span id="cb47-15"><a href="#cb47-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(score_change)) <span class="sc">%&gt;%</span></span>
 <span id="cb47-16"><a href="#cb47-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(<span class="at">diff =</span> <span class="fu">as.numeric</span>(score_change))</span>
@@ -847,26 +809,26 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb47-21"><a href="#cb47-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(diff)) <span class="sc">%&gt;%</span></span>
 <span id="cb47-22"><a href="#cb47-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(diff)</span>
 <span id="cb47-23"><a href="#cb47-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb47-24"><a href="#cb47-24" aria-hidden="true" tabindex="-1"></a>src_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Within-scorer"</span>, <span class="st">"Between-scorer"</span>)</span>
+<span id="cb47-24"><a href="#cb47-24" aria-hidden="true" tabindex="-1"></a>src_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Within-rater"</span>, <span class="st">"Between-rater"</span>)</span>
 <span id="cb47-25"><a href="#cb47-25" aria-hidden="true" tabindex="-1"></a>src_pal <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">c</span>(<span class="st">"firebrick"</span>, <span class="st">"steelblue"</span>), src_levels)</span>
 <span id="cb47-26"><a href="#cb47-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb47-27"><a href="#cb47-27" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
-<span id="cb47-28"><a href="#cb47-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Within-scorer differences:"</span>, <span class="fu">nrow</span>(within_diff),</span>
+<span id="cb47-28"><a href="#cb47-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Within-rater differences:"</span>, <span class="fu">nrow</span>(within_diff),</span>
 <span id="cb47-29"><a href="#cb47-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">" | SD ="</span>, <span class="fu">round</span>(<span class="fu">sd</span>(within_diff<span class="sc">$</span>diff), <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span></span>
 <span id="cb47-30"><a href="#cb47-30" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Within-scorer differences: 497  | SD = 0.958 </code></pre>
+<pre><code>Within-rater differences: 497  | SD = 0.958 </code></pre>
 </div>
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Between-scorer differences:"</span>, <span class="fu">nrow</span>(between_diff),</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Between-rater differences:"</span>, <span class="fu">nrow</span>(between_diff),</span>
 <span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">" | SD ="</span>, <span class="fu">round</span>(<span class="fu">sd</span>(between_diff<span class="sc">$</span>diff), <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span></span>
 <span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Between-scorer differences: 10859  | SD = 1.006 </code></pre>
+<pre><code>Between-rater differences: 10859  | SD = 1.006 </code></pre>
 </div>
 </div>
 <section id="absolute-difference-distribution" class="level3">
@@ -912,15 +874,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>This plot shows the proportion of CDAs receiving two scores with a given distance from the same scorer (red) or between different scorers (blue).</li>
-<li>Scorers agree with themselves more often than pairs of scorers agree with each other.</li>
-<li>This balances out at the near-miss level - within and between-scorer pairs are equally as unlikely to disagree by more than one score.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>The majority of disagreement between scorers can be explained by task ambiguity that occurs even within the same scorer. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.</li>
-<li>The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.</li>
-<li>The ground truth generated by three scorers is not meaningfully noisier than an individual judgement.</li>
+<li>This plot shows the proportion of CDAs receiving two scores with a given distance from the same rater (red) or between different raters (blue).</li>
+<li>Raters agree with themselves more often than pairs of raters agree with each other.</li>
+<li>This balances out at the near-miss level - within and between-rater pairs are equally as unlikely to disagree by more than one score.</li>
 </ul>
 </section>
 <section id="disagreement-by-score-class" class="level3">
@@ -959,7 +915,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb53-28"><a href="#cb53-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
 <span id="cb53-29"><a href="#cb53-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> src_pal, <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
 <span id="cb53-30"><a href="#cb53-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb53-31"><a href="#cb53-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Median score"</span>,</span>
+<span id="cb53-31"><a href="#cb53-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Median Severity Score"</span>,</span>
 <span id="cb53-32"><a href="#cb53-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Mean absolute disagreement"</span></span>
 <span id="cb53-33"><a href="#cb53-33" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb53-34"><a href="#cb53-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
@@ -980,12 +936,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </div>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>For each median score class, how often did scores disagree with each other within and between scorers (+- standard error).</li>
-<li>The trends of within- vs between-scorers seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.</li>
+<li>For each median score class, how often did scores disagree with each other within and between raters (+- standard error).</li>
+<li>The trends of within- vs between-raters seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).</li>
 </ul>
 </section>
 <section id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α" class="level3">
@@ -996,7 +948,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.3.1</span></span>
 <span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
 <span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Per-scorer intra-rater alpha (old vs new as two raters) with bootstrap CIs.</span></span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Per-rater intra-rater alpha (old vs new as two raters) with bootstrap CIs.</span></span>
 <span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>intra_alpha <span class="ot">&lt;-</span> rescore_data <span class="sc">%&gt;%</span></span>
 <span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(old_score), <span class="sc">!</span><span class="fu">is.na</span>(new_score)) <span class="sc">%&gt;%</span></span>
 <span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer) <span class="sc">%&gt;%</span></span>
@@ -1080,7 +1032,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb59-8"><a href="#cb59-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb59-9"><a href="#cb59-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_pointrange</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lo, <span class="at">ymax =</span> hi), <span class="at">color =</span> <span class="st">"firebrick"</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
 <span id="cb59-10"><a href="#cb59-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb59-11"><a href="#cb59-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer"</span>, <span class="at">y =</span> <span class="st">"Krippendorff's α (ordinal)"</span>) <span class="sc">+</span></span>
+<span id="cb59-11"><a href="#cb59-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Krippendorff's α (ordinal)"</span>) <span class="sc">+</span></span>
 <span id="cb59-12"><a href="#cb59-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb59-13"><a href="#cb59-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb59-14"><a href="#cb59-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -1096,14 +1048,14 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"intra_vs_inter_alpha.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>The same ordinal Krippendorff’s α used for the inter-rater panel in analysis 04, applied here to each scorer’s two occasions (treating <code>old_score</code> and <code>new_score</code> as two raters). Using one coefficient for both keeps intra- and inter-rater reliability on a single comparable scale, and the ordinal metric respects that a 1↔︎6 disagreement is worse than 1↔︎2 (the reason α was chosen over % agreement). It also handles the missing values natively. Per-scorer 95% CIs are bootstrapped over CDAs; the dashed line is the panel inter-rater α on the same non-zero-median CDAs.</p>
+<p>The same ordinal Krippendorff’s α used for the inter-rater panel in analysis 04, applied here to each rater’s two occasions (treating <code>old_score</code> and <code>new_score</code> as two raters). Using one coefficient for both keeps intra- and inter-rater reliability on a single comparable scale, and the ordinal metric respects that a 1↔︎6 disagreement is worse than 1↔︎2 (the reason α was chosen over % agreement). It also handles the missing values natively. Per-rater 95% CIs are bootstrapped over CDAs; the dashed line is the panel inter-rater α on the same non-zero-median CDAs.</p>
 <p><strong>What this shows:</strong></p>
 <ul>
-<li>Running Krippendorf’s alpha (measure of agreement between two scorers) treating the original and new scores as different scorers.</li>
-<li>Each red point is a scorer’s within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.</li>
-<li>Points above the line mean scorers are more consistent with themselves than with others.</li>
-<li>Most scorers are on or above the line, meaning they agree with themselves more than the average scorer pair agrees with each other.</li>
-<li>Scorer 9 agrees with themself less consistently.</li>
+<li>Running Krippendorf’s alpha (measure of agreement between two raters) treating the original and new scores as different raters.</li>
+<li>Each red point is a rater’s within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.</li>
+<li>Points above the line mean raters are more consistent with themselves than with others.</li>
+<li>Most raters are on or above the line, meaning they agree with themselves more than the average rater pair agrees with each other.</li>
+<li>Rater 9 agrees with themself less consistently.</li>
 </ul>
 </section>
 <section id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores" class="level3">
@@ -1208,7 +1160,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>The bootstrap distribution of the pooled intra-rater (test–retest) ordinal α.</li>
-<li>The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, scorers agree with themselves about as well as the panel agrees with each other/</li>
+<li>The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, raters agree with themselves about as well as the panel agrees with each other/</li>
 <li>The dotted line marks the α = 0.8 reliability threshold.</li>
 </ul>
 </section>
@@ -1278,7 +1230,82 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <div class="sourceCode cell-code" id="cb74"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"intra_vs_inter_alpha_distributions.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Summary:</strong> The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — scorers agree with themselves about as well as the panel agrees with each other, so an individual’s day-to-day inconsistency is roughly the same magnitude as the disagreement between different scorers.</p>
+<hr>
+</section>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">8. Discussion</h2>
+<section id="summary-statistics-1" class="level3">
+<h3 class="anchored" data-anchor-id="summary-statistics-1">8.1 Summary statistics</h3>
+<p>All raters rescored 100 CDAs. Some raters skipped CDAs in the original scoring, which is why three raters only have 99 collected scores in the original scores.</p>
+<p>On these non-zero-median CDAs, raters’ exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Rater 9 stnd out as significantly lower than the other four Raters, achieving an exact self-agreement rate of just 30%.</p>
+<p>Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.</p>
+</section>
+<section id="score-class-distribution-of-rescored-cdas-1" class="level3">
+<h3 class="anchored" data-anchor-id="score-class-distribution-of-rescored-cdas-1">8.2 Score class distribution of rescored CDAs</h3>
+<ul>
+<li>The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.</li>
+</ul>
+</section>
+<section id="exact-and-within-1-intra-rater-agreement-per-rater-1" class="level3">
+<h3 class="anchored" data-anchor-id="exact-and-within-1-intra-rater-agreement-per-rater-1">8.3 Exact and within-±1 intra-rater agreement per rater</h3>
+<ul>
+<li>I’m not going to investigate this further. Some reasons that different raters may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.</li>
+</ul>
+</section>
+<section id="intra-rater-self-agreement-by-original-score-1" class="level3">
+<h3 class="anchored" data-anchor-id="intra-rater-self-agreement-by-original-score-1">8.4 Intra-rater self-agreement by original score</h3>
+<ul>
+<li>Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.</li>
+</ul>
+</section>
+<section id="confusion-matrix-of-original-vs-rescore-per-rater-1" class="level3">
+<h3 class="anchored" data-anchor-id="confusion-matrix-of-original-vs-rescore-per-rater-1">8.5 Confusion matrix of original vs rescore per rater</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="distribution-of-new_score-old_score-per-rater-1" class="level3">
+<h3 class="anchored" data-anchor-id="distribution-of-new_score-old_score-per-rater-1">8.6 Distribution of new_score − old_score per rater</h3>
+<ul>
+<li>Rater 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.</li>
+</ul>
+</section>
+<section id="proportion-of-cdas-where-the-median-label-would-change-per-rater-1" class="level3">
+<h3 class="anchored" data-anchor-id="proportion-of-cdas-where-the-median-label-would-change-per-rater-1">8.7 Proportion of CDAs where the median label would change per rater</h3>
+<ul>
+<li>Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.</li>
+<li>The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.</li>
+<li>There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label’s own lack of stability.</li>
+</ul>
+</section>
+<section id="absolute-difference-distribution-within--vs-between-rater" class="level3">
+<h3 class="anchored" data-anchor-id="absolute-difference-distribution-within--vs-between-rater">8.8 Absolute difference distribution (within- vs between-rater)</h3>
+<ul>
+<li>The majority of disagreement between raters can be explained by task ambiguity that occurs even within the same rater. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.</li>
+<li>The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.</li>
+<li>The ground truth generated by three raters is not meaningfully noisier than an individual judgement.</li>
+</ul>
+</section>
+<section id="disagreement-by-score-class-within--vs-between-rater" class="level3">
+<h3 class="anchored" data-anchor-id="disagreement-by-score-class-within--vs-between-rater">8.9 Disagreement by score class (within- vs between-rater)</h3>
+<ul>
+<li>This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.</li>
+</ul>
+</section>
+<section id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α-1" class="level3">
+<h3 class="anchored" data-anchor-id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α-1">8.10 Reliability coefficient: intra- vs inter-rater Krippendorff’s α</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores-1" class="level3">
+<h3 class="anchored" data-anchor-id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores-1">8.11 Bootstrap distribution of pooled intra-rater α (raw scores)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="intra--vs-inter-rater-α-distributions-1" class="level3">
+<h3 class="anchored" data-anchor-id="intra--vs-inter-rater-α-distributions-1">8.12 Intra- vs inter-rater α distributions</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative">8.13 Overall narrative</h3>
+<p>The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — raters agree with themselves about as well as the panel agrees with each other, so an individual’s day-to-day inconsistency is roughly the same magnitude as the disagreement between different raters.</p>
 </section>
 </section>
 
