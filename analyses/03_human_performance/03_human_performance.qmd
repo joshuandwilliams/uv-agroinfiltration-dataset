@@ -22,11 +22,6 @@ Human raters will not always agree.
 
 Scoring is subjective, particularly given the scoring key's simple nature.
 
-**Experimental plan:**
-Calculate two metrics across 1,000 class-normalized samples of the scoring data. Plot their distributions and calculate means, confidence intervals, and standard deviations.
-- Metric 1: Percentage agreement of each Severity Score to the Median Severity Score of the same CDA.
-- Metric 2: Percentage agreement of Severity Scores to each other.
-
 ## 1. Setup
 
 ### 1.1 Import required libraries
@@ -177,9 +172,6 @@ metric1_table = scorer_accuracy_table(metric1_scorer_cms, unique_labels)
 print(metric1_table.round(1).to_string(index=False))
 ```
 
-**Discussion:**
-_Add notes here._
-
 ### 2.2 Metric 2: pairwise agreement between raters
 
 ```{python}
@@ -189,9 +181,6 @@ human_performance.plot_confusion_matrix(metric2_cm, unique_labels, ["Severity Sc
 metric2_table = pairwise_scorer_accuracy_table(example_normclass)
 print(metric2_table.round(1).to_string(index=False))
 ```
-
-**Discussion:**
-_Add notes here._
 
 ## 3. Distribution statistics
 
@@ -215,9 +204,6 @@ get_dist_stats(agreement_dist, "Exact Accuracy (Metric 1)")
 get_dist_stats(agreement_nearmiss, "Near-Miss Accuracy (Metric 1)")
 ```
 
-**Discussion:**
-_Add notes here._
-
 ### 3.2 Metric 2: summary statistics (mean, 95% CI, SD)
 
 ```{python}
@@ -225,9 +211,6 @@ _Add notes here._
 get_dist_stats(pairwise_dist, "Exact Accuracy (Metric 2: pairwise agreement)")
 get_dist_stats(pairwise_nearmiss, "Near-Miss Accuracy (Metric 2: pairwise agreement)")
 ```
-
-**Discussion:**
-_Add notes here._
 
 ## 4. Distribution plots
 
@@ -253,9 +236,6 @@ plot_distribution(agreement_dist, f"{plots_dir}/metric1_exact.png", "Exact Accur
 plot_distribution(agreement_nearmiss, f"{plots_dir}/metric1_nearmiss.png", "Near-Miss Accuracy")
 ```
 
-**Discussion:**
-_Add notes here._
-
 ### 4.2 Metric 2: histograms of agreement distributions
 
 ```{python}
@@ -264,5 +244,32 @@ plot_distribution(pairwise_dist, f"{plots_dir}/metric2_exact.png", "Exact Accura
 plot_distribution(pairwise_nearmiss, f"{plots_dir}/metric2_nearmiss.png", "Near-Miss Accuracy (pairwise agreement)")
 ```
 
-**Discussion:**
+## 5. Discussion
+
+### 5.1 Metric 1: agreement with the Median Severity Score
+
+_Add notes here._
+
+### 5.2 Metric 2: pairwise agreement between raters
+
+_Add notes here._
+
+### 5.3 Metric 1: summary statistics
+
+_Add notes here._
+
+### 5.4 Metric 2: summary statistics
+
+_Add notes here._
+
+### 5.5 Metric 1: distribution plots
+
+_Add notes here._
+
+### 5.6 Metric 2: distribution plots
+
+_Add notes here._
+
+### 5.7 Overall narrative
+
 _Add notes here._
