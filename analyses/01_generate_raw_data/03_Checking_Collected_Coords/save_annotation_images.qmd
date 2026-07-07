@@ -20,19 +20,19 @@ dataset parts, showing all collected bounding boxes overlaid on the image.
 2. For each unique agroinfiltration image, save an annotated JPEG to data/annotations/
 3. Requires connection to the lab network drive
 
-### Import required packages
+### 1. Import required packages
 ```{python}
+# 1
 import pandas as pd
 from pathlib import Path
-import sys
 
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
-sys.path.append(str(repo_root / 'src'))
 from annotation_viewer import save_all_annotation_images
 ```
 
-### Set paths
+### 2. Set paths
 ```{python}
+# 2
 SCORING_DIRS = {
     1: "/Volumes/shared/Research-Groups/Mark-Banfield/Josh_Williams/Scoring_5May",
     2: "/Volumes/shared/Research-Groups/Mark-Banfield/Josh_Williams/Scoring_20Oct",
@@ -42,14 +42,16 @@ output_dir = repo_root / "data/annotations"
 checked_dir = repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords"
 ```
 
-### Save Set 1 annotation images
+### 3. Save Set 1 annotation images
 ```{python}
+# 3
 data1 = pd.read_csv(checked_dir / "combined_cda_data_checked_1.csv")
 save_all_annotation_images(data1, SCORING_DIRS[1], output_dir, skip_existing=True)
 ```
 
-### Save Set 2 annotation images
+### 4. Save Set 2 annotation images
 ```{python}
+# 4
 data2 = pd.read_csv(checked_dir / "combined_cda_data_checked_2.csv")
 save_all_annotation_images(data2, SCORING_DIRS[2], output_dir, skip_existing=True)
 ```

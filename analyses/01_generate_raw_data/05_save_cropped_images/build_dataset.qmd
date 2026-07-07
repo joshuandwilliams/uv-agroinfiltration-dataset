@@ -27,23 +27,23 @@ N/A
 2. Create folders to store images of different score classes
 3. Load raw agro images and save cropped versions to the correct median score folder
 
-### Required packages
+### 1. Required packages
 ```{python}
+# 1
 # Public packages
 import os
 
 import pandas as pd
 from pathlib import Path
-import sys
 
 # Custom functions
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
-sys.path.append(str(repo_root / 'src'))
 import dataset_preparation
 ```
 
-### Load data
+### 2. Load data
 ```{python}
+# 2
 data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
 
 # Scorer columns contain anonymised IDs. Reverse-map to real names so that
@@ -54,8 +54,9 @@ for col in ['Scorer1', 'Scorer2', 'Scorer3']:
     data[col] = pd.to_numeric(data[col], errors='coerce').map(id_to_name)
 ```
 
-### Create folders
+### 3. Create folders
 ```{python}
+# 3
 out_folder = str(repo_root / "data/cropped_images")
 
 os.makedirs(out_folder, exist_ok=True)
@@ -63,8 +64,9 @@ for score in range(7):
     os.makedirs(os.path.join(out_folder, str(score)), exist_ok=True)
 ```
 
-### Save cropped images
+### 4. Save cropped images
 NOTE: Must be connected to NBI shared drive where the original agroinfiltration images are stored
 ```{python}
+# 4
 dataset_preparation.save_cropped_images(data, out_folder)
 ```

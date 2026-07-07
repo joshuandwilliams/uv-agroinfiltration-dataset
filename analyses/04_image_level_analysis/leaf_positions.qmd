@@ -1,0 +1,157 @@
+---
+title: "Average Score by Leaf Position"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 21/6/2024
+
+## GOHREP
+
+**Goal:**
+
+Visualise the average median CDA score by leaf infiltration position to test for systematic differences across the leaf.
+
+**Hypothesis:**
+
+Leaf positions closer to the stem will show lower average scores due to physiological differences in cell death susceptibility across the leaf.
+
+**Rationale:**
+
+The Banfield lab rotates infiltration patterns anti-clockwise across biological replicates to control for leaf position effects. If cell death severity varies systematically by position, this should be visible in the averaged scores.
+
+Position on the leaf varies according to existing research:
+- https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/10.1002/bit.24523
+- https://link.springer.com/article/10.1186/s13007-015-0091-5
+
+
+**Experimental plan:**
+
+1. Generate sector polygon coordinates from a leaf image using `scripts/generate_leaf_sector_outlines.py` (run first to produce the sector CSVs).
+2. Average median scores per leaf position for images with 5, 6, and 8 positions.
+3. Plot as a leaf-shaped sector heatmap using the polygon coordinates.
+
+---
+
+## 1. Setup
+
+### 1.1 Prerequisite
+
+Run `scripts/generate_leaf_sector_outlines.py` first if `leaf_sector_csv_5/6/8.csv` do not exist. That script uses OpenCV and Shapely to segment `scripts/benth_leaf.jpeg` into radial sectors and saves the polygon vertex coordinates here.
+
+### 1.2 Load required packages
+
+```{r}
+# 1.2
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(here)
+```
+
+### 1.3 Load data
+
+```{r}
+# 1.3
+path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+score_data <- read_csv(path_data, show_col_types = FALSE)
+
+save_plot <- function(p, filename, width, height, dir = "supp_plots") {
+  ggsave(here("analyses", "04_image_level_analysis", dir, filename),
+    plot = p, width = width, height = height, units = "in", dpi = 300
+  )
+}
+```
+
+---
+
+## 2. Average median score by leaf position
+
+```{r fig.width=18, fig.height=6}
+#| fig-width: 18
+#| fig-height: 6
+# 2
+sectors_5 <- read.csv(here("analyses", "04_image_level_analysis", "leaf_sector_csv_5.csv"))
+sectors_6 <- read.csv(here("analyses", "04_image_level_analysis", "leaf_sector_csv_6.csv"))
+sectors_8 <- read.csv(here("analyses", "04_image_level_analysis", "leaf_sector_csv_8.csv"))
+
+sector_avg_scores <- function(data, num_pos) {
+  data %>%
+    group_by(Basename) %>%
+    filter(max(Pos, na.rm = TRUE) == num_pos) %>%
+    ungroup() %>%
+    group_by(Pos) %>%
+    summarise(Avg_Score = mean(Median_Score, na.rm = TRUE), .groups = "drop")
+}
+
+avg_5 <- sector_avg_scores(score_data, 5)
+avg_6 <- sector_avg_scores(score_data, 6)
+avg_8 <- sector_avg_scores(score_data, 8)
+
+score_lims <- range(c(avg_5$Avg_Score, avg_6$Avg_Score, avg_8$Avg_Score), na.rm = TRUE)
+
+make_leaf_plot <- function(sectors, avg_scores, num_pos, score_lims) {
+  n_cdas <- score_data %>%
+    group_by(Basename) %>%
+    filter(max(Pos, na.rm = TRUE) == num_pos) %>%
+    ungroup() %>%
+    nrow()
+
+  plot_data <- sectors %>%
+    rename(Pos = sector) %>%
+    left_join(avg_scores, by = "Pos")
+
+  gx <- mean(plot_data$x)
+  gy <- mean(plot_data$y)
+
+  centroids <- plot_data %>%
+    group_by(Pos) %>%
+    summarise(
+      cx = mean(x) * 0.7 + gx * 0.3,
+      cy = mean(y) * 0.7 + gy * 0.3,
+      Avg_Score = first(Avg_Score),
+      .groups = "drop"
+    )
+
+  ggplot(plot_data, aes(x = x, y = y, group = factor(Pos), fill = Avg_Score)) +
+    geom_polygon(color = "black") +
+    geom_text(
+      data = centroids,
+      aes(x = cx, y = cy, label = round(Avg_Score, 2)),
+      inherit.aes = FALSE, color = "white", size = 5
+    ) +
+    scale_fill_gradient(
+      low = "cornflowerblue", high = "firebrick",
+      name = "Avg Median\nScore", limits = score_lims
+    ) +
+    coord_fixed() +
+    labs(title = paste0(num_pos, " positions (n = ", n_cdas, ")")) +
+    theme_void() +
+    theme(
+      plot.title = element_text(size = 13, hjust = 0.5),
+      legend.title = element_text(size = 12),
+      legend.text = element_text(size = 10),
+      plot.background = element_rect(fill = "white", colour = NA),
+      panel.background = element_rect(fill = "white", colour = NA)
+    )
+}
+
+p_leaf <- make_leaf_plot(sectors_5, avg_5, 5, score_lims) +
+  make_leaf_plot(sectors_6, avg_6, 6, score_lims) +
+  make_leaf_plot(sectors_8, avg_8, 8, score_lims) +
+  plot_layout(nrow = 1, guides = "collect")
+p_leaf
+save_plot(p_leaf, "leaf_positions.png", width = 18, height = 6, dir = "thesis_plots")
+```
+
+**What this shows:**
+
+- The stem end of the leaf is consistently scored lower than the tip of the leaf.
+
+**Discussion:**
+
+- The difference may be due to developmental age gradient (dicot leaves mature basipetally, such that the tip is the oldest). Older, more mature tissue tends to be closer to senescence and has a lower threshold for stress-induced HR cell death.
+- The Buyel and Fischer paper, which measures transient expression, shows higher DsRed yield at the stem / base than the tip, which is an opposite pattern to the cell death scores I'm seeing. DsRed is non-cytotoxic reporter, so the leaves aren't dying. Their gradient is purely expression-capacity measurement, so they're measuring different things.
+- Differences between leaf infiltration patterns (5, 6, and 8 positions) are more likely to reflect differences in project.

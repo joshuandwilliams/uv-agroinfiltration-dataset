@@ -1,0 +1,95 @@
+---
+title: "Image distribution strategy"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Date: 08/06/2026
+
+## Goal
+
+Document how raw agroinfiltration images were allocated to scorers, so that the
+expected number of scores collected by each scorer (and each scorer pair) can be
+reasoned about in the downstream analyses.
+
+## Strategy
+
+- The estimated total number of cell death areas (CDAs) per raw agro image was taken as `leaf_count * pos_per_leaf`.
+- Image order was randomised.
+- Images were divided equally (by CDA count) between scorers using a staggered approach, so that some scorers never scored the same image:
+
+| Dataset portion (all equal in size) | Scorer1 | Scorer2 | Scorer3 |
+|-------------------------------------|---------|---------|---------|
+| A                                   | 1       | 2       | 3       |
+| B                                   | 2       | 3       | 4       |
+| C                                   | 3       | 4       | 5       |
+| D                                   | 4       | 5       | 6       |
+| E                                   | 5       | 6       | 7       |
+| F                                   | 6       | 7       | 8       |
+| G                                   | 7       | 8       | 9       |
+| H                                   | 8       | 9       | 1       |
+| I                                   | 9       | 1       | 2       |
+
+The allocation itself is produced by `allocations.py` and recorded in
+`randomised_info.csv` (per-image scorer assignments) and `image_info.csv`
+(per-image CDA counts).
+
+## 1. Total raw images
+
+```{python}
+# 1
+import pandas as pd
+from pathlib import Path
+
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
+image_info = pd.read_csv(repo_root / "analyses" / "01_generate_raw_data" / "01_allocation_info" / "image_info.csv")
+n_raw_images = image_info[["Path", "Image"]].drop_duplicates().shape[0]
+n_raw_images
+```
+
+## 2. Raw images per set
+
+```{python}
+# 2
+images_per_set = image_info.drop_duplicates(subset=["Path", "Image"]).groupby("Set").size()
+images_per_set
+```
+
+## 3. Scorers
+
+```{python}
+# 3.1
+randomised_info = pd.read_csv(repo_root / "analyses" / "01_generate_raw_data" / "01_allocation_info" / "randomised_info.csv")
+scorer_cols = ["scorer1", "scorer2", "scorer3"]
+
+scorers_by_set = randomised_info.groupby("Set")[scorer_cols].apply(lambda df: set(df.to_numpy().ravel()))
+set1_scorers, set2_scorers = scorers_by_set[1], scorers_by_set[2]
+all_scorers = set1_scorers | set2_scorers
+shared_scorers = set1_scorers & set2_scorers
+
+n_scorers_total = len(all_scorers)
+n_scorers_total
+```
+
+```{python}
+# 3.2
+n_scorers_per_set = scorers_by_set.apply(len)
+n_scorers_per_set
+```
+
+```{python}
+# 3.3
+n_scorers_shared = len(shared_scorers)
+n_scorers_shared
+```
+
+## 4. Annotations per CDA
+
+```{python}
+# 4
+assert randomised_info[scorer_cols].notna().all().all(), "expected scorer1/2/3 populated for every image"
+annotations_per_cda = len(scorer_cols)
+annotations_per_cda
+```

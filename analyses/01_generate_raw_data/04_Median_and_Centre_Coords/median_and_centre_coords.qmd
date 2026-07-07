@@ -31,43 +31,53 @@ N/A
 5. Add central coordinate column (the set of coordinates whose centre is closest to the centre of the overlap between all coordinate sets)
 6. Save output
 
-### Required packages
+### 1. Required packages
 ```{python}
+# 1
 # Public packages
 import pandas as pd
 from pathlib import Path
-import sys
 
 # Custom functions
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
-sys.path.append(str(repo_root / 'src'))
 import dataset_preparation
 ```
 
-### Load and combine data
+### 2. Load and combine data
 ```{python}
+# 2
 data1 = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords/combined_cda_data_checked_1.csv"))
 data2 = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords/combined_cda_data_checked_2.csv"))
 data_combined = pd.concat([data1, data2]).reset_index(drop=True)
 ```
 
 
-### Clean the coordinate and score data
+### 3. Clean the coordinate and score data
 ```{python}
+# 3
+
+# clean_coordinates nulls any scorer's coordinates + score if the bounding box is degenerate or has a missing coordinate (only 7 scores got nulled this way)
+
+# clean_scores drops a CDA row entirely if:
+# >=2 of the 3 scores are missing (356)
+# 1 score is missing and the remaining 2 disagree (can't take median) (88)
+
 cleaned_coords = data_combined.apply(dataset_preparation.clean_coordinates, axis=1)
 cleaned_data = dataset_preparation.clean_scores(cleaned_coords)
 print(f"Original Data Length: {len(data_combined)}")
 print(f"Cleaned Data Length: {len(cleaned_data)}")
 ```
 
-### Add median column
+### 4. Add median column
 ```{python}
+# 4
 cleaned_data = dataset_preparation.add_median_column(cleaned_data)
 print(f"Class Sizes:\n{cleaned_data['Median_Score'].value_counts().sort_index()}")
 ```
 
-### Add central coordinate columns
+### 5. Add central coordinate columns
 ```{python}
+# 5
 cleaned_data["Centre_Coords"] = cleaned_data.apply(dataset_preparation.get_central_scorer, axis=1)
 print(f"Missing Centre_Coords values: {cleaned_data['Centre_Coords'].isna().sum()}")
 cleaned_data.to_csv(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv", index=False)

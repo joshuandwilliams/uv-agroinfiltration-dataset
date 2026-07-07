@@ -1,0 +1,550 @@
+---
+title: "Pairwise Agreement and Per-Image Analysis"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 15/5/2024 – 10/6/2024
+
+## GOHREP
+
+**Goal:**
+
+Investigate changes to average pairwise agreement when each scorer is removed. Investigate differences in agreement across raw agroinfiltration images.
+
+**Hypothesis:**
+
+Excluding scores from scorers with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity.
+
+**Rationale:**
+
+Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which scorers most reduce overall agreement informs future data collection decisions.
+
+**Experimental plan:**
+
+Compute pairwise % agreement between all scorer pairs, visualise as a heatmap (with and without median-0 CDAs), count shared CDAs per pair, compute leave-one-out average agreement for each scorer, verify with random sampling, and compute the agreement pattern plots.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+# 1.1
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(forcats)
+library(patchwork)
+library(scales)
+library(here)
+library(RColorBrewer)
+```
+
+### 1.2 Load data
+
+```{r}
+# 1.2
+path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+
+raw_data <- read_csv(path_data, show_col_types = FALSE)
+
+score_data <- raw_data %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(
+    across(c(Scorer1, Scorer2, Scorer3), as.character),
+    across(c(Score1, Score2, Score3), as.character)
+  )
+
+score_data_no_0 <- score_data %>%
+  filter(Median_Score != 0)
+
+n_cdas <- nrow(score_data)
+head(score_data)
+```
+
+### 1.3 Helper functions
+
+```{r}
+# 1.3.1
+long_score_table <- function(data) {
+  long <- data %>%
+    select(
+      Basename, Row, Col, Pos, Median_Score,
+      Scorer1, Score1, Scorer2, Score2, Scorer3, Score3
+    ) %>%
+    pivot_longer(
+      cols          = c(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3),
+      names_to      = c(".value", "num"),
+      names_pattern = "(Scorer|Score)(\\d+)"
+    ) %>%
+    select(-num) %>%
+    filter(!is.na(Scorer), Score != "[]")
+  long$Scorer <- factor(long$Scorer, levels = sort(as.numeric(unique(long$Scorer))))
+  long
+}
+
+pairwise_score_data <- function(score_data_long) {
+  data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+  pairwise_comparisons <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos"), relationship = "many-to-many") %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = "drop")
+
+  filtered_data <- pairwise_comparisons %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+  filtered_copy <- filtered_data
+  names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+  filtered_data <- rbind(filtered_data, filtered_copy)
+
+  agreement_data <- filtered_data %>%
+    group_by(Scorer.x, Scorer.y) %>%
+    summarise(
+      Total = sum(Count),
+      Agree = sum(Count * (Score.x == Score.y)),
+      Percent_Agree = (Agree / Total) * 100,
+      .groups = "drop"
+    ) %>%
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+
+  all_combinations <- expand.grid(
+    Scorer.x = unique(agreement_data$Scorer.x),
+    Scorer.y = unique(agreement_data$Scorer.y)
+  )
+
+  all_combinations %>%
+    left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
+    mutate(across(c(Total, Agree, Percent_Agree), ~ ifelse(is.na(.), NA, .))) %>%
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+}
+
+average_pairwise_agreement <- function(data) {
+  valid <- data[!is.na(data$Total) & !is.na(data$Percent_Agree), ]
+  sum(valid$Percent_Agree * valid$Total) / sum(valid$Total)
+}
+
+save_plot <- function(p, filename, width, height) {
+  ggsave(here("analyses", "05_inter_rater_agreement", "supp_plots", filename),
+    plot = p, width = width, height = height, units = "in", dpi = 300
+  )
+}
+
+theme_ira <- function() {
+  theme_minimal() +
+    theme(
+      axis.text = element_text(size = 13),
+      axis.title = element_text(size = 15),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 11),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      legend.key.size = unit(1.5, "lines")
+    )
+}
+```
+
+```{r}
+# 1.3.2
+score_data_long <- long_score_table(score_data)
+score_data_long_no_0 <- long_score_table(score_data_no_0)
+```
+
+---
+
+## 2. Pairwise % Agreement Between Scorers
+
+```{r}
+# 2
+merged_df <- pairwise_score_data(score_data_long)
+merged_df_no_0 <- pairwise_score_data(score_data_long_no_0)
+average_agreement <- average_pairwise_agreement(merged_df)
+cat("Average pairwise agreement (all CDAs):", round(average_agreement, 2), "%\n")
+cat("Average pairwise agreement (excl. median = 0):", round(average_pairwise_agreement(merged_df_no_0), 2), "%\n")
+```
+
+```{r fig.width=22, fig.height=10}
+#| fig-width: 22
+#| fig-height: 10
+# 2
+agree_lims <- range(c(merged_df$Percent_Agree, merged_df_no_0$Percent_Agree), na.rm = TRUE)
+
+plot_agree <- function(df, title) {
+  ggplot(df, aes(
+    x = Scorer.x,
+    y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))),
+    fill = Percent_Agree
+  )) +
+    geom_tile(color = "black", linewidth = 1) +
+    geom_text(aes(label = ifelse(is.na(Percent_Agree), "", sprintf("%.1f%%", Percent_Agree))),
+      color = "white", size = 6, vjust = 0.5, fontface = "bold"
+    ) +
+    scale_fill_gradient(
+      low = "#3182bd", high = "firebrick", name = "% Agreement",
+      na.value = "white", limits = agree_lims
+    ) +
+    scale_x_discrete(limits = as.character(1:10)) +
+    scale_y_discrete(limits = as.character(1:10)) +
+    coord_cartesian(xlim = c(1, 10), ylim = c(1, 10)) +
+    labs(x = "Scorer X", y = "Scorer Y", title = title) +
+    theme_ira() +
+    theme(plot.title = element_text(size = 15, face = "bold"))
+}
+
+p_agree <- plot_agree(merged_df, "All CDAs") +
+  plot_agree(merged_df_no_0, "Excluding median = 0") +
+  plot_layout(guides = "collect")
+p_agree
+save_plot(p_agree, "pairwise_agreement.png", width = 22, height = 10)
+```
+
+**Discussion:**
+_Add notes here._
+
+### 2.1 Off-by-one disagreement rate
+
+How often do two scorers differ by *exactly* one severity point? Pooled across all
+unordered scorer pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1)
+minus the exact rate (diff = 0).
+
+```{r}
+# 2.1
+pairwise_diffs <- function(score_data_long) {
+  d <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+  d %>%
+    full_join(d,
+      by = c("Basename", "Row", "Col", "Pos"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(id.x < id.y) %>%
+    transmute(
+      Median_Score = as.numeric(Median_Score.x),
+      absdiff = abs(Score.x - Score.y)
+    )
+}
+
+pdiff <- pairwise_diffs(score_data_long)
+
+cat(sprintf("Pairwise comparisons:                     %d\n", nrow(pdiff)))
+cat(sprintf("Exact agreement (diff = 0):               %.2f%%\n", mean(pdiff$absdiff == 0) * 100))
+cat(sprintf("Near-miss agreement (diff <= 1):          %.2f%%\n", mean(pdiff$absdiff <= 1) * 100))
+cat(sprintf("Off-by-one disagreement (diff == 1):      %.2f%%\n", mean(pdiff$absdiff == 1) * 100))
+cat(sprintf(
+  "Off-by-one disagreement, excl. median 0:  %.2f%%\n",
+  mean(pdiff$absdiff[pdiff$Median_Score > 0] == 1) * 100
+))
+```
+
+**What this shows:**
+
+- Across all CDAs, two scorers differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which scorers almost always agree exactly.
+- Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two scorers.
+
+**Discussion:**
+_Add notes here._
+
+---
+
+## 3. Shared CDA Count per Scorer Pair
+
+How many CDAs did each pair of scorers both score?
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+# 3
+p <- ggplot(
+  merged_df,
+  aes(
+    x = Scorer.x,
+    y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))),
+    fill = Total
+  )
+) +
+  geom_tile(color = "black", linewidth = 1) +
+  geom_text(aes(label = ifelse(is.na(Total), "", Total)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(low = "white", high = "firebrick", name = "Shared CDAs", na.value = "white") +
+  labs(x = "Scorer X", y = "Scorer Y") +
+  theme_ira()
+p
+save_plot(p, "shared_cda_count.png", width = 11, height = 10)
+```
+
+**Discussion:**
+_Add notes here._
+
+---
+
+## 4. Effect of Removing Each Scorer on Average Pairwise Agreement
+
+```{r}
+# 4
+remove_scorer <- function(score_data_long, scorer, remove_2_disagree) {
+  subset_score_data <- subset(score_data_long, Scorer != scorer)
+
+  if (remove_2_disagree) {
+    groups_with_issues <- subset_score_data %>%
+      group_by(Basename, Row, Col, Pos) %>%
+      filter(n() == 2, n_distinct(Score) > 1) %>%
+      ungroup() %>%
+      select(Basename, Row, Col, Pos)
+
+    subset_score_data <- subset_score_data %>%
+      anti_join(groups_with_issues, by = c("Basename", "Row", "Col", "Pos"))
+  }
+  subset_score_data
+}
+
+unique_scorers <- c("Original", as.character(sort(as.numeric(unique(score_data_long$Scorer)))))
+
+results <- lapply(unique_scorers, function(scorer) {
+  subset_T <- remove_scorer(score_data_long, scorer, TRUE)
+  n_cdas_sub <- subset_T %>%
+    distinct(Basename, Row, Col, Pos) %>%
+    nrow()
+  avg_T <- average_pairwise_agreement(pairwise_score_data(subset_T))
+  data.frame(
+    Scorer_Removed = scorer, Score_Count = n_cdas_sub,
+    Avg_Pairwise_Agreement = avg_T
+  )
+})
+
+result_df <- bind_rows(results) %>%
+  mutate(
+    Images_Lost = n_cdas - Score_Count,
+    Change_in_Agreement = Avg_Pairwise_Agreement - average_agreement,
+    Agreement_Change_Per_Img_Lost = Change_in_Agreement / Images_Lost,
+    Change_Per_Img_x1000 = round(Agreement_Change_Per_Img_Lost * 1000, 2)
+  )
+
+result_df %>%
+  select(
+    Scorer_Removed, Score_Count, Avg_Pairwise_Agreement,
+    Images_Lost, Agreement_Change_Per_Img_Lost, Change_Per_Img_x1000
+  )
+```
+
+Why does pairwise agreement increase for most scorer removals?
+
+When a scorer is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each scorer removal also removes a further 36% of the CDAs that scorer uniquely shared, biasing the remaining pool toward agreement.
+
+**Discussion:**
+_Add notes here._
+
+---
+
+## 5. Verification: Random Sampling Gives the Same Average Agreement
+
+```{r}
+# 5
+random_sample_pair_agree <- function(data, sample_num) {
+  set.seed(42)
+  CDA_set <- distinct(data, Basename, Row, Col, Pos)
+  CDA_set <- CDA_set[sample(nrow(CDA_set)), ]
+  sample_num <- min(sample_num, nrow(CDA_set))
+
+  agreement_vector <- vapply(seq_len(sample_num), function(i) {
+    sub <- data %>%
+      filter(
+        Basename == CDA_set$Basename[i], Row == CDA_set$Row[i],
+        Col == CDA_set$Col[i], Pos == CDA_set$Pos[i]
+      )
+    if (nrow(sub) == 3) sub <- sub[-sample(1:3, 1), ]
+    as.numeric(nrow(sub) == 2 && sub$Score[1] == sub$Score[2])
+  }, numeric(1))
+
+  mean(agreement_vector)
+}
+
+agreement_1000 <- random_sample_pair_agree(score_data_long, 1000)
+cat("Original (weighted):", round(average_agreement, 2), "%\n")
+cat("Random sample of 1,000 pairs:", round(agreement_1000 * 100, 2), "%\n")
+```
+
+**Discussion:**
+_Add notes here._
+
+---
+
+## 6. Agreement Patterns Between Scorer Pairs
+
+```{r fig.width=22, fig.height=10}
+#| fig-width: 22
+#| fig-height: 10
+# 6
+gen_pairwise_counts <- function(score_data_long) {
+  data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+  pairwise <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos"), relationship = "many-to-many") %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = "drop") %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+  sym_copy <- pairwise
+  names(sym_copy)[names(sym_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+  names(sym_copy)[names(sym_copy) %in% c("Score.x", "Score.y")] <- c("Score.y", "Score.x")
+  rbind(pairwise, sym_copy) %>%
+    mutate(Count_Binned = cut(Count,
+      breaks = c(0, 1, 10, 100, 250, Inf),
+      labels = c("1", "2-10", "11-100", "101-250", "251-1000"),
+      include.lowest = TRUE
+    ))
+}
+
+make_patterns_plot <- function(sdl) {
+  counts <- gen_pairwise_counts(sdl)
+  levels_xy <- as.character(1:10)
+  counts <- counts %>%
+    mutate(
+      Scorer.x = factor(Scorer.x, levels = levels_xy),
+      Scorer.y = factor(Scorer.y, levels = levels_xy)
+    )
+  complete_counts <- complete(counts,
+    Scorer.x = factor(levels_xy, levels = levels_xy),
+    Scorer.y = factor(levels_xy, levels = levels_xy),
+    fill = list(Count = 0)
+  ) %>%
+    mutate(Scorer.y = fct_rev(Scorer.y))
+  real_counts <- complete_counts %>% filter(Count > 0)
+
+  ggplot(complete_counts, aes(x = Score.x, y = Score.y)) +
+    geom_tile(aes(fill = Count_Binned), color = "black", linewidth = 0.5) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey40") +
+    scale_fill_manual(
+      values = c(
+        "1" = "#eff3ff",
+        "2-10" = "#9ecae1",
+        "11-100" = "#3182bd",
+        "101-250" = "#fdae61",
+        "251-1000" = "#d73027"
+      ),
+      name = "Frequency", na.value = "white", drop = FALSE
+    ) +
+    facet_grid(Scorer.y ~ Scorer.x, switch = "both") +
+    theme_bw() +
+    labs(x = "Scorer X", y = "Scorer Y") +
+    theme(
+      panel.spacing = unit(0.25, "lines"),
+      strip.placement = "outside",
+      panel.grid = element_blank(),
+      strip.text = element_text(size = 11),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 13),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 11)
+    )
+}
+
+p_patterns <- make_patterns_plot(score_data_long)
+p_patterns
+save_plot(p_patterns, "agreement_patterns.png", width = 11, height = 10)
+```
+
+**What this shows:**
+
+- Scorer 5 systematically scores higher than others across all facets.
+- The Scorer 8 vs Scorer 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.
+- Removing 0s makes individual scorer biases more visible.
+
+**Discussion:**
+_Add notes here._
+
+---
+
+## 7. Per-Scorer Agreement with Median
+
+Stacked bar chart showing each scorer's exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from `AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd` (human-only, no model results).
+
+```{r fig.width=8, fig.height=6}
+#| fig-width: 8
+#| fig-height: 6
+# 7
+scorer_accuracy <- score_data_long %>%
+  filter(!is.na(Score), Score != "[]") %>%
+  mutate(Score = as.integer(Score)) %>%
+  group_by(Scorer) %>%
+  summarise(
+    exact = mean(Score == Median_Score, na.rm = TRUE),
+    within_one = mean(abs(Score - Median_Score) <= 1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(extra_within_one = within_one - exact)
+
+avg_row <- scorer_accuracy %>%
+  summarise(
+    Scorer = factor("Avg"),
+    exact = mean(exact),
+    within_one = mean(within_one),
+    extra_within_one = mean(extra_within_one)
+  )
+
+plot_acc <- bind_rows(scorer_accuracy, avg_row) %>%
+  mutate(Scorer = factor(Scorer,
+    levels = c(as.character(sort(as.numeric(
+      unique(as.character(scorer_accuracy$Scorer))
+    ))), "Avg")
+  )) %>%
+  pivot_longer(
+    cols = c(exact, extra_within_one),
+    names_to = "metric", values_to = "value"
+  ) %>%
+  mutate(metric = factor(metric,
+    levels = c("extra_within_one", "exact"),
+    labels = c("Additional within ±1", "Exact agreement")
+  ))
+
+p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = c(
+      "Exact agreement" = "steelblue",
+      "Additional within ±1" = "cornflowerblue"
+    ),
+    name = NULL,
+    breaks = c("Exact agreement", "Additional within ±1")
+  ) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(x = "Scorer", y = "Agreement with Median Score") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "scorer_accuracy.png", width = 8, height = 6)
+```
+
+**What this shows:**
+
+- Scorer 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.
+- The majority of scorers achieve >70% exact agreement and >95% within-±1 agreement.
+- The "Avg" bar summarises the overall human performance baseline comparable to model evaluation metrics.
+
+**Discussion:**
+_Add notes here._

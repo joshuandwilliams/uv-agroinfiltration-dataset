@@ -1,0 +1,941 @@
+---
+title: "Intra-Rater Reliability"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 2026-06-05
+
+## GOHREP
+
+**Goal:**
+
+Quantify how consistently each scorer scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).
+
+**Hypothesis:**
+
+1. Scorers will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).
+2. Rescoring will not systematically improve or worsen agreement with the median — any changes will reflect genuine scoring uncertainty rather than learning.
+
+**Rationale:**
+
+Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each scorer was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.
+
+**Experimental plan:**
+
+1. Load and anonymise all rescore CSVs.
+2. Intra-rater reliability: compare `old_score` vs `new_score` per scorer, including self-agreement by original score class.
+3. Score change distribution: characterise the direction and magnitude of score changes.
+4. Ground truth labels: assess how often rescoring disagreements would change the median label.
+5. Within- vs between-scorer variation: compare intra-rater disagreement (this analysis) with inter-rater disagreement (analysis 04).
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+# 1.1
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(forcats)
+library(patchwork)
+library(scales)
+library(here)
+library(RColorBrewer)
+library(irr)
+```
+
+### 1.2 Load and anonymise rescore data
+
+```{r}
+# 1.2.1
+anon_key <- read_csv(
+  here("analyses", "01_generate_raw_data", "02_combining_cdascorer_outputs", "anonymisation_key.csv"),
+  show_col_types = FALSE
+)
+name_to_id <- setNames(as.integer(anon_key$ID), anon_key$Scorer_Name)
+
+rescore_files <- list(
+  here("analyses", "06_intra_rater_reliability", "rescore_JoshW.csv"),
+  here("analyses", "06_intra_rater_reliability", "rescore_JoshB.csv"),
+  here("analyses", "06_intra_rater_reliability", "rescore_Emma.csv"),
+  here("analyses", "06_intra_rater_reliability", "rescore_Raf.csv"),
+  here("analyses", "06_intra_rater_reliability", "rescore_Clem.csv")
+)
+
+rescore_data <- bind_rows(lapply(rescore_files, read_csv, show_col_types = FALSE)) %>%
+  mutate(
+    Scorer        = name_to_id[scorer],
+    old_score     = as.integer(old_score),
+    new_score     = as.integer(new_score),
+    median_score  = as.integer(median_score),
+    score_change  = new_score - old_score
+  ) %>%
+  select(
+    Scorer, basename, row, col, pos,
+    old_score, new_score, median_score, score_change
+  )
+
+rescore_data$Scorer <- factor(rescore_data$Scorer,
+  levels = sort(unique(rescore_data$Scorer))
+)
+
+cat("Scorers:", paste(levels(rescore_data$Scorer), collapse = ", "), "\n")
+
+cat("CDAs per scorer:\n")
+print(count(rescore_data, Scorer))
+
+cat("\nRows with missing old_score (original score was '[]'):\n")
+print(rescore_data %>% filter(is.na(old_score)) %>% count(Scorer))
+```
+
+```{r}
+# 1.2.2
+save_plot <- function(p, filename, width, height) {
+  ggsave(here("analyses", "06_intra_rater_reliability", "supp_plots", filename),
+    plot = p, width = width, height = height, units = "in", dpi = 300
+  )
+}
+
+# Selected headline figures are also written to thesis_plots/ for the thesis.
+save_thesis <- function(p, filename, width, height) {
+  ggsave(here("analyses", "06_intra_rater_reliability", "thesis_plots", filename),
+    plot = p, width = width, height = height, units = "in", dpi = 300
+  )
+}
+```
+
+---
+
+## 2. Summary statistics
+
+```{r}
+# 2.1
+summary_stats <- rescore_data %>%
+  group_by(Scorer) %>%
+  summarise(
+    N = n(),
+    N_with_old = sum(!is.na(old_score)),
+    intra_exact = mean(old_score == new_score, na.rm = TRUE) * 100,
+    intra_within1 = mean(abs(old_score - new_score) <= 1, na.rm = TRUE) * 100,
+    orig_vs_median = mean(old_score == median_score, na.rm = TRUE) * 100,
+    rescore_vs_median = mean(new_score == median_score, na.rm = TRUE) * 100,
+    agreement_change = rescore_vs_median - orig_vs_median,
+    mean_abs_change = mean(abs(score_change), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+write_csv(
+  summary_stats,
+  here("analyses", "06_intra_rater_reliability", "intra_rater_summary.csv")
+)
+
+print(summary_stats)
+```
+
+Pooled across all rescored CDAs (all scorers combined), the off-by-one rate is the
+near-miss rate (|old − new| ≤ 1) minus the exact rate (old = new): how often a scorer's
+repeat score differed from their original by exactly one severity point.
+
+```{r}
+# 2.2
+intra_pooled_diffs <- rescore_data %>%
+  filter(!is.na(old_score), !is.na(new_score)) %>%
+  mutate(absdiff = abs(old_score - new_score))
+
+cat(sprintf("Rescore comparisons:                      %d\n", nrow(intra_pooled_diffs)))
+cat(sprintf("Exact self-agreement (diff = 0):          %.2f%%\n", mean(intra_pooled_diffs$absdiff == 0) * 100))
+cat(sprintf("Near-miss self-agreement (diff <= 1):     %.2f%%\n", mean(intra_pooled_diffs$absdiff <= 1) * 100))
+cat(sprintf("Off-by-one disagreement (diff == 1):      %.2f%%\n", mean(intra_pooled_diffs$absdiff == 1) * 100))
+```
+
+**Discussion:**
+
+All scorers rescored 100 CDAs. Some scorers skipped CDAs in the original scoring, which is why three scorers only have 99 collected scores in the original scores.
+
+On these non-zero-median CDAs, scorers' exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Scorer 9 stnd out as significantly lower than the other four Scorers, achieving an exact self-agreement rate of just 30%.
+
+Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.
+
+---
+
+## 3. Score class distribution of rescored CDAs
+
+```{r fig.width=12, fig.height=5}
+#| fig-width: 12
+#| fig-height: 5
+# 3
+# Sequential YlOrRd severity palette (colourblind-safe), matching 02_score_distributions.
+sev_pal <- setNames(brewer.pal(7, "YlOrRd"), as.character(0:6))
+scorer_levels <- levels(rescore_data$Scorer)
+
+rescore_prop <- rescore_data %>%
+  count(Scorer, Median_Score = median_score, name = "n") %>%
+  group_by(Scorer) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(source = "Rescored sample")
+
+original_alloc <- read_csv(
+  here(
+    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
+    "combined_cda_data_median.csv"
+  ),
+  show_col_types = FALSE
+) %>%
+  select(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(Median_Score = as.integer(Median_Score)) %>%
+  filter(Median_Score > 0) %>%
+  pivot_longer(c(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3),
+    names_to = c(".value", "num"),
+    names_pattern = "(Scorer|Score)([0-9]+)"
+  ) %>%
+  filter(!is.na(Scorer)) %>%
+  mutate(Scorer = as.integer(Scorer)) %>%
+  filter(as.character(Scorer) %in% scorer_levels) %>%
+  count(Scorer, Median_Score, name = "n") %>%
+  group_by(Scorer) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(
+    Scorer = factor(Scorer, levels = scorer_levels),
+    source = "Original allocation"
+  )
+
+# Grey "Original" bar left of each score; coloured rescored bar (by severity) right. A single fill
+# scale carries both: grey for the original allocation, YlOrRd for the rescored severity classes.
+class_prop <- bind_rows(original_alloc, rescore_prop) %>%
+  mutate(source = factor(source, levels = c("Original allocation", "Rescored sample"))) %>%
+  complete(Scorer, Median_Score = 1:6, source, fill = list(prop = 0, n = 0)) %>%
+  mutate(fillkey = if_else(source == "Original allocation",
+    "Original", as.character(Median_Score)
+  ))
+
+fill_vals <- c("Original" = "grey65", sev_pal[as.character(1:6)])
+
+p <- ggplot(class_prop, aes(x = factor(Median_Score), y = prop, fill = fillkey, group = source)) +
+  geom_col(
+    position = position_dodge(width = 0.9), width = 0.8,
+    color = "black", linewidth = 0.3
+  ) +
+  geom_text(aes(label = scales::percent(prop, accuracy = 1)),
+    position = position_dodge(width = 0.9), vjust = -0.35, size = 2.4
+  ) +
+  scale_fill_manual(
+    values = fill_vals,
+    breaks = c("Original", as.character(1:6)), name = NULL
+  ) +
+  scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.12))) +
+  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
+  labs(x = "Median score", y = "Proportion of non-zero CDAs") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.5, "lines"),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 14),
+    strip.text = element_text(size = 12),
+    legend.text = element_text(size = 12),
+    legend.position = "right"
+  )
+p
+save_plot(p, "rescore_class_distribution.png", width = 12, height = 5)
+save_thesis(p, "rescore_class_distribution.png", width = 12, height = 5)
+```
+
+**What this shows:**
+
+- This plot visualises whether each scorer's rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.
+- Scores collected during rescoring were not uniformally distributed. Some scores were collected more often during rescoring than others.
+- The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that scorer.
+
+**Discussion:**
+
+- The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.
+
+---
+
+## 4. Intra-rater consistency: old vs new score
+
+### 4.1 Exact and within-±1 intra-rater agreement per scorer
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 4.1
+intra_plot_data <- summary_stats %>%
+  mutate(extra_within1 = intra_within1 - intra_exact) %>%
+  pivot_longer(
+    cols = c(intra_exact, extra_within1),
+    names_to = "metric", values_to = "value"
+  ) %>%
+  mutate(metric = factor(metric,
+    levels = c("extra_within1", "intra_exact"),
+    labels = c("Near-miss agreement (±1)", "Exact agreement")
+  ))
+
+p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = c(
+      "Exact agreement" = "#238b45",
+      "Near-miss agreement (±1)" = "#fec44f"
+    ),
+    name = NULL,
+    breaks = c("Exact agreement", "Near-miss agreement (±1)")
+  ) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(x = "Scorer", y = "Intra-rater agreement") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "intra_rater_agreement.png", width = 7, height = 5)
+```
+
+**What this shows:**
+
+- This plot shows the self agreement rates of each scorer split by the original score class.
+- The per-class self agreement patterns differed between scorers. Scorer 6 had a similar achievement rate across score classes, whilst Scorer 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).
+- Scorer 4 was the only scorer to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.
+
+**Discussion:**
+
+- I'm not going to investigate this further. Some reasons that different scorers may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.
+
+### 4.2 Intra-rater self-agreement by original score
+
+```{r fig.width=12, fig.height=5}
+#| fig-width: 12
+#| fig-height: 5
+# 4.2
+self_agree <- rescore_data %>%
+  filter(!is.na(old_score), !is.na(new_score)) %>%
+  group_by(Scorer, old_score) %>%
+  summarise(exact = mean(new_score == old_score), n = n(), .groups = "drop")
+
+p <- ggplot(self_agree, aes(x = factor(old_score), y = exact, fill = factor(old_score))) +
+  geom_col(color = "black", linewidth = 0.3) +
+  geom_text(aes(label = scales::percent(exact, accuracy = 1)), vjust = -0.4, size = 3) +
+  scale_fill_manual(values = sev_pal, name = "Original score") +
+  scale_y_continuous(
+    labels = scales::percent, limits = c(0, 1.05),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
+  labs(x = "Original score", y = "Self-agreement (exact)") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.5, "lines"),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 14),
+    strip.text = element_text(size = 12),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "intra_rater_self_agreement.png", width = 12, height = 5)
+```
+
+**What this shows:**
+
+- Each bar (and its label) is the proportion of CDAs a scorer re-scored identically to their original score, for that original score class.
+- Classes a scorer rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.
+- Extreme scores (1, 6) are expected to be reproduced more consistently than mid-scale scores (3–4).
+
+**Discussion:**
+
+- Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.
+
+### 4.3 Confusion matrix of original vs rescore per scorer
+
+```{r fig.width=10, fig.height=7}
+#| fig-width: 10
+#| fig-height: 7
+# 4.3
+cm_data <- rescore_data %>%
+  filter(!is.na(old_score), !is.na(new_score)) %>%
+  count(Scorer, old_score, new_score) %>%
+  complete(Scorer, old_score = 0:6, new_score = 0:6, fill = list(n = 0))
+
+p <- ggplot(cm_data, aes(x = factor(old_score), y = factor(new_score), fill = n)) +
+  geom_tile(color = "grey85", linewidth = 0.3) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey40") +
+  geom_text(aes(label = ifelse(n > 0, n, "")), size = 2.5) +
+  scale_fill_gradient(low = "white", high = "#238b45", name = "Count") +
+  facet_wrap(~Scorer, ncol = 3, labeller = label_both) +
+  coord_equal() +
+  labs(x = "Original", y = "Rescore") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.4, "lines"),
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 13),
+    strip.text = element_text(size = 11),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+p
+save_plot(p, "intra_rater_confusion_matrix.png", width = 10, height = 7)
+```
+
+**What this shows:**
+
+- This plot shows one confusion matrix per scorer. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.
+- The highest counts for most scorers lie on the diagonal.
+- Scorer 9 consistently rescored higher than their original score.
+- No median-zero CDAs were rescored, but some scorers still scored 0s, even when they had previously given a non-zero score.
+
+**Discussion:**
+
+- 
+
+---
+
+## 5. Score change distribution
+
+### 5.1 Distribution of new_score − old_score per scorer
+
+```{r fig.width=12, fig.height=5}
+#| fig-width: 12
+#| fig-height: 5
+# 5.1
+change_freq <- rescore_data %>%
+  filter(!is.na(score_change)) %>%
+  count(Scorer, score_change) %>%
+  group_by(Scorer) %>%
+  mutate(proportion = n / sum(n))
+
+dir_pal <- c("positive" = "firebrick", "zero" = "grey60", "negative" = "#3182bd")
+
+p <- ggplot(
+  change_freq,
+  aes(
+    x = score_change, y = proportion,
+    fill = case_when(
+      score_change > 0 ~ "positive",
+      score_change < 0 ~ "negative",
+      TRUE ~ "zero"
+    )
+  )
+) +
+  geom_bar(stat = "identity", color = "black", linewidth = 0.3) +
+  scale_fill_manual(
+    values = dir_pal, name = "Direction",
+    labels = c("negative" = "Lower", "zero" = "Same", "positive" = "Higher")
+  ) +
+  scale_x_continuous(breaks = -6:6) +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~Scorer, nrow = 1, labeller = label_both) +
+  labs(x = "Score change (rescore − original)", y = "Proportion") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.5, "lines"),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 14),
+    strip.text = element_text(size = 12),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "score_change_distribution.png", width = 12, height = 5)
+save_thesis(p, "score_change_distribution.png", width = 12, height = 5)
+```
+
+**What this shows:**
+
+- This plot shows the distribution of scores compared to their original. The red bars show where the rescore was higher than the original. The blue bars show where the rescore was lower than the original.
+- For four of the five scorers, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.
+- For Scorer 9, almost all disagreements were above the original score, most commonly 2 above the original.
+
+**Discussion:**
+
+- Scorer 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.
+
+---
+
+## 6. Would rescoring change the ground truth label?
+
+```{r}
+# 6
+canonical_scores <- read_csv(
+  here(
+    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
+    "combined_cda_data_median.csv"
+  ),
+  show_col_types = FALSE
+) %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3) %>%
+  mutate(
+    across(c(Scorer1, Scorer2, Scorer3), as.integer),
+    across(c(Score1, Score2, Score3), as.numeric)
+  )
+
+median_change <- rescore_data %>%
+  filter(!is.na(old_score)) %>%
+  left_join(canonical_scores,
+    by = c(
+      "basename" = "Basename", "row" = "Row",
+      "col" = "Col", "pos" = "Pos"
+    )
+  ) %>%
+  rowwise() %>%
+  mutate(
+    scorer_id  = as.integer(as.character(Scorer)),
+    s1         = ifelse(scorer_id == Scorer1, new_score, Score1),
+    s2         = ifelse(scorer_id == Scorer2, new_score, Score2),
+    s3         = ifelse(scorer_id == Scorer3, new_score, Score3),
+    new_median = median(c(s1, s2, s3), na.rm = TRUE),
+    changed    = new_median != median_score
+  ) %>%
+  ungroup()
+
+change_summary <- median_change %>%
+  group_by(Scorer) %>%
+  summarise(
+    n = n(),
+    n_changed = sum(changed, na.rm = TRUE),
+    pct_changed = n_changed / n * 100,
+    .groups = "drop"
+  )
+
+print(change_summary)
+```
+
+
+### 6.1 Proportion of CDAs where the median label would change per scorer
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 6.1
+p <- ggplot(change_summary, aes(x = Scorer, y = pct_changed / 100)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black", linewidth = 0.4) +
+  geom_text(aes(label = sprintf("%d / %d", n_changed, n)),
+    vjust = -0.4, size = 4.5
+  ) +
+  scale_y_continuous(
+    labels = scales::percent, limits = c(0, 0.5),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(x = "Scorer", y = "% CDAs with changed median label") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15)
+  )
+p
+save_plot(p, "median_label_changes.png", width = 7, height = 5)
+save_thesis(p, "median_label_changes.png", width = 7, height = 5)
+```
+
+**What this shows:**
+
+- If we substituted each scorer's new score for their old score in the original three-scorer panel and recomputed the median, how many CDAs would receive a different label?
+- Between 13% and 27% of scores (non-0) would change if the rescores replaced the original scores.
+
+**Discussion:**
+
+- Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.
+- The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.
+- There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label's own lack of stability.
+
+---
+
+## 7. Within- vs between-scorer variation
+
+This section compares two kinds of disagreement on the same set of non-zero-median CDAs:
+
+1. Within-scorer: For each rescored CDA, what is the difference between the new and old score.
+2. Between-scorer: For each CDA, what is the difference between each pair of original scorers (Scorer1 - Scorer2, Scorer1 - Scorer3, Scorer2 - Scorer3). Pairwise scorer-vs-scorer comparison, not a comparison to the median.
+
+Both are restricted to non-zero-median CDAs.
+
+If the within- and between-scorer spreads are similar, most label noise is irreducible scoring uncertainty rather than systematic between-scorer bias.
+
+```{r}
+# 7
+between_raw <- read_csv(
+  here(
+    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
+    "combined_cda_data_median.csv"
+  ),
+  show_col_types = FALSE
+) %>%
+  select(Basename, Row, Col, Pos, Score1, Score2, Score3, Median_Score) %>%
+  mutate(across(c(Score1, Score2, Score3, Median_Score), as.numeric)) %>%
+  filter(Median_Score > 0)
+
+# Within-scorer differences (one per rescored CDA) and between-scorer pairwise differences.
+within_diff <- rescore_data %>%
+  filter(!is.na(score_change)) %>%
+  transmute(diff = as.numeric(score_change))
+
+between_diff <- between_raw %>%
+  transmute(d12 = Score1 - Score2, d13 = Score1 - Score3, d23 = Score2 - Score3) %>%
+  pivot_longer(everything(), values_to = "diff") %>%
+  filter(!is.na(diff)) %>%
+  transmute(diff)
+
+src_levels <- c("Within-scorer", "Between-scorer")
+src_pal <- setNames(c("firebrick", "steelblue"), src_levels)
+
+cat(
+  "Within-scorer differences:", nrow(within_diff),
+  " | SD =", round(sd(within_diff$diff), 3), "\n"
+)
+cat(
+  "Between-scorer differences:", nrow(between_diff),
+  " | SD =", round(sd(between_diff$diff), 3), "\n"
+)
+```
+
+### 7.1 Absolute difference distribution
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 7.1
+dist_abs <- bind_rows(
+  within_diff %>% transmute(adiff = abs(diff), source = src_levels[1]),
+  between_diff %>% transmute(adiff = abs(diff), source = src_levels[2])
+) %>%
+  count(source, adiff) %>%
+  group_by(source) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(source = factor(source, levels = src_levels))
+
+p <- ggplot(dist_abs, aes(x = factor(adiff), y = prop, fill = source)) +
+  geom_col(position = "dodge", color = "black", linewidth = 0.3) +
+  scale_fill_manual(values = src_pal, name = NULL) +
+  scale_y_continuous(
+    labels = scales::percent,
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(x = "Score difference", y = "Proportion") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.text = element_text(size = 12),
+    legend.position = "top"
+  )
+p
+save_plot(p, "within_vs_between_abs.png", width = 8, height = 5)
+```
+
+**What this shows:**
+
+- This plot shows the proportion of CDAs receiving two scores with a given distance from the same scorer (red) or between different scorers (blue).
+- Scorers agree with themselves more often than pairs of scorers agree with each other.
+- This balances out at the near-miss level - within and between-scorer pairs are equally as unlikely to disagree by more than one score.
+
+**Discussion:**
+
+- The majority of disagreement between scorers can be explained by task ambiguity that occurs even within the same scorer. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.
+- The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.
+- The ground truth generated by three scorers is not meaningfully noisier than an individual judgement.
+
+### 7.2 Disagreement by score class
+
+Error bars are ±1 standard error of the mean.
+
+```{r fig.width=9, fig.height=5}
+#| fig-width: 9
+#| fig-height: 5
+# 7.2
+within_class <- rescore_data %>%
+  filter(!is.na(score_change)) %>%
+  mutate(ad = abs(score_change)) %>%
+  group_by(score = median_score) %>%
+  summarise(mad = mean(ad), se = sd(ad) / sqrt(n()), n = n(), .groups = "drop") %>%
+  mutate(source = src_levels[1])
+
+between_class <- between_raw %>%
+  rowwise() %>%
+  mutate(mad_cda = mean(abs(c(Score1 - Score2, Score1 - Score3, Score2 - Score3)),
+    na.rm = TRUE
+  )) %>%
+  ungroup() %>%
+  group_by(score = Median_Score) %>%
+  summarise(mad = mean(mad_cda), se = sd(mad_cda) / sqrt(n()), n = n(), .groups = "drop") %>%
+  mutate(source = src_levels[1 + 1])
+
+class_cmp <- bind_rows(within_class, between_class) %>%
+  mutate(source = factor(source, levels = src_levels))
+
+p <- ggplot(class_cmp, aes(
+  x = factor(score), y = mad,
+  color = source, group = source
+)) +
+  geom_errorbar(aes(ymin = mad - se, ymax = mad + se), width = 0.2, linewidth = 0.7) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 3) +
+  scale_color_manual(values = src_pal, name = NULL) +
+  labs(
+    x = "Median score",
+    y = "Mean absolute disagreement"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.text = element_text(size = 12)
+  )
+p
+save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5)
+```
+
+**What this shows:**
+
+- For each median score class, how often did scores disagree with each other within and between scorers (+- standard error).
+- The trends of within- vs between-scorers seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).
+
+**Discussion:**
+
+- This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.
+
+
+### 7.3 Reliability coefficient: intra- vs inter-rater Krippendorff's α
+
+```{r}
+# 7.3.1
+set.seed(42)
+
+# Per-scorer intra-rater alpha (old vs new as two raters) with bootstrap CIs.
+intra_alpha <- rescore_data %>%
+  filter(!is.na(old_score), !is.na(new_score)) %>%
+  group_by(Scorer) %>%
+  group_modify(~ {
+    m <- rbind(.x$old_score, .x$new_score)
+    a <- kripp.alpha(m, method = "ordinal")$value
+    boot <- replicate(1000, {
+      idx <- sample(ncol(m), replace = TRUE)
+      suppressWarnings(kripp.alpha(m[, idx], method = "ordinal")$value)
+    })
+    tibble(
+      alpha = a,
+      lo = quantile(boot, 0.025, na.rm = TRUE),
+      hi = quantile(boot, 0.975, na.rm = TRUE)
+    )
+  }) %>%
+  ungroup()
+
+# Panel inter-rater alpha on the same non-zero-median CDAs (reference).
+inter_long <- read_csv(
+  here(
+    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
+    "combined_cda_data_median.csv"
+  ),
+  show_col_types = FALSE
+) %>%
+  filter(as.numeric(Median_Score) > 0) %>%
+  mutate(CDA_ID = paste(Basename, Row, Col, Pos, sep = "_")) %>%
+  select(CDA_ID, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3) %>%
+  pivot_longer(c(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3),
+    names_to = c(".value", "num"),
+    names_pattern = "(Scorer|Score)([0-9]+)"
+  ) %>%
+  filter(!is.na(Scorer), !is.na(Score)) %>%
+  mutate(Scorer = as.integer(Scorer), Score = as.numeric(Score))
+
+inter_mat <- inter_long %>%
+  select(Scorer, CDA_ID, Score) %>%
+  pivot_wider(names_from = CDA_ID, values_from = Score) %>%
+  tibble::column_to_rownames("Scorer") %>%
+  as.matrix()
+
+inter_alpha <- kripp.alpha(inter_mat, method = "ordinal")$value
+cat(
+  "Panel inter-rater alpha (ordinal, non-zero-median CDAs):",
+  round(inter_alpha, 3), "\n"
+)
+print(intra_alpha)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.3.2
+p <- ggplot(intra_alpha, aes(x = Scorer, y = alpha)) +
+  geom_hline(yintercept = inter_alpha, linetype = "dashed", color = "grey40") +
+  annotate("text",
+    x = Inf, y = inter_alpha, vjust = -0.6, hjust = 1.05,
+    label = sprintf("Inter-rater α = %.2f", inter_alpha),
+    size = 4, color = "grey30"
+  ) +
+  geom_pointrange(aes(ymin = lo, ymax = hi), color = "firebrick", linewidth = 0.7) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Scorer", y = "Krippendorff's α (ordinal)") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15)
+  )
+p
+save_plot(p, "intra_vs_inter_alpha.png", width = 7, height = 5)
+```
+
+
+The same ordinal Krippendorff's α used for the inter-rater panel in analysis 04, applied here to each
+scorer's two occasions (treating `old_score` and `new_score` as two raters). Using one coefficient for
+both keeps intra- and inter-rater reliability on a single comparable scale, and the ordinal metric
+respects that a 1↔6 disagreement is worse than 1↔2 (the reason α was chosen over % agreement). It also
+handles the missing values natively. Per-scorer 95% CIs are bootstrapped over CDAs; the dashed line is
+the panel inter-rater α on the same non-zero-median CDAs.
+
+**What this shows:**
+
+- Running Krippendorf's alpha (measure of agreement between two scorers) treating the original and new scores as different scorers.
+- Each red point is a scorer's within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.
+- Points above the line mean scorers are more consistent with themselves than with others.
+- Most scorers are on or above the line, meaning they agree with themselves more than the average scorer pair agrees with each other.
+- Scorer 9 agrees with themself less consistently.
+
+
+### 7.4 Bootstrap distribution of pooled intra-rater α (raw scores)
+
+```{r}
+# 7.4.1
+intra_pooled <- rescore_data %>%
+  filter(!is.na(old_score), !is.na(new_score))
+
+intra_raw_mat <- rbind(
+  old = intra_pooled$old_score,
+  new = intra_pooled$new_score
+)
+
+alpha_intra_raw <- kripp.alpha(intra_raw_mat, method = "ordinal")$value
+
+set.seed(42)
+alpha_intra_raw_boot <- replicate(1000, {
+  idx <- sample(ncol(intra_raw_mat), replace = TRUE)
+  suppressWarnings(kripp.alpha(intra_raw_mat[, idx], method = "ordinal")$value)
+})
+
+cat("Pooled intra-rater α (ordinal, raw):", round(alpha_intra_raw, 4), "\n")
+cat("Bootstrap mean α:", round(mean(alpha_intra_raw_boot), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_intra_raw_boot, 0.025), 4), ",",
+  round(quantile(alpha_intra_raw_boot, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.4.2
+boot_df <- data.frame(alpha = alpha_intra_raw_boot)
+
+p <- ggplot(boot_df, aes(x = alpha)) +
+  geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
+  geom_vline(aes(
+    xintercept = mean(alpha_intra_raw_boot), color = "Bootstrap mean",
+    linetype = "Bootstrap mean"
+  ), linewidth = 1) +
+  geom_vline(aes(
+    xintercept = inter_alpha, color = "Inter-rater α (panel)",
+    linetype = "Inter-rater α (panel)"
+  ), linewidth = 0.8) +
+  geom_vline(aes(
+    xintercept = 0.8, color = "α = 0.8 reliability threshold",
+    linetype = "α = 0.8 reliability threshold"
+  ), linewidth = 0.8) +
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "firebrick",
+      "Inter-rater α (panel)" = "darkgreen",
+      "α = 0.8 reliability threshold" = "black"
+    )
+  ) +
+  scale_linetype_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "dashed",
+      "Inter-rater α (panel)" = "solid",
+      "α = 0.8 reliability threshold" = "dotted"
+    )
+  ) +
+  labs(x = "Krippendorff's α (ordinal)", y = "Count") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+p
+save_plot(p, "intra_krippendorff_alpha_raw.png", width = 7, height = 5)
+```
+
+**What this shows:**
+
+- The bootstrap distribution of the pooled intra-rater (test–retest) ordinal α.
+- The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, scorers agree with themselves about as well as the panel agrees with each other/
+- The dotted line marks the α = 0.8 reliability threshold.
+
+### 7.5 Intra- vs inter-rater α distributions
+
+Both bootstrap distributions on one axis: the pooled intra-rater (test–retest) α from §7.4, and the panel
+inter-rater α bootstrapped over the same non-zero-median CDAs (resampling the `inter_mat` columns with
+replacement). This shows directly how much the two reliabilities overlap. (The inter-rater bootstrap over
+~3,650 CDAs adds ~30–60 s to the render.)
+
+```{r}
+# 7.5.1
+set.seed(42)
+alpha_inter_boot <- replicate(1000, {
+  idx <- sample(ncol(inter_mat), replace = TRUE)
+  suppressWarnings(kripp.alpha(inter_mat[, idx], method = "ordinal")$value)
+})
+
+cat(
+  "Intra-rater α: mean", round(mean(alpha_intra_raw_boot), 3),
+  " 95% CI [", round(quantile(alpha_intra_raw_boot, 0.025), 3), ",",
+  round(quantile(alpha_intra_raw_boot, 0.975), 3), "]\n"
+)
+cat(
+  "Inter-rater α: mean", round(mean(alpha_inter_boot), 3),
+  " 95% CI [", round(quantile(alpha_inter_boot, 0.025), 3), ",",
+  round(quantile(alpha_inter_boot, 0.975), 3), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.5.2
+alpha_dist <- bind_rows(
+  tibble(alpha = alpha_intra_raw_boot, source = "Intra-rater (test–retest)"),
+  tibble(alpha = alpha_inter_boot, source = "Inter-rater (panel)")
+) %>%
+  mutate(source = factor(source, levels = c("Intra-rater (test–retest)", "Inter-rater (panel)")))
+
+dist_pal <- c("Intra-rater (test–retest)" = "firebrick", "Inter-rater (panel)" = "steelblue")
+
+p <- ggplot(alpha_dist, aes(x = alpha, fill = source, color = source)) +
+  geom_density(alpha = 0.4, linewidth = 0.8) +
+  scale_fill_manual(values = dist_pal, name = NULL) +
+  scale_color_manual(values = dist_pal, name = NULL) +
+  labs(x = "Krippendorff's α (ordinal)", y = "Density") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13), axis.title = element_text(size = 15),
+    legend.text = element_text(size = 12), legend.position = "top"
+  )
+p
+save_plot(p, "intra_vs_inter_alpha_distributions.png", width = 7, height = 5)
+```
+
+**Summary:** The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — scorers agree with themselves about as well as the panel agrees with each other, so an individual's day-to-day inconsistency is roughly the same magnitude as the disagreement between different scorers.
