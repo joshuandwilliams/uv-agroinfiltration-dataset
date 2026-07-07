@@ -129,10 +129,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p><strong>Goal:</strong></p>
 <p>Calculate metrics of human scoring agreement to be used as model benchmarks.</p>
 <p><strong>Hypothesis:</strong></p>
-<p>Human scorers will not always agree.</p>
+<p>Human raters will not always agree.</p>
 <p><strong>Rationale:</strong></p>
 <p>Scoring is subjective, particularly given the scoring key’s simple nature.</p>
-<p><strong>Experimental plan:</strong> Calculate two metrics across 1,000 class-normalized samples of the scoring data. Plot their distributions and calculate means, confidence intervals, and standard deviations. - Metric 1: Percentage agreement of each individual score to median score of same CDA. - Metric 2: Percentage agreement of individual scores to each other.</p>
+<p><strong>Experimental plan:</strong> Calculate two metrics across 1,000 class-normalized samples of the scoring data. Plot their distributions and calculate means, confidence intervals, and standard deviations. - Metric 1: Percentage agreement of each Severity Score to the Median Severity Score of the same CDA. - Metric 2: Percentage agreement of Severity Scores to each other.</p>
 </section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">1. Setup</h2>
@@ -156,9 +156,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </details>
 </div>
 </section>
-<section id="load-scorer-data" class="level3">
-<h3 class="anchored" data-anchor-id="load-scorer-data">1.2 Load scorer data</h3>
-<p>Scorer IDs in this file are already anonymised (1-10) by the raw-data pipeline (<code>01_generate_raw_data/02_combining_cdascorer_outputs</code>), so no re-anonymisation is needed here.</p>
+<section id="load-rater-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-rater-data">1.2 Load rater data</h3>
+<p>Rater IDs in this file are already anonymised (1-10) by the raw-data pipeline (<code>01_generate_raw_data/02_combining_cdascorer_outputs</code>), so no re-anonymisation is needed here.</p>
 <div class="cell" data-execution_count="2">
 <details>
 <summary>Code</summary>
@@ -170,124 +170,179 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </section>
 <section id="compute-agreement-metrics" class="level2">
 <h2 class="anchored" data-anchor-id="compute-agreement-metrics">2. Compute agreement metrics</h2>
-<section id="methods-loop" class="level3">
-<h3 class="anchored" data-anchor-id="methods-loop">2.1 Methods loop</h3>
-<p>When a CDA has received 3 different scores, metric 1 gives 33% agreement, whilst metric 2 gives 0% agreement.</p>
+<p>When a CDA has received 3 different scores, Metric 1 gives 33% agreement, whilst Metric 2 gives 0% agreement.</p>
 <div class="cell" data-execution_count="3">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.1</span></span>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.0</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>results_path <span class="op">=</span> repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"human_performance_results.csv"</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> results_path.exists():</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Loading pre-computed results from human_performance_results.csv"</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    results_df <span class="op">=</span> pd.read_csv(results_path)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    agreement_dist     <span class="op">=</span> results_df[<span class="st">"agreement_dist"</span>].tolist()</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    agreement_nearmiss <span class="op">=</span> results_df[<span class="st">"agreement_nearmiss"</span>].tolist()</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    pairwise_dist      <span class="op">=</span> results_df[<span class="st">"pairwise_dist"</span>].tolist()</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    pairwise_nearmiss  <span class="op">=</span> results_df[<span class="st">"pairwise_nearmiss"</span>].tolist()</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Re-generate confusion matrix plots (fast, seed=42)</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    data_normclass <span class="op">=</span> human_performance.downsample_score_classes_csv(data, seed<span class="op">=</span><span class="dv">42</span>)</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    data_long      <span class="op">=</span> pd.wide_to_long(data_normclass, stubnames<span class="op">=</span>[<span class="st">'Scorer'</span>, <span class="st">'Score'</span>], i<span class="op">=</span>[<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>], j<span class="op">=</span><span class="st">'num'</span>).reset_index()</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    data_long_noNA <span class="op">=</span> data_long.dropna(subset<span class="op">=</span>[<span class="st">'Score'</span>])</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    unique_labels  <span class="op">=</span> np.sort(data_long_noNA[<span class="st">'Score'</span>].unique())</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> scorer_accuracy_table(scorer_cms, labels):</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Per-rater Exact/Near-Miss Accuracy (%) from a dict of {rater: confusion_matrix}."""</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> scorer, cm <span class="kw">in</span> scorer_cms.items():</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        acc <span class="op">=</span> human_performance.cm_accuracies(cm, labels)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        rows.append({</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Rater"</span>: scorer,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Exact Accuracy"</span>: acc[<span class="st">"exact_accuracy"</span>] <span class="op">*</span> <span class="dv">100</span>,</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Near-Miss Accuracy"</span>: acc[<span class="st">"within_one_accuracy"</span>] <span class="op">*</span> <span class="dv">100</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>        })</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.DataFrame(rows)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    full_cm <span class="op">=</span> confusion_matrix(data_long_noNA[<span class="st">'Median_Score'</span>], data_long_noNA[<span class="st">'Score'</span>])</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    human_performance.plot_confusion_matrix(full_cm, unique_labels, [<span class="st">"Individual Score"</span>, <span class="st">"Median Score"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric1_cm.png"</span>))</span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    scorer_cms <span class="op">=</span> human_performance.generate_scorer_cms(data_long_noNA)</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> scorer_name, cm <span class="kw">in</span> scorer_cms.items():</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        scorer_accuracies <span class="op">=</span> human_performance.cm_accuracies(cm, unique_labels, print_results<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    score_pairs_df <span class="op">=</span> human_performance.extract_score_pairs(data_normclass)</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    cm <span class="op">=</span> confusion_matrix(score_pairs_df[<span class="st">"ScoreA"</span>], score_pairs_df[<span class="st">"ScoreB"</span>])</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    human_performance.plot_confusion_matrix(cm, unique_labels, [<span class="st">"Individual Score A"</span>, <span class="st">"Individual Score B"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric2_cm.png"</span>))</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Running 1000-iteration loop (this will take a while)..."</span>)</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    num_iterations <span class="op">=</span> <span class="dv">1000</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    agreement_dist, agreement_nearmiss, pairwise_dist, pairwise_nearmiss <span class="op">=</span> [], [], [], []</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, num_iterations <span class="op">+</span> <span class="dv">1</span>):</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Iteration (seed): </span><span class="sc">{</span>i<span class="sc">}</span><span class="ss"> / </span><span class="sc">{</span>num_iterations<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Downsample score classes</span></span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>        data_normclass <span class="op">=</span> human_performance.downsample_score_classes_csv(data, seed<span class="op">=</span>i)</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Data long format</span></span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>        data_long <span class="op">=</span> pd.wide_to_long(data_normclass, stubnames<span class="op">=</span>[<span class="st">'Scorer'</span>, <span class="st">'Score'</span>], i<span class="op">=</span>[<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>], j<span class="op">=</span><span class="st">'num'</span>).reset_index()</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>        data_long_noNA <span class="op">=</span> data_long.dropna(subset<span class="op">=</span>[<span class="st">'Score'</span>])</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Metric 1: Agreement with the median</span></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>        full_cm <span class="op">=</span> confusion_matrix(data_long_noNA[<span class="st">'Median_Score'</span>], data_long_noNA[<span class="st">'Score'</span>])</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>        unique_labels <span class="op">=</span> np.sort(data_long_noNA[<span class="st">'Score'</span>].unique())</span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>        accuracies <span class="op">=</span> human_performance.cm_accuracies(full_cm, unique_labels)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pairwise_scorer_accuracy_table(data_wide):</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Per-rater Exact/Near-Miss Accuracy (%) for Metric 2, from the wide-format score table."""</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    pairs <span class="op">=</span> []</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, j <span class="kw">in</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">1</span>, <span class="dv">3</span>), (<span class="dv">2</span>, <span class="dv">3</span>)]:</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>        sub <span class="op">=</span> data_wide[[<span class="ss">f"Scorer</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">"</span>, <span class="ss">f"Score</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">"</span>, <span class="ss">f"Scorer</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">"</span>, <span class="ss">f"Score</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">"</span>]].copy()</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        sub.columns <span class="op">=</span> [<span class="st">"ScorerA"</span>, <span class="st">"ScoreA"</span>, <span class="st">"ScorerB"</span>, <span class="st">"ScoreB"</span>]</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>        pairs.append(sub)</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    pairs_df <span class="op">=</span> pd.concat(pairs).dropna(subset<span class="op">=</span>[<span class="st">"ScoreA"</span>, <span class="st">"ScoreB"</span>])</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    pairs_df[<span class="st">"Diff"</span>] <span class="op">=</span> (pairs_df[<span class="st">"ScoreA"</span>] <span class="op">-</span> pairs_df[<span class="st">"ScoreB"</span>]).<span class="bu">abs</span>()</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    sym <span class="op">=</span> pd.concat([</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>        pairs_df[[<span class="st">"ScorerA"</span>, <span class="st">"Diff"</span>]].rename(columns<span class="op">=</span>{<span class="st">"ScorerA"</span>: <span class="st">"Rater"</span>}),</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>        pairs_df[[<span class="st">"ScorerB"</span>, <span class="st">"Diff"</span>]].rename(columns<span class="op">=</span>{<span class="st">"ScorerB"</span>: <span class="st">"Rater"</span>}),</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>        sym.groupby(<span class="st">"Rater"</span>)[<span class="st">"Diff"</span>]</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>        .agg(<span class="op">**</span>{</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Exact Accuracy"</span>: <span class="kw">lambda</span> d: (d <span class="op">==</span> <span class="dv">0</span>).mean() <span class="op">*</span> <span class="dv">100</span>,</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Near-Miss Accuracy"</span>: <span class="kw">lambda</span> d: (d <span class="op">&lt;=</span> <span class="dv">1</span>).mean() <span class="op">*</span> <span class="dv">100</span>,</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>        })</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> results_path.exists():</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Loading pre-computed results from human_performance_results.csv"</span>)</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    results_df <span class="op">=</span> pd.read_csv(results_path)</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    agreement_dist     <span class="op">=</span> results_df[<span class="st">"agreement_dist"</span>].tolist()</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    agreement_nearmiss <span class="op">=</span> results_df[<span class="st">"agreement_nearmiss"</span>].tolist()</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    pairwise_dist      <span class="op">=</span> results_df[<span class="st">"pairwise_dist"</span>].tolist()</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>    pairwise_nearmiss  <span class="op">=</span> results_df[<span class="st">"pairwise_nearmiss"</span>].tolist()</span>
 <span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>        agreement_dist.append(accuracies[<span class="st">'exact_accuracy'</span>])</span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>        agreement_nearmiss.append(accuracies[<span class="st">'within_one_accuracy'</span>])</span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Generate an example confusion matrix for Metric 1</span></span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">==</span> <span class="dv">42</span>:</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>            human_performance.plot_confusion_matrix(full_cm, unique_labels, [<span class="st">"Individual Score"</span>, <span class="st">"Median Score"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric1_cm.png"</span>))</span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>            scorer_cms <span class="op">=</span> human_performance.generate_scorer_cms(data_long_noNA)</span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> scorer_name, cm <span class="kw">in</span> scorer_cms.items():</span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>                scorer_accuracies <span class="op">=</span> human_performance.cm_accuracies(cm, unique_labels, print_results<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Metric 2: Agreement between score pairs</span></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>        metric2_exact <span class="op">=</span> data_normclass.<span class="bu">apply</span>(human_performance.find_pairwise_agreement, axis<span class="op">=</span><span class="dv">1</span>, precision<span class="op">=</span><span class="dv">0</span>).mean()</span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>        pairwise_dist.append(metric2_exact)</span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>        metric2_nearmiss <span class="op">=</span> data_normclass.<span class="bu">apply</span>(human_performance.find_pairwise_agreement, axis<span class="op">=</span><span class="dv">1</span>, precision<span class="op">=</span><span class="dv">1</span>).mean()</span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>        pairwise_nearmiss.append(metric2_nearmiss)</span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Generate example confusion matrix for Metric 2</span></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">==</span> <span class="dv">42</span>:</span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>            score_pairs_df <span class="op">=</span> human_performance.extract_score_pairs(data_normclass)</span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>            cm <span class="op">=</span> confusion_matrix(score_pairs_df[<span class="st">"ScoreA"</span>], score_pairs_df[<span class="st">"ScoreB"</span>])</span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>            human_performance.plot_confusion_matrix(cm, unique_labels, [<span class="st">"Individual Score A"</span>, <span class="st">"Individual Score B"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric2_cm.png"</span>))</span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    result_df <span class="op">=</span> pd.DataFrame({</span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">"agreement_dist"</span>: agreement_dist,</span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">"agreement_nearmiss"</span>: agreement_nearmiss,</span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pairwise_dist"</span>: pairwise_dist,</span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pairwise_nearmiss"</span>: pairwise_nearmiss</span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>    })</span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>    result_df.to_csv(results_path, index<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Re-generate the example confusion matrices/tables below (fast, seed=42)</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    example_normclass <span class="op">=</span> human_performance.downsample_score_classes_csv(data, seed<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    data_long      <span class="op">=</span> pd.wide_to_long(example_normclass, stubnames<span class="op">=</span>[<span class="st">'Scorer'</span>, <span class="st">'Score'</span>], i<span class="op">=</span>[<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>], j<span class="op">=</span><span class="st">'num'</span>).reset_index()</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    data_long_noNA <span class="op">=</span> data_long.dropna(subset<span class="op">=</span>[<span class="st">'Score'</span>])</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    unique_labels  <span class="op">=</span> np.sort(data_long_noNA[<span class="st">'Score'</span>].unique())</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>    metric1_cm <span class="op">=</span> confusion_matrix(data_long_noNA[<span class="st">'Median_Score'</span>], data_long_noNA[<span class="st">'Score'</span>])</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>    metric1_scorer_cms <span class="op">=</span> human_performance.generate_scorer_cms(data_long_noNA)</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>    score_pairs_df <span class="op">=</span> human_performance.extract_score_pairs(example_normclass)</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>    metric2_cm <span class="op">=</span> confusion_matrix(score_pairs_df[<span class="st">"ScoreA"</span>], score_pairs_df[<span class="st">"ScoreB"</span>])</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Running 1000-iteration loop (this will take a while)..."</span>)</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>    num_iterations <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    agreement_dist, agreement_nearmiss, pairwise_dist, pairwise_nearmiss <span class="op">=</span> [], [], [], []</span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, num_iterations <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Iteration (seed): </span><span class="sc">{</span>i<span class="sc">}</span><span class="ss"> / </span><span class="sc">{</span>num_iterations<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Downsample score classes</span></span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>        data_normclass <span class="op">=</span> human_performance.downsample_score_classes_csv(data, seed<span class="op">=</span>i)</span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Data long format</span></span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>        data_long <span class="op">=</span> pd.wide_to_long(data_normclass, stubnames<span class="op">=</span>[<span class="st">'Scorer'</span>, <span class="st">'Score'</span>], i<span class="op">=</span>[<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>], j<span class="op">=</span><span class="st">'num'</span>).reset_index()</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>        data_long_noNA <span class="op">=</span> data_long.dropna(subset<span class="op">=</span>[<span class="st">'Score'</span>])</span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Metric 1: Agreement with the Median Severity Score</span></span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>        full_cm <span class="op">=</span> confusion_matrix(data_long_noNA[<span class="st">'Median_Score'</span>], data_long_noNA[<span class="st">'Score'</span>])</span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>        unique_labels <span class="op">=</span> np.sort(data_long_noNA[<span class="st">'Score'</span>].unique())</span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>        accuracies <span class="op">=</span> human_performance.cm_accuracies(full_cm, unique_labels)</span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>        agreement_dist.append(accuracies[<span class="st">'exact_accuracy'</span>])</span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>        agreement_nearmiss.append(accuracies[<span class="st">'within_one_accuracy'</span>])</span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Metric 2: Agreement between score pairs</span></span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>        metric2_exact <span class="op">=</span> data_normclass.<span class="bu">apply</span>(human_performance.find_pairwise_agreement, axis<span class="op">=</span><span class="dv">1</span>, precision<span class="op">=</span><span class="dv">0</span>).mean()</span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>        pairwise_dist.append(metric2_exact)</span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>        metric2_nearmiss <span class="op">=</span> data_normclass.<span class="bu">apply</span>(human_performance.find_pairwise_agreement, axis<span class="op">=</span><span class="dv">1</span>, precision<span class="op">=</span><span class="dv">1</span>).mean()</span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>        pairwise_nearmiss.append(metric2_nearmiss)</span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Keep one representative iteration's data/matrices for the example plots and tables below</span></span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">==</span> <span class="dv">42</span>:</span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>            example_normclass <span class="op">=</span> data_normclass.copy()</span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>            metric1_cm <span class="op">=</span> full_cm</span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>            metric1_scorer_cms <span class="op">=</span> human_performance.generate_scorer_cms(data_long_noNA)</span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>            score_pairs_df <span class="op">=</span> human_performance.extract_score_pairs(data_normclass)</span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>            metric2_cm <span class="op">=</span> confusion_matrix(score_pairs_df[<span class="st">"ScoreA"</span>], score_pairs_df[<span class="st">"ScoreB"</span>])</span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    result_df <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">"agreement_dist"</span>: agreement_dist,</span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>        <span class="st">"agreement_nearmiss"</span>: agreement_nearmiss,</span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pairwise_dist"</span>: pairwise_dist,</span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pairwise_nearmiss"</span>: pairwise_nearmiss</span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>    result_df.to_csv(results_path, index<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Loading pre-computed results from human_performance_results.csv</code></pre>
 </div>
+</div>
+<section id="metric-1-agreement-with-the-median-severity-score" class="level3">
+<h3 class="anchored" data-anchor-id="metric-1-agreement-with-the-median-severity-score">2.1 Metric 1: agreement with the Median Severity Score</h3>
+<div class="cell" data-execution_count="4">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.1</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>human_performance.plot_confusion_matrix(metric1_cm, unique_labels, [<span class="st">"Median Severity Score"</span>, <span class="st">"Severity Score"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric1_cm.png"</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>metric1_table <span class="op">=</span> scorer_accuracy_table(metric1_scorer_cms, unique_labels)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric1_table.<span class="bu">round</span>(<span class="dv">1</span>).to_string(index<span class="op">=</span><span class="va">False</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-4-output-2.png" class="img-fluid"></p>
+<p><img src="03_human_performance_files/figure-html/cell-5-output-1.png" class="img-fluid"></p>
 </div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Accuracy: 0.7732342007434945, Near-Miss: 0.9702602230483272
-Per-Class Accuracies: {np.float64(0.0): np.float64(1.0), np.float64(1.0): np.float64(0.6), np.float64(2.0): np.float64(0.5106382978723404), np.float64(3.0): np.float64(0.72), np.float64(4.0): np.float64(0.5806451612903226), np.float64(5.0): np.float64(0.627906976744186), np.float64(6.0): np.float64(0.93125)}
-Accuracy: 0.7994791666666666, Near-Miss: 0.9913194444444444
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9640287769784173), np.float64(1.0): np.float64(0.793939393939394), np.float64(2.0): np.float64(0.6852791878172588), np.float64(3.0): np.float64(0.7835051546391752), np.float64(4.0): np.float64(0.7954545454545454), np.float64(5.0): np.float64(0.7602739726027398), np.float64(6.0): np.float64(0.8740740740740741)}
-Accuracy: 0.7477919528949951, Near-Miss: 0.9833169774288518
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9781021897810219), np.float64(1.0): np.float64(0.7361963190184049), np.float64(2.0): np.float64(0.7168141592920354), np.float64(3.0): np.float64(0.8145695364238411), np.float64(4.0): np.float64(0.7520661157024794), np.float64(5.0): np.float64(0.6342857142857142), np.float64(6.0): np.float64(0.6415094339622641)}
-Accuracy: 0.7134302822925578, Near-Miss: 0.9683490162532079
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9947643979057592), np.float64(1.0): np.float64(0.5686274509803921), np.float64(2.0): np.float64(0.6554054054054054), np.float64(3.0): np.float64(0.697986577181208), np.float64(4.0): np.float64(0.6602564102564102), np.float64(5.0): np.float64(0.5723270440251572), np.float64(6.0): np.float64(0.7605633802816901)}
-Accuracy: 0.39090909090909093, Near-Miss: 0.7681818181818182
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.926829268292683), np.float64(1.0): np.float64(0.3382352941176471), np.float64(2.0): np.float64(0.21621621621621623), np.float64(3.0): np.float64(0.2391304347826087), np.float64(4.0): np.float64(0.3389830508474576), np.float64(5.0): np.float64(0.10526315789473684), np.float64(6.0): np.float64(0.9591836734693877)}
-Accuracy: 0.7644628099173554, Near-Miss: 0.9772727272727273
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9848484848484849), np.float64(1.0): np.float64(0.7974683544303798), np.float64(2.0): np.float64(0.6666666666666666), np.float64(3.0): np.float64(0.6159420289855072), np.float64(4.0): np.float64(0.6363636363636364), np.float64(5.0): np.float64(0.7654320987654321), np.float64(6.0): np.float64(0.8983050847457628)}
-Accuracy: 0.7955911823647295, Near-Miss: 0.9879759519038076
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9285714285714286), np.float64(1.0): np.float64(0.7857142857142857), np.float64(2.0): np.float64(0.8653846153846154), np.float64(3.0): np.float64(0.8571428571428571), np.float64(4.0): np.float64(0.6986301369863014), np.float64(5.0): np.float64(0.797752808988764), np.float64(6.0): np.float64(0.5740740740740741)}
-Accuracy: 0.775375939849624, Near-Miss: 0.9924812030075187
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9929577464788732), np.float64(1.0): np.float64(0.736), np.float64(2.0): np.float64(0.7810650887573964), np.float64(3.0): np.float64(0.643312101910828), np.float64(4.0): np.float64(0.5939849624060151), np.float64(5.0): np.float64(0.6948051948051948), np.float64(6.0): np.float64(0.9402173913043478)}
-Accuracy: 0.7650655021834061, Near-Miss: 0.965938864628821
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.9411764705882353), np.float64(1.0): np.float64(0.7267441860465116), np.float64(2.0): np.float64(0.6923076923076923), np.float64(3.0): np.float64(0.6625), np.float64(4.0): np.float64(0.8235294117647058), np.float64(5.0): np.float64(0.6739130434782609), np.float64(6.0): np.float64(0.8235294117647058)}
-Accuracy: 0.6817769718948323, Near-Miss: 0.9637352674524026
-Per-Class Accuracies: {np.float64(0.0): np.float64(0.8716216216216216), np.float64(1.0): np.float64(0.7455621301775148), np.float64(2.0): np.float64(0.5643564356435643), np.float64(3.0): np.float64(0.7098765432098766), np.float64(4.0): np.float64(0.7486910994764397), np.float64(5.0): np.float64(0.4855072463768116), np.float64(6.0): np.float64(0.6236559139784946)}</code></pre>
+<pre><code> Rater  Exact Accuracy  Near-Miss Accuracy
+     1            77.3                97.0
+     2            79.9                99.1
+     3            74.8                98.3
+     4            71.3                96.8
+     5            39.1                76.8
+     6            76.4                97.7
+     7            79.6                98.8
+     8            77.5                99.2
+     9            76.5                96.6
+    10            68.2                96.4</code></pre>
 </div>
+</div>
+<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+</section>
+<section id="metric-2-pairwise-agreement-between-raters" class="level3">
+<h3 class="anchored" data-anchor-id="metric-2-pairwise-agreement-between-raters">2.2 Metric 2: pairwise agreement between raters</h3>
+<div class="cell" data-execution_count="5">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.2</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>human_performance.plot_confusion_matrix(metric2_cm, unique_labels, [<span class="st">"Severity Score A"</span>, <span class="st">"Severity Score B"</span>], <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"metric2_cm.png"</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>metric2_table <span class="op">=</span> pairwise_scorer_accuracy_table(example_normclass)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric2_table.<span class="bu">round</span>(<span class="dv">1</span>).to_string(index<span class="op">=</span><span class="va">False</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-4-output-4.png" class="img-fluid"></p>
+<p><img src="03_human_performance_files/figure-html/cell-6-output-1.png" class="img-fluid"></p>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code> Rater  Exact Accuracy  Near-Miss Accuracy
+     1            58.1                92.0
+     2            53.1                93.8
+     3            50.1                90.1
+     4            51.5                90.6
+     5            28.1                66.9
+     6            51.9                90.1
+     7            59.1                96.5
+     8            50.1                90.9
+     9            53.6                90.4
+    10            49.0                90.3</code></pre>
 </div>
 </div>
 <p><strong>Discussion:</strong> <em>Add notes here.</em></p>
@@ -295,296 +350,117 @@ Per-Class Accuracies: {np.float64(0.0): np.float64(0.8716216216216216), np.float
 </section>
 <section id="distribution-statistics" class="level2">
 <h2 class="anchored" data-anchor-id="distribution-statistics">3. Distribution statistics</h2>
-<section id="summary-statistics-mean-95-ci-sd" class="level3">
-<h3 class="anchored" data-anchor-id="summary-statistics-mean-95-ci-sd">3.1 Summary statistics (mean, 95% CI, SD)</h3>
-<div class="cell" data-execution_count="4">
+<section id="metric-1-summary-statistics-mean-95-ci-sd" class="level3">
+<h3 class="anchored" data-anchor-id="metric-1-summary-statistics-mean-95-ci-sd">3.1 Metric 1: summary statistics (mean, 95% CI, SD)</h3>
+<div class="cell" data-execution_count="6">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.1</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_dist_stats(dist, name):</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    mean_agreement <span class="op">=</span> np.mean(dist)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    std_agreement <span class="op">=</span> np.std(dist)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    sem_agreement <span class="op">=</span> st.sem(dist)</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    ci_agreement <span class="op">=</span> st.t.interval(confidence<span class="op">=</span><span class="fl">0.95</span>, df<span class="op">=</span><span class="bu">len</span>(dist)<span class="op">-</span><span class="dv">1</span>, loc<span class="op">=</span>mean_agreement, scale<span class="op">=</span>sem_agreement)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    ci_lower, ci_upper <span class="op">=</span> ci_agreement</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    ci_diff <span class="op">=</span> (ci_upper <span class="op">-</span> ci_lower) <span class="op">/</span> <span class="dv">2</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(name)</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Mean: </span><span class="sc">{</span>mean_agreement<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"95% CI: </span><span class="sc">{</span>ci_diff<span class="sc">}</span><span class="ss">, (</span><span class="sc">{</span>ci_agreement[<span class="dv">0</span>]<span class="sc">:.5f}</span><span class="ss">, </span><span class="sc">{</span>ci_agreement[<span class="dv">1</span>]<span class="sc">:.5f}</span><span class="ss">)"</span>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"SD: </span><span class="sc">{</span>std_agreement<span class="sc">:.4f}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>get_dist_stats(agreement_dist, <span class="st">"Exact agreement with median"</span>)</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>get_dist_stats(agreement_nearmiss, <span class="st">"Near-miss agreement with median"</span>)</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>get_dist_stats(pairwise_dist, <span class="st">"Exact pairwise agreement"</span>)</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>get_dist_stats(pairwise_nearmiss, <span class="st">"Near-miss pairwise agreement"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.1</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_dist_stats(dist, name):</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    mean_agreement <span class="op">=</span> np.mean(dist)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    std_agreement <span class="op">=</span> np.std(dist)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    sem_agreement <span class="op">=</span> st.sem(dist)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    ci_agreement <span class="op">=</span> st.t.interval(confidence<span class="op">=</span><span class="fl">0.95</span>, df<span class="op">=</span><span class="bu">len</span>(dist)<span class="op">-</span><span class="dv">1</span>, loc<span class="op">=</span>mean_agreement, scale<span class="op">=</span>sem_agreement)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    ci_lower, ci_upper <span class="op">=</span> ci_agreement</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    ci_diff <span class="op">=</span> (ci_upper <span class="op">-</span> ci_lower) <span class="op">/</span> <span class="dv">2</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(name)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Mean: </span><span class="sc">{</span>mean_agreement<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"95% CI: </span><span class="sc">{</span>ci_diff<span class="sc">}</span><span class="ss">, (</span><span class="sc">{</span>ci_agreement[<span class="dv">0</span>]<span class="sc">:.5f}</span><span class="ss">, </span><span class="sc">{</span>ci_agreement[<span class="dv">1</span>]<span class="sc">:.5f}</span><span class="ss">)"</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"SD: </span><span class="sc">{</span>std_agreement<span class="sc">:.4f}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>get_dist_stats(agreement_dist, <span class="st">"Exact Accuracy (Metric 1: agreement with the Median Severity Score)"</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>get_dist_stats(agreement_nearmiss, <span class="st">"Near-Miss Accuracy (Metric 1: agreement with the Median Severity Score)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Exact agreement with median
+<pre><code>Exact Accuracy (Metric 1: agreement with the Median Severity Score)
 Mean: 0.7365
 95% CI: 0.00011580908514785548, (0.73642, 0.73666)
 SD: 0.0019
 
-Near-miss agreement with median
+Near-Miss Accuracy (Metric 1: agreement with the Median Severity Score)
 Mean: 0.9680
 95% CI: 5.338195615733898e-05, (0.96797, 0.96808)
 SD: 0.0009
-
-Exact pairwise agreement
+</code></pre>
+</div>
+</div>
+<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+</section>
+<section id="metric-2-summary-statistics-mean-95-ci-sd" class="level3">
+<h3 class="anchored" data-anchor-id="metric-2-summary-statistics-mean-95-ci-sd">3.2 Metric 2: summary statistics (mean, 95% CI, SD)</h3>
+<div class="cell" data-execution_count="7">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.2</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>get_dist_stats(pairwise_dist, <span class="st">"Exact Accuracy (Metric 2: pairwise agreement)"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>get_dist_stats(pairwise_nearmiss, <span class="st">"Near-Miss Accuracy (Metric 2: pairwise agreement)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Exact Accuracy (Metric 2: pairwise agreement)
 Mean: 0.5174
 95% CI: 0.0001902703267429029, (0.51725, 0.51763)
 SD: 0.0031
 
-Near-miss pairwise agreement
+Near-Miss Accuracy (Metric 2: pairwise agreement)
 Mean: 0.9038
 95% CI: 0.0001186831432825608, (0.90366, 0.90390)
 SD: 0.0019
 </code></pre>
 </div>
 </div>
-<p>Exact agreement with median Mean: 0.7365 95% CI: 0.00011580908514785548, (0.73642, 0.73666) SD: 0.0019</p>
-<p>Near-miss agreement with median Mean: 0.9680 95% CI: 5.338195615733898e-05, (0.96797, 0.96808) SD: 0.0009</p>
-<p>Exact pairwise agreement Mean: 0.5174 95% CI: 0.0001902703267429029, (0.51725, 0.51763) SD: 0.0031</p>
-<p>Near-miss pairwise agreement Mean: 0.9038 95% CI: 0.0001186831432825608, (0.90366, 0.90390) SD: 0.0019</p>
 <p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 </section>
 <section id="distribution-plots" class="level2">
 <h2 class="anchored" data-anchor-id="distribution-plots">4. Distribution plots</h2>
-<section id="histograms-of-agreement-distributions" class="level3">
-<h3 class="anchored" data-anchor-id="histograms-of-agreement-distributions">4.1 Histograms of agreement distributions</h3>
-<div class="cell" data-execution_count="5">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.1</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_distribution(dist, name, x_label):</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    mean_agreement <span class="op">=</span> np.mean(dist)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    plt.hist(dist, bins<span class="op">=</span><span class="st">'auto'</span>, alpha<span class="op">=</span><span class="fl">0.75</span>, color<span class="op">=</span><span class="st">'green'</span>, edgecolor<span class="op">=</span><span class="st">'black'</span>)</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    plt.axvline(mean_agreement, color<span class="op">=</span><span class="st">'red'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="ss">f'Mean: </span><span class="sc">{</span>mean_agreement<span class="sc">:.4f}</span><span class="ss">'</span>)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    plt.xlabel(x_label)</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    plt.ylabel(<span class="st">'Frequency'</span>)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    plt.legend(loc<span class="op">=</span><span class="st">'upper right'</span>)</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    plt.grid(axis<span class="op">=</span><span class="st">'y'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, alpha<span class="op">=</span><span class="fl">0.7</span>)</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    plt.savefig(name)</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    plt.show()</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>plots_dir <span class="op">=</span> <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span>)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>plot_distribution(agreement_dist, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric1_exact.png"</span>, <span class="st">"Exact agreement with median"</span>)</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>plot_distribution(agreement_nearmiss, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric1_nearmiss.png"</span>, <span class="st">"Near-miss agreement with median"</span>)</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>plot_distribution(pairwise_dist, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric2_exact.png"</span>, <span class="st">"Exact pairwise agreement"</span>)</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>plot_distribution(pairwise_nearmiss, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric2_nearmiss.png"</span>, <span class="st">"Near-miss pairwise agreement"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-6-output-1.png" class="img-fluid"></p>
-</div>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-6-output-2.png" class="img-fluid"></p>
-</div>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-6-output-3.png" class="img-fluid"></p>
-</div>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-6-output-4.png" class="img-fluid"></p>
-</div>
-</div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
-</section>
-</section>
-<section id="leave-one-out-variant-of-metric-1" class="level2">
-<h2 class="anchored" data-anchor-id="leave-one-out-variant-of-metric-1">5. Leave-one-out variant of Metric 1</h2>
-<p>Metric 1 compares each individual score to the CDA median — but that median <strong>includes the score being evaluated</strong>, so a scorer automatically matches whenever they were the middle of the three (the median of an odd set is one of its members). This inflates Metric 1. The leave-one-out (LOO) variant removes the confound: each score is compared to the median of the <strong>other two</strong> scorers on that CDA. With two remaining scorers the LOO reference is their mean, which is a half-integer whenever they disagree by an odd amount — so no integer score can match it <em>exactly</em>. LOO <strong>exact</strong> agreement is therefore necessarily stricter than Metric 1, and the <strong>near-miss</strong> (within ±1) figure is the more directly comparable one.</p>
-<p>Computed the same way as Metric 1: across 1,000 class-normalised downsamples, reporting the distribution of exact and near-miss agreement. Results are cached to <code>loo_metric1_results.csv</code>.</p>
-<div class="cell" data-execution_count="6">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>loo_results_path <span class="op">=</span> repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"loo_metric1_results.csv"</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> loo_metric1_accuracy(df_wide, precision):</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Agreement of each score with the leave-one-out median (mean) of the other two scorers."""</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> df_wide[[<span class="st">"Score1"</span>, <span class="st">"Score2"</span>, <span class="st">"Score3"</span>]].to_numpy(dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    diffs <span class="op">=</span> []</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> k <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>        others <span class="op">=</span> np.delete(s, k, axis<span class="op">=</span><span class="dv">1</span>)        <span class="co"># the other two scorers</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>        ref <span class="op">=</span> np.nanmean(others, axis<span class="op">=</span><span class="dv">1</span>)        <span class="co"># median of two = their mean</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>        diffs.append(np.<span class="bu">abs</span>(s[:, k] <span class="op">-</span> ref))</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.concatenate(diffs)</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> d[<span class="op">~</span>np.isnan(d)]</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(np.mean(d <span class="op">&lt;=</span> precision))</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> loo_results_path.exists():</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Loading pre-computed results from loo_metric1_results.csv"</span>)</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    loo_df <span class="op">=</span> pd.read_csv(loo_results_path)</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    loo_exact_dist    <span class="op">=</span> loo_df[<span class="st">"loo_exact_dist"</span>].tolist()</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    loo_nearmiss_dist <span class="op">=</span> loo_df[<span class="st">"loo_nearmiss_dist"</span>].tolist()</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Running 1000-iteration LOO loop..."</span>)</span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    loo_exact_dist, loo_nearmiss_dist <span class="op">=</span> [], []</span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">1001</span>):</span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        data_normclass <span class="op">=</span> human_performance.downsample_score_classes_csv(data, seed<span class="op">=</span>i)</span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>        loo_exact_dist.append(loo_metric1_accuracy(data_normclass, <span class="dv">0</span>))</span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>        loo_nearmiss_dist.append(loo_metric1_accuracy(data_normclass, <span class="dv">1</span>))</span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    pd.DataFrame({<span class="st">"loo_exact_dist"</span>: loo_exact_dist,</span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"loo_nearmiss_dist"</span>: loo_nearmiss_dist}).to_csv(loo_results_path, index<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>get_dist_stats(loo_exact_dist,    <span class="st">"LOO exact agreement (vs other two scorers' median)"</span>)</span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>get_dist_stats(loo_nearmiss_dist, <span class="st">"LOO near-miss agreement (vs other two scorers' median)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Loading pre-computed results from loo_metric1_results.csv
-LOO exact agreement (vs other two scorers' median)
-Mean: 0.3672
-95% CI: 0.0002399029763569538, (0.36698, 0.36746)
-SD: 0.0039
-
-LOO near-miss agreement (vs other two scorers' median)
-Mean: 0.8872
-95% CI: 0.00014345260722592457, (0.88710, 0.88739)
-SD: 0.0023
-</code></pre>
-</div>
-</div>
-<section id="distribution-plots-1" class="level3">
-<h3 class="anchored" data-anchor-id="distribution-plots-1">5.1 Distribution plots</h3>
-<div class="cell" data-execution_count="7">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.1</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>plot_distribution(loo_exact_dist,    <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/loo_metric1_exact.png"</span>,    <span class="st">"LOO exact agreement with other scorers' median"</span>)</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>plot_distribution(loo_nearmiss_dist, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/loo_metric1_nearmiss.png"</span>, <span class="st">"LOO near-miss agreement with other scorers' median"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-8-output-1.png" class="img-fluid"></p>
-</div>
-<div class="cell-output cell-output-display">
-<p><img src="03_human_performance_files/figure-html/cell-8-output-2.png" class="img-fluid"></p>
-</div>
-</div>
-<p><strong>What this shows:</strong></p>
-<ul>
-<li>Exact LOO agreement (~36%) is far below Metric 1’s 74%: most of Metric 1’s apparent agreement was scorers matching a median they themselves helped define.</li>
-<li>The near-miss LOO figure (~89%) is close to Metric 2’s pairwise near-miss (~90%), as expected — both measure agreement against <em>other</em> scorers with no self-reference.</li>
-<li>Exact LOO sits below even Metric 2’s exact pairwise agreement (~52%) partly because the half-integer LOO reference makes exact matches impossible when the other two scorers disagree by an odd amount; near-miss is the fairer comparison.</li>
-</ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
-</section>
-</section>
-<section id="inter-rater-vs-intra-rater-agreement-non-zero-cdas" class="level2">
-<h2 class="anchored" data-anchor-id="inter-rater-vs-intra-rater-agreement-non-zero-cdas">6. Inter-rater vs intra-rater agreement (non-zero CDAs)</h2>
-<p>For the five scorers who completed the rescore task, we can directly compare how consistently each scorer agrees with <strong>themselves</strong> (intra-rater, from <code>06_intra_rater_reliability</code>) versus how consistently they agree with <strong>other scorers</strong> on the same CDAs (inter-rater, computed here from the canonical data). Both metrics are restricted to non-zero median CDAs, since zero-score CDAs are near-unanimously agreed upon and would inflate both figures.</p>
-<p>If intra-rater &gt; inter-rater: individual biases are a genuine additional source of disagreement on top of task ambiguity. If intra-rater ≈ inter-rater: the task is inherently ambiguous and even self-consistency is low.</p>
-<section id="per-scorer-comparison-dumbbell-plot" class="level3">
-<h3 class="anchored" data-anchor-id="per-scorer-comparison-dumbbell-plot">6.1 Per-scorer comparison (dumbbell plot)</h3>
+<section id="metric-1-histograms-of-agreement-distributions" class="level3">
+<h3 class="anchored" data-anchor-id="metric-1-histograms-of-agreement-distributions">4.1 Metric 1: histograms of agreement distributions</h3>
 <div class="cell" data-execution_count="8">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6.1.1</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Load intra-rater summary (non-zero CDAs only, since all rescored CDAs had median &gt; 0)</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>intra_summary <span class="op">=</span> pd.read_csv(<span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"06_intra_rater_reliability"</span> <span class="op">/</span> <span class="st">"intra_rater_summary.csv"</span>))</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>intra_summary[<span class="st">'Scorer'</span>] <span class="op">=</span> intra_summary[<span class="st">'Scorer'</span>].astype(<span class="bu">int</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>rescored_scorers <span class="op">=</span> intra_summary[<span class="st">'Scorer'</span>].tolist()</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute per-scorer average pairwise agreement on non-zero CDAs from canonical data</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>data_nonzero <span class="op">=</span> data[data[<span class="st">'Median_Score'</span>] <span class="op">!=</span> <span class="dv">0</span>].copy()</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>]:</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    data_nonzero[<span class="ss">f'Scorer</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>] <span class="op">=</span> pd.to_numeric(data_nonzero[<span class="ss">f'Scorer</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    data_nonzero[<span class="ss">f'Score</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>]  <span class="op">=</span> pd.to_numeric(data_nonzero[<span class="ss">f'Score</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>],  errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>pairs <span class="op">=</span> []</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, j <span class="kw">in</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">1</span>, <span class="dv">3</span>), (<span class="dv">2</span>, <span class="dv">3</span>)]:</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    sub <span class="op">=</span> data_nonzero[[<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>,</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>                         <span class="ss">f'Scorer</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>, <span class="ss">f'Score</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">'</span>,</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>                         <span class="ss">f'Scorer</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">'</span>, <span class="ss">f'Score</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">'</span>]].copy()</span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    sub.columns <span class="op">=</span> [<span class="st">'Basename'</span>, <span class="st">'Row'</span>, <span class="st">'Col'</span>, <span class="st">'Pos'</span>,</span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>                   <span class="st">'ScorerA'</span>, <span class="st">'ScoreA'</span>, <span class="st">'ScorerB'</span>, <span class="st">'ScoreB'</span>]</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    pairs.append(sub)</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>pairs_df <span class="op">=</span> (pd.concat(pairs)</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>              .dropna(subset<span class="op">=</span>[<span class="st">'ScorerA'</span>, <span class="st">'ScorerB'</span>, <span class="st">'ScoreA'</span>, <span class="st">'ScoreB'</span>])</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>              .assign(ScorerA<span class="op">=</span><span class="kw">lambda</span> d: d[<span class="st">'ScorerA'</span>].astype(<span class="bu">int</span>),</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>                      ScorerB<span class="op">=</span><span class="kw">lambda</span> d: d[<span class="st">'ScorerB'</span>].astype(<span class="bu">int</span>),</span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>                      ScoreA <span class="op">=</span><span class="kw">lambda</span> d: d[<span class="st">'ScoreA'</span>].astype(<span class="bu">int</span>),</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>                      ScoreB <span class="op">=</span><span class="kw">lambda</span> d: d[<span class="st">'ScoreB'</span>].astype(<span class="bu">int</span>),</span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>                      Agree  <span class="op">=</span><span class="kw">lambda</span> d: d[<span class="st">'ScoreA'</span>] <span class="op">==</span> d[<span class="st">'ScoreB'</span>]))</span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>sym <span class="op">=</span> pd.concat([</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    pairs_df[[<span class="st">'ScorerA'</span>, <span class="st">'Agree'</span>]].rename(columns<span class="op">=</span>{<span class="st">'ScorerA'</span>: <span class="st">'Scorer'</span>}),</span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    pairs_df[[<span class="st">'ScorerB'</span>, <span class="st">'Agree'</span>]].rename(columns<span class="op">=</span>{<span class="st">'ScorerB'</span>: <span class="st">'Scorer'</span>})</span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>per_scorer_inter <span class="op">=</span> (sym.groupby(<span class="st">'Scorer'</span>)[<span class="st">'Agree'</span>].mean() <span class="op">*</span> <span class="dv">100</span>).reset_index()</span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>per_scorer_inter.columns <span class="op">=</span> [<span class="st">'Scorer'</span>, <span class="st">'Inter_rater'</span>]</span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>per_scorer_inter <span class="op">=</span> per_scorer_inter[per_scorer_inter[<span class="st">'Scorer'</span>].isin(rescored_scorers)]</span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Merge with intra-rater data</span></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>comp <span class="op">=</span> (intra_summary[[<span class="st">'Scorer'</span>, <span class="st">'intra_exact'</span>]]</span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        .rename(columns<span class="op">=</span>{<span class="st">'intra_exact'</span>: <span class="st">'Intra_rater'</span>})</span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>        .merge(per_scorer_inter, on<span class="op">=</span><span class="st">'Scorer'</span>))</span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>mean_intra <span class="op">=</span> comp[<span class="st">'Intra_rater'</span>].mean()</span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>mean_inter <span class="op">=</span> comp[<span class="st">'Inter_rater'</span>].mean()</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>comp[<span class="st">'Scorer'</span>] <span class="op">=</span> comp[<span class="st">'Scorer'</span>].astype(<span class="bu">str</span>)</span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>comp_plot <span class="op">=</span> comp.copy()</span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(comp_plot.<span class="bu">round</span>(<span class="dv">1</span>).to_string(index<span class="op">=</span><span class="va">False</span>))</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Mean intra-rater: </span><span class="sc">{</span>mean_intra<span class="sc">:.1f}</span><span class="ss">%"</span>)</span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mean inter-rater: </span><span class="sc">{</span>mean_inter<span class="sc">:.1f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.1</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_distribution(dist, name, x_label):</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    mean_agreement <span class="op">=</span> np.mean(dist)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    plt.hist(dist, bins<span class="op">=</span><span class="st">'auto'</span>, alpha<span class="op">=</span><span class="fl">0.75</span>, color<span class="op">=</span><span class="st">'skyblue'</span>, edgecolor<span class="op">=</span><span class="st">'black'</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    plt.axvline(mean_agreement, color<span class="op">=</span><span class="st">'red'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="ss">f'Mean: </span><span class="sc">{</span>mean_agreement<span class="sc">:.4f}</span><span class="ss">'</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    plt.xlabel(x_label)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    plt.ylabel(<span class="st">'Frequency'</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    plt.legend(loc<span class="op">=</span><span class="st">'upper right'</span>)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    plt.grid(axis<span class="op">=</span><span class="st">'y'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, alpha<span class="op">=</span><span class="fl">0.7</span>)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    plt.savefig(name)</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    plt.show()</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>plots_dir <span class="op">=</span> <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span>)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>plot_distribution(agreement_dist, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric1_exact.png"</span>, <span class="st">"Exact Accuracy (agreement with the Median Severity Score)"</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>plot_distribution(agreement_nearmiss, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric1_nearmiss.png"</span>, <span class="st">"Near-Miss Accuracy (agreement with the Median Severity Score)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Scorer  Intra_rater  Inter_rater
-     1         53.0         48.9
-     2         62.6         47.8
-     4         59.6         42.2
-     6         56.6         43.8
-     9         30.0         47.1
-
-Mean intra-rater: 52.4%
-Mean inter-rater: 46.0%</code></pre>
+<div class="cell-output cell-output-display">
+<p><img src="03_human_performance_files/figure-html/cell-9-output-1.png" class="img-fluid"></p>
+</div>
+<div class="cell-output cell-output-display">
+<p><img src="03_human_performance_files/figure-html/cell-9-output-2.png" class="img-fluid"></p>
 </div>
 </div>
+<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+</section>
+<section id="metric-2-histograms-of-agreement-distributions" class="level3">
+<h3 class="anchored" data-anchor-id="metric-2-histograms-of-agreement-distributions">4.2 Metric 2: histograms of agreement distributions</h3>
 <div class="cell" data-execution_count="9">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6.1.2</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, row <span class="kw">in</span> comp_plot.iterrows():</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    ax.plot([row[<span class="st">'Intra_rater'</span>], row[<span class="st">'Inter_rater'</span>]], [i, i],</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>            color<span class="op">=</span><span class="st">'grey'</span>, linewidth<span class="op">=</span><span class="fl">1.5</span>, zorder<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>ax.scatter(comp_plot[<span class="st">'Intra_rater'</span>], <span class="bu">range</span>(<span class="bu">len</span>(comp_plot)),</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>           color<span class="op">=</span><span class="st">'steelblue'</span>, s<span class="op">=</span><span class="dv">90</span>, zorder<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">'Intra-rater (self-consistency)'</span>)</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>ax.scatter(comp_plot[<span class="st">'Inter_rater'</span>], <span class="bu">range</span>(<span class="bu">len</span>(comp_plot)),</span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>           color<span class="op">=</span><span class="st">'firebrick'</span>, s<span class="op">=</span><span class="dv">90</span>, zorder<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">'Inter-rater (pairwise with others)'</span>)</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>ax.axvline(mean_intra, color<span class="op">=</span><span class="st">'steelblue'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="fl">1.2</span>, alpha<span class="op">=</span><span class="fl">0.6</span>,</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="ss">f'Mean intra-rater (</span><span class="sc">{</span>mean_intra<span class="sc">:.1f}</span><span class="ss">%)'</span>)</span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>ax.axvline(mean_inter, color<span class="op">=</span><span class="st">'firebrick'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="fl">1.2</span>, alpha<span class="op">=</span><span class="fl">0.6</span>,</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="ss">f'Mean inter-rater (</span><span class="sc">{</span>mean_inter<span class="sc">:.1f}</span><span class="ss">%)'</span>)</span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>ax.set_yticks(<span class="bu">range</span>(<span class="bu">len</span>(comp_plot)))</span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>ax.set_yticklabels(comp_plot[<span class="st">'Scorer'</span>].tolist(), fontsize<span class="op">=</span><span class="dv">13</span>)</span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">'Exact agreement on non-zero CDAs (%)'</span>, fontsize<span class="op">=</span><span class="dv">14</span>)</span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">'Scorer'</span>, fontsize<span class="op">=</span><span class="dv">14</span>)</span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>ax.legend(fontsize<span class="op">=</span><span class="dv">11</span>, loc<span class="op">=</span><span class="st">'lower right'</span>)</span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>ax.grid(axis<span class="op">=</span><span class="st">'x'</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>ax.tick_params(axis<span class="op">=</span><span class="st">'x'</span>, labelsize<span class="op">=</span><span class="dv">12</span>)</span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> <span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"analyses"</span> <span class="op">/</span> <span class="st">"03_human_performance"</span> <span class="op">/</span> <span class="st">"supp_plots"</span> <span class="op">/</span> <span class="st">"inter_vs_intra_rater.png"</span>)</span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>plt.savefig(out, dpi<span class="op">=</span><span class="dv">300</span>, bbox_inches<span class="op">=</span><span class="st">'tight'</span>)</span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.2</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>plot_distribution(pairwise_dist, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric2_exact.png"</span>, <span class="st">"Exact Accuracy (pairwise agreement)"</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>plot_distribution(pairwise_nearmiss, <span class="ss">f"</span><span class="sc">{</span>plots_dir<span class="sc">}</span><span class="ss">/metric2_nearmiss.png"</span>, <span class="st">"Near-Miss Accuracy (pairwise agreement)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <p><img src="03_human_performance_files/figure-html/cell-10-output-1.png" class="img-fluid"></p>
 </div>
+<div class="cell-output cell-output-display">
+<p><img src="03_human_performance_files/figure-html/cell-10-output-2.png" class="img-fluid"></p>
 </div>
-<p><strong>What this shows:</strong></p>
-<ul>
-<li>For most scorers, intra-rater consistency exceeds inter-rater agreement, meaning each individual is more consistent with themselves than with others. This confirms that systematic individual biases contribute to inter-rater disagreement on top of genuine task ambiguity.</li>
-<li>The mean intra-rater reference line sets a natural ceiling for inter-rater agreement: different scorers cannot reliably agree more than a single scorer agrees with themselves.</li>
-<li>Scorer 9 is the exception: their intra-rater consistency (~30%) is lower than their inter-rater agreement with others. Score change analysis in <code>06_intra_rater_reliability</code> shows this is not random noise — scorer 9 consistently scored 1–2 classes <em>higher</em> when rescoring, indicating a systematic upward calibration shift between the two scoring sessions. Their original scores are therefore more representative of their calibration at the time of dataset collection.</li>
-</ul>
+</div>
 <p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 </section>
