@@ -128,20 +128,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
 <p><strong>Goal:</strong></p>
 <p>Combine the CDAScorer annotation datasets into one table.</p>
-<p><strong>Hypothesis:</strong></p>
-<p>N/A</p>
 <p><strong>Rationale:</strong></p>
-<p>Having three scorers allows some confidence in the ground truth labels to be passed to the model. With a median score: 1. If all three scorers give the same score, then that agreed score becomes ground truth 2. If two scorers give one score, and another scorer gives a different score, then the majority score becomes ground truth 3. If all scorers give different scores, the least extreme score becomes the ground truth</p>
-<p><strong>Experimental plan:</strong></p>
-<ol type="1">
-<li>Load in all the CDAScorer data tables</li>
-<li>Create a new data table to contain the combined dataset, with Scorer1, Score1, X1_1, X2_1, Y1_1, Y2_1 etc.</li>
-<li>To this table add all of the unique combinations of File, Row, Col, Pos that appear across the datasets.</li>
-<li>Load in the randomised_info.csv data, which contains information about who scored each image. Use this to fill in Scorer1, Scorer2, and Scorer3 columns.</li>
-<li>For each row, loop through those scorers, access their CDAScorer data tables for the current CDA, and add their score and coordinates to the corresponding columns of the output table.</li>
-<li>Generate an anonymisation key mapping scorer names to integer IDs.</li>
-<li>Anonymise scorer columns and save the combined tables. The key (anonymisation_key.csv) is the only record of real names and is not uploaded to Zenodo.</li>
-</ol>
+<p>Having three raters allows some confidence in the ground truth labels to be passed to the model. With a median score: 1. If all three raters give the same score, then that agreed score becomes ground truth 2. If two raters give one score, and another rater gives a different score, then the majority score becomes ground truth 3. If all raters give different scores, the least extreme score becomes the ground truth</p>
 <section id="import-required-packages" class="level3">
 <h3 class="anchored" data-anchor-id="import-required-packages">1. Import required packages</h3>
 <div class="cell" data-execution_count="1">
@@ -183,7 +171,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>combined_CDA_data1 <span class="op">=</span> dataset_preparation.combine_CDA_dataframes(cda_dataframes1, scorer_info)</span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>combined_CDA_data2 <span class="op">=</span> dataset_preparation.combine_CDA_dataframes(cda_dataframes2, scorer_info)</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>out_dir <span class="op">=</span> repo_root <span class="op">/</span> <span class="st">"analyses/01_generate_raw_data/02_combining_cdascorer_outputs"</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate anonymisation key from all unique scorer names across both sets and</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate anonymisation key from all unique rater names across both sets and</span></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co"># all three scorer columns. The key is the only place real names are recorded,</span></span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co"># kept in anonymisation_keys/ (repo root) rather than alongside the pipeline</span></span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># output - it is not uploaded to Zenodo.</span></span>
@@ -198,7 +186,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    random_state<span class="op">=</span><span class="dv">42</span>,</span>
 <span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    output_path<span class="op">=</span><span class="bu">str</span>(repo_root <span class="op">/</span> <span class="st">"anonymisation_keys"</span> <span class="op">/</span> <span class="st">"anonymisation_key.csv"</span>),</span>
 <span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Anonymisation key: </span><span class="sc">{</span><span class="bu">len</span>(key)<span class="sc">}</span><span class="ss"> scorers"</span>)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Anonymisation key: </span><span class="sc">{</span><span class="bu">len</span>(key)<span class="sc">}</span><span class="ss"> raters"</span>)</span>
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>combined_CDA_data1 <span class="op">=</span> human_performance.anonymise_scorers(combined_CDA_data1, key)</span>
 <span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>combined_CDA_data2 <span class="op">=</span> human_performance.anonymise_scorers(combined_CDA_data2, key)</span>
@@ -207,7 +195,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Anonymised outputs saved."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Anonymisation key: 10 scorers
+<pre><code>Anonymisation key: 10 raters
 Anonymised outputs saved.</code></pre>
 </div>
 </div>
@@ -284,6 +272,10 @@ Anonymised outputs saved.</code></pre>
 </div>
 </div>
 </section>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">Discussion</h2>
+<p><em>Add notes here.</em></p>
 </section>
 
 </main>

@@ -13,27 +13,13 @@ Date: 19/06/2025
 
 Combine the CDAScorer annotation datasets into one table.
 
-**Hypothesis:**
-
-N/A
-
 **Rationale:**
 
-Having three scorers allows some confidence in the ground truth labels to be passed to the model.
+Having three raters allows some confidence in the ground truth labels to be passed to the model.
 With a median score:
-1. If all three scorers give the same score, then that agreed score becomes ground truth
-2. If two scorers give one score, and another scorer gives a different score, then the majority score becomes ground truth
-3. If all scorers give different scores, the least extreme score becomes the ground truth
-
-**Experimental plan:**
-
-1. Load in all the CDAScorer data tables
-2. Create a new data table to contain the combined dataset, with Scorer1, Score1, X1_1, X2_1, Y1_1, Y2_1 etc.
-3. To this table add all of the unique combinations of File, Row, Col, Pos that appear across the datasets.
-4. Load in the randomised_info.csv data, which contains information about who scored each image. Use this to fill in Scorer1, Scorer2, and Scorer3 columns.
-5. For each row, loop through those scorers, access their CDAScorer data tables for the current CDA, and add their score and coordinates to the corresponding columns of the output table.
-6. Generate an anonymisation key mapping scorer names to integer IDs.
-7. Anonymise scorer columns and save the combined tables. The key (anonymisation_key.csv) is the only record of real names and is not uploaded to Zenodo.
+1. If all three raters give the same score, then that agreed score becomes ground truth
+2. If two raters give one score, and another rater gives a different score, then the majority score becomes ground truth
+3. If all raters give different scores, the least extreme score becomes the ground truth
 
 ### 1. Import required packages
 ```{python}
@@ -65,7 +51,7 @@ scorer_info = repo_root / "analyses/01_generate_raw_data/01_allocation_info/rand
 combined_CDA_data1 = dataset_preparation.combine_CDA_dataframes(cda_dataframes1, scorer_info)
 combined_CDA_data2 = dataset_preparation.combine_CDA_dataframes(cda_dataframes2, scorer_info)
 out_dir = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
-# Generate anonymisation key from all unique scorer names across both sets and
+# Generate anonymisation key from all unique rater names across both sets and
 # all three scorer columns. The key is the only place real names are recorded,
 # kept in anonymisation_keys/ (repo root) rather than alongside the pipeline
 # output - it is not uploaded to Zenodo.
@@ -80,7 +66,7 @@ key = human_performance.generate_scorer_key(
     random_state=42,
     output_path=str(repo_root / "anonymisation_keys" / "anonymisation_key.csv"),
 )
-print(f"Anonymisation key: {len(key)} scorers")
+print(f"Anonymisation key: {len(key)} raters")
 
 combined_CDA_data1 = human_performance.anonymise_scorers(combined_CDA_data1, key)
 combined_CDA_data2 = human_performance.anonymise_scorers(combined_CDA_data2, key)
@@ -126,3 +112,7 @@ n_cdas_set2
 n_cdas_total = n_cdas_set1 + n_cdas_set2
 n_cdas_total
 ```
+
+## Discussion
+
+_Add notes here._
