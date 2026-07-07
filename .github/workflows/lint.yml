@@ -16,7 +16,13 @@ jobs:
           use-public-rspm: true
 
       - name: Install R lint/style dependencies
-        run: Rscript -e 'install.packages(c("styler", "lintr"))'
+        # Pinned to the versions tested locally - an unpinned install let CI pick up
+        # a newer lintr that added a new default linter (pipe_consistency_linter),
+        # which failed CI despite passing locally.
+        run: |
+          Rscript -e 'install.packages("remotes")'
+          Rscript -e 'remotes::install_version("styler", version = "1.10.3")'
+          Rscript -e 'remotes::install_version("lintr", version = "3.2.0")'
         shell: bash
 
       - uses: actions/setup-python@v6
