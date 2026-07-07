@@ -46,11 +46,7 @@ repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').ex
 import human_performance
 ```
 
-### 1.2 Load rater data
-
-Rater IDs in this file are already anonymised (1-10) by the raw-data pipeline
-(`01_generate_raw_data/02_combining_cdascorer_outputs`), so no re-anonymisation
-is needed here.
+### 1.2 Load anonymised rater data
 
 ```{python}
 # 1.2
@@ -104,7 +100,6 @@ def pairwise_scorer_accuracy_table(data_wide):
 
 
 if results_path.exists():
-	print("Loading pre-computed results from human_performance_results.csv")
 	results_df = pd.read_csv(results_path)
 	agreement_dist     = results_df["agreement_dist"].tolist()
 	agreement_nearmiss = results_df["agreement_nearmiss"].tolist()
@@ -212,12 +207,12 @@ def get_dist_stats(dist, name):
 	ci_lower, ci_upper = ci_agreement
 	ci_diff = (ci_upper - ci_lower) / 2
 	print(name)
-	print(f"Mean: {mean_agreement:.4f}")
-	print(f"95% CI: {ci_diff}, ({ci_agreement[0]:.5f}, {ci_agreement[1]:.5f})")
-	print(f"SD: {std_agreement:.4f}\n")
+	print(f"Mean: {mean_agreement:.5f}")
+	print(f"95% CI: {ci_diff:.5f}, ({ci_agreement[0]:.5f}, {ci_agreement[1]:.5f})")
+	print(f"SD: {std_agreement:.5f}\n")
 
-get_dist_stats(agreement_dist, "Exact Accuracy (Metric 1: agreement with the Median Severity Score)")
-get_dist_stats(agreement_nearmiss, "Near-Miss Accuracy (Metric 1: agreement with the Median Severity Score)")
+get_dist_stats(agreement_dist, "Exact Accuracy (Metric 1)")
+get_dist_stats(agreement_nearmiss, "Near-Miss Accuracy (Metric 1)")
 ```
 
 **Discussion:**
@@ -245,7 +240,7 @@ def plot_distribution(dist, name, x_label):
 
 	plt.figure(figsize=(10, 6))
 	plt.hist(dist, bins='auto', alpha=0.75, color='skyblue', edgecolor='black')
-	plt.axvline(mean_agreement, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_agreement:.4f}')
+	plt.axvline(mean_agreement, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_agreement:.5f}')
 	plt.xlabel(x_label)
 	plt.ylabel('Frequency')
 	plt.legend(loc='upper right')
@@ -254,8 +249,8 @@ def plot_distribution(dist, name, x_label):
 	plt.show()
 
 plots_dir = str(repo_root / "analyses" / "03_human_performance" / "supp_plots")
-plot_distribution(agreement_dist, f"{plots_dir}/metric1_exact.png", "Exact Accuracy (agreement with the Median Severity Score)")
-plot_distribution(agreement_nearmiss, f"{plots_dir}/metric1_nearmiss.png", "Near-Miss Accuracy (agreement with the Median Severity Score)")
+plot_distribution(agreement_dist, f"{plots_dir}/metric1_exact.png", "Exact Accuracy")
+plot_distribution(agreement_nearmiss, f"{plots_dir}/metric1_nearmiss.png", "Near-Miss Accuracy")
 ```
 
 **Discussion:**
