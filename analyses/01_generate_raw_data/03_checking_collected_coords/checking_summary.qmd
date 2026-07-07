@@ -14,13 +14,6 @@ Date: 02/06/2026
 Quantify how many bounding box annotations were changed during the manual
 checking process, by comparing coordinates before and after checking.
 
-**Experimental plan:**
-
-1. Load the unchecked combined data (step 02) and the checked data (step 03)
-2. Merge on (Basename, Row, Col, Pos) to align matching CDAs
-3. For each scorer, check whether any of the four coordinates changed
-4. Report total changes, breakdown by scorer, and any CDAs only present in one file
-
 ### 1. Load data
 ```{python}
 # 1
@@ -96,3 +89,7 @@ pct_changed_all        = total_changed_all / total_annotations_all * 100
 
 print(f"Annotations changed (both sets): {total_changed_all} / {total_annotations_all} ({pct_changed_all:.1f}%)")
 ```
+
+## Discussion
+
+_Add notes here._

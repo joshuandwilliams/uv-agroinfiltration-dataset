@@ -11,21 +11,7 @@ Date: 19/06/2025
 ## GOHREP
 **Goal:**
 
-Save cropped CDA images
-
-**Hypothesis:**
-
-N/A
-
-**Rationale:**
-
-N/A
-
-**Experimental plan:**
-
-1. Load data
-2. Create folders to store images of different score classes
-3. Load raw agro images and save cropped versions to the correct median score folder
+Save cropped CDA images.
 
 ### 1. Required packages
 ```{python}
@@ -46,7 +32,7 @@ import dataset_preparation
 # 2
 data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
 
-# Scorer columns contain anonymised IDs. Reverse-map to real names so that
+# Rater columns contain anonymised IDs. Reverse-map to real names so that
 # save_cropped_images() can locate raw image files on the shared drive.
 key = pd.read_csv(repo_root / "anonymisation_keys" / "anonymisation_key.csv")
 id_to_name = dict(zip(key['ID'], key['Scorer_Name']))
@@ -70,3 +56,7 @@ NOTE: Must be connected to NBI shared drive where the original agroinfiltration 
 # 4
 dataset_preparation.save_cropped_images(data, out_folder)
 ```
+
+## Discussion
+
+_Add notes here._

@@ -21,13 +21,6 @@ is not appropriate. Interoperability is achieved through the ImageNet-style
 directory structure (score-class subfolders), a well-documented multi-rater CSV
 containing both individual scores and the median, and clear README documentation.
 
-**Experimental plan:**
-
-1. Generate anonymised multi-rater CSV (Median_Score + one column per scorer ID)
-2. Zip cropped images preserving score-class folder structure (cropped_images.zip)
-3. Convert raw rotated TIFs to JPEG (quality 92) and zip (raw_images.zip)
-4. Zip annotation images (annotated_raw_images.zip)
-
 Zenodo allows a maximum of 100 files per record, so images are bundled into
 ZIP archives. Output files are written to data/zenodo/ and are gitignored.
 
@@ -121,3 +114,7 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
 
 print(f"Saved annotated_raw_images.zip: {len(zf.namelist())} files")
 ```
+
+## Discussion
+
+_Add notes here._
