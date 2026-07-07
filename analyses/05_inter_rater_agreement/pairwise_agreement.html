@@ -1871,38 +1871,604 @@ Removed 9 rows containing missing values or values outside the scale range
 </ul>
 <hr>
 </section>
+<section id="agreement-breakdown-by-median-score" class="level2">
+<h2 class="anchored" data-anchor-id="agreement-breakdown-by-median-score">8. Agreement breakdown by median score</h2>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb420"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb420-1"><a href="#cb420-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 8</span></span>
+<span id="cb420-2"><a href="#cb420-2" aria-hidden="true" tabindex="-1"></a><span class="co"># One row per CDA. Missing scores are stored as "[]"; treat them as NA.</span></span>
+<span id="cb420-3"><a href="#cb420-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Agreement is defined by how many of the three scorers match the median score:</span></span>
+<span id="cb420-4"><a href="#cb420-4" aria-hidden="true" tabindex="-1"></a><span class="co">#   3 -&gt; all three agreed, 2 -&gt; two of three agreed, 1 -&gt; all three differed.</span></span>
+<span id="cb420-5"><a href="#cb420-5" aria-hidden="true" tabindex="-1"></a>conf_cda <span class="ot">&lt;-</span> raw_data <span class="sc">%&gt;%</span></span>
+<span id="cb420-6"><a href="#cb420-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Basename, Row, Col, Pos, Score1, Score2, Score3, Median_Score) <span class="sc">%&gt;%</span></span>
+<span id="cb420-7"><a href="#cb420-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">c</span>(Score1, Score2, Score3), <span class="sc">~</span> <span class="fu">na_if</span>(<span class="fu">as.character</span>(.), <span class="st">"[]"</span>)),</span>
+<span id="cb420-8"><a href="#cb420-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">med =</span> <span class="fu">as.character</span>(<span class="fu">as.integer</span>(Median_Score)),</span>
+<span id="cb420-9"><a href="#cb420-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_agree_median =</span> (<span class="sc">!</span><span class="fu">is.na</span>(Score1) <span class="sc">&amp;</span> Score1 <span class="sc">==</span> med) <span class="sc">+</span></span>
+<span id="cb420-10"><a href="#cb420-10" aria-hidden="true" tabindex="-1"></a>      (<span class="sc">!</span><span class="fu">is.na</span>(Score2) <span class="sc">&amp;</span> Score2 <span class="sc">==</span> med) <span class="sc">+</span></span>
+<span id="cb420-11"><a href="#cb420-11" aria-hidden="true" tabindex="-1"></a>      (<span class="sc">!</span><span class="fu">is.na</span>(Score3) <span class="sc">&amp;</span> Score3 <span class="sc">==</span> med),</span>
+<span id="cb420-12"><a href="#cb420-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">Agreement =</span> <span class="fu">factor</span>(</span>
+<span id="cb420-13"><a href="#cb420-13" aria-hidden="true" tabindex="-1"></a>      <span class="fu">case_when</span>(</span>
+<span id="cb420-14"><a href="#cb420-14" aria-hidden="true" tabindex="-1"></a>        n_agree_median <span class="sc">==</span> <span class="dv">3</span> <span class="sc">~</span> <span class="st">"All 3 agreed"</span>,</span>
+<span id="cb420-15"><a href="#cb420-15" aria-hidden="true" tabindex="-1"></a>        n_agree_median <span class="sc">==</span> <span class="dv">2</span> <span class="sc">~</span> <span class="st">"2 of 3 agreed"</span>,</span>
+<span id="cb420-16"><a href="#cb420-16" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"All 3 differed"</span></span>
+<span id="cb420-17"><a href="#cb420-17" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb420-18"><a href="#cb420-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"All 3 agreed"</span>, <span class="st">"2 of 3 agreed"</span>, <span class="st">"All 3 differed"</span>)</span>
+<span id="cb420-19"><a href="#cb420-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb420-20"><a href="#cb420-20" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb420-21"><a href="#cb420-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb420-22"><a href="#cb420-22" aria-hidden="true" tabindex="-1"></a>confidence_table <span class="ot">&lt;-</span> conf_cda <span class="sc">%&gt;%</span></span>
+<span id="cb420-23"><a href="#cb420-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="st">`</span><span class="at">Median Score</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.integer</span>(Median_Score)) <span class="sc">%&gt;%</span></span>
+<span id="cb420-24"><a href="#cb420-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb420-25"><a href="#cb420-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">Frequency =</span> <span class="fu">n</span>(),</span>
+<span id="cb420-26"><a href="#cb420-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">All-3-Agree</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(Agreement <span class="sc">==</span> <span class="st">"All 3 agreed"</span>),</span>
+<span id="cb420-27"><a href="#cb420-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">All-3-Agree %</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">mean</span>(Agreement <span class="sc">==</span> <span class="st">"All 3 agreed"</span>) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>),</span>
+<span id="cb420-28"><a href="#cb420-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">2-of-3-Agree</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(Agreement <span class="sc">==</span> <span class="st">"2 of 3 agreed"</span>),</span>
+<span id="cb420-29"><a href="#cb420-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">2-of-3-Agree %</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">mean</span>(Agreement <span class="sc">==</span> <span class="st">"2 of 3 agreed"</span>) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>),</span>
+<span id="cb420-30"><a href="#cb420-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">All-3-Disagree</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(Agreement <span class="sc">==</span> <span class="st">"All 3 differed"</span>),</span>
+<span id="cb420-31"><a href="#cb420-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">All-3-Disagree %</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">mean</span>(Agreement <span class="sc">==</span> <span class="st">"All 3 differed"</span>) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>),</span>
+<span id="cb420-32"><a href="#cb420-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb420-33"><a href="#cb420-33" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb420-34"><a href="#cb420-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb420-35"><a href="#cb420-35" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(confidence_table, <span class="at">align =</span> <span class="st">"c"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 9%">
+<col style="width: 11%">
+<col style="width: 12%">
+<col style="width: 11%">
+<col style="width: 13%">
+<col style="width: 13%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Median Score</th>
+<th style="text-align: center;">Frequency</th>
+<th style="text-align: center;">All-3-Agree</th>
+<th style="text-align: center;">All-3-Agree %</th>
+<th style="text-align: center;">2-of-3-Agree</th>
+<th style="text-align: center;">2-of-3-Agree %</th>
+<th style="text-align: center;">All-3-Disagree</th>
+<th style="text-align: center;">All-3-Disagree %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2711</td>
+<td style="text-align: center;">2288</td>
+<td style="text-align: center;">84.4</td>
+<td style="text-align: center;">423</td>
+<td style="text-align: center;">15.6</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">437</td>
+<td style="text-align: center;">93</td>
+<td style="text-align: center;">21.3</td>
+<td style="text-align: center;">300</td>
+<td style="text-align: center;">68.6</td>
+<td style="text-align: center;">44</td>
+<td style="text-align: center;">10.1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">436</td>
+<td style="text-align: center;">71</td>
+<td style="text-align: center;">16.3</td>
+<td style="text-align: center;">270</td>
+<td style="text-align: center;">61.9</td>
+<td style="text-align: center;">95</td>
+<td style="text-align: center;">21.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">704</td>
+<td style="text-align: center;">154</td>
+<td style="text-align: center;">21.9</td>
+<td style="text-align: center;">431</td>
+<td style="text-align: center;">61.2</td>
+<td style="text-align: center;">119</td>
+<td style="text-align: center;">16.9</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">847</td>
+<td style="text-align: center;">187</td>
+<td style="text-align: center;">22.1</td>
+<td style="text-align: center;">518</td>
+<td style="text-align: center;">61.2</td>
+<td style="text-align: center;">142</td>
+<td style="text-align: center;">16.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">699</td>
+<td style="text-align: center;">103</td>
+<td style="text-align: center;">14.7</td>
+<td style="text-align: center;">448</td>
+<td style="text-align: center;">64.1</td>
+<td style="text-align: center;">148</td>
+<td style="text-align: center;">21.2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">530</td>
+<td style="text-align: center;">231</td>
+<td style="text-align: center;">43.6</td>
+<td style="text-align: center;">299</td>
+<td style="text-align: center;">56.4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Each CDA is categorised by how many of its three raters agreed with the median: <em>All-3-Agree</em> (unanimous), <em>2-of-3-Agree</em> (a majority match the median, one differs), and <em>All-3-Disagree</em> (all three scores distinct). Percentages are out of the total number of CDAs at each median score. Note that 148 CDAs were scored by only two raters; in every case the two present scores match the median, so they fall in the <em>2-of-3-Agree</em> group.</p>
+<hr>
+</section>
+<section id="stacked-bar-of-agreement-by-median-score" class="level2">
+<h2 class="anchored" data-anchor-id="stacked-bar-of-agreement-by-median-score">9. Stacked bar of agreement by median score</h2>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb421"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb421-1"><a href="#cb421-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 9</span></span>
+<span id="cb421-2"><a href="#cb421-2" aria-hidden="true" tabindex="-1"></a>conf_counts <span class="ot">&lt;-</span> conf_cda <span class="sc">%&gt;%</span></span>
+<span id="cb421-3"><a href="#cb421-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(<span class="st">`</span><span class="at">Median Score</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.integer</span>(Median_Score), Agreement)</span>
+<span id="cb421-4"><a href="#cb421-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb421-5"><a href="#cb421-5" aria-hidden="true" tabindex="-1"></a>agree_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb421-6"><a href="#cb421-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"All 3 agreed"</span> <span class="ot">=</span> <span class="st">"#1a9850"</span>,</span>
+<span id="cb421-7"><a href="#cb421-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2 of 3 agreed"</span> <span class="ot">=</span> <span class="st">"#fdae61"</span>,</span>
+<span id="cb421-8"><a href="#cb421-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"All 3 differed"</span> <span class="ot">=</span> <span class="st">"#d73027"</span></span>
+<span id="cb421-9"><a href="#cb421-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb421-10"><a href="#cb421-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb421-11"><a href="#cb421-11" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(conf_counts, <span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">factor</span>(<span class="st">`</span><span class="at">Median Score</span><span class="st">`</span>), <span class="at">y =</span> n, <span class="at">fill =</span> Agreement)) <span class="sc">+</span></span>
+<span id="cb421-12"><a href="#cb421-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>) <span class="sc">+</span></span>
+<span id="cb421-13"><a href="#cb421-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
+<span id="cb421-14"><a href="#cb421-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> agree_pal, <span class="at">name =</span> <span class="st">"Rater Agreement"</span>,</span>
+<span id="cb421-15"><a href="#cb421-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide =</span> <span class="fu">guide_legend</span>(<span class="at">reverse =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb421-16"><a href="#cb421-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb421-17"><a href="#cb421-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Median Severity Score"</span>, <span class="at">y =</span> <span class="st">"Frequency"</span>) <span class="sc">+</span></span>
+<span id="cb421-18"><a href="#cb421-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb421-19"><a href="#cb421-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb421-20"><a href="#cb421-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb421-21"><a href="#cb421-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
+<span id="cb421-22"><a href="#cb421-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb421-23"><a href="#cb421-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>)</span>
+<span id="cb421-24"><a href="#cb421-24" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb421-25"><a href="#cb421-25" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="pairwise_agreement_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="768"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb422"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb422-1"><a href="#cb422-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"stackedbar.png"</span>, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">height =</span> <span class="dv">6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p><strong>What this shows:</strong></p>
+<ul>
+<li>Median-0 CDAs are overwhelmingly unanimous, reflecting the dominance of negative controls and their visual clarity.</li>
+<li>Median-6 is the next most unanimous; both extremes are easier to identify consistently.</li>
+<li>Intermediate scores (1–5) are dominated by partial or full disagreement, highlighting the difficulty of distinguishing adjacent severity levels.</li>
+<li>All-three-differed is only possible for intermediate medians, since an extreme median (0 or 6) requires at least two raters to have given that extreme value.</li>
+</ul>
+<hr>
+</section>
+<section id="temporal-test-2-original-scoring-image-ordered" class="level2">
+<h2 class="anchored" data-anchor-id="temporal-test-2-original-scoring-image-ordered">10. Temporal test 2 — original scoring (image-ordered)</h2>
+<p>The original scoring was done in image order, with thousands of scores per rater — far more power, but consecutive CDAs usually share an image. Each score is compared to the <strong>leave-one-out consensus</strong> (the median, i.e.&nbsp;mean, of the <em>other two</em> raters on that CDA), giving a residual <code>score − consensus</code>. Scores are matched to the canonical panel by image and CDA position; the leave-one-out reference removes the self-inclusion that would otherwise force a score to match its own median.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb423"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb423-1"><a href="#cb423-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 10</span></span>
+<span id="cb423-2"><a href="#cb423-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).</span></span>
+<span id="cb423-3"><a href="#cb423-3" aria-hidden="true" tabindex="-1"></a>runs_p <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb423-4"><a href="#cb423-4" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> <span class="fu">sign</span>(x[x <span class="sc">!=</span> <span class="dv">0</span>])</span>
+<span id="cb423-5"><a href="#cb423-5" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">length</span>(s)</span>
+<span id="cb423-6"><a href="#cb423-6" aria-hidden="true" tabindex="-1"></a>  n1 <span class="ot">&lt;-</span> <span class="fu">sum</span>(s <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb423-7"><a href="#cb423-7" aria-hidden="true" tabindex="-1"></a>  n2 <span class="ot">&lt;-</span> <span class="fu">sum</span>(s <span class="sc">&lt;</span> <span class="dv">0</span>)</span>
+<span id="cb423-8"><a href="#cb423-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (n1 <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> n2 <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> n <span class="sc">&lt;</span> <span class="dv">3</span>) {</span>
+<span id="cb423-9"><a href="#cb423-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NA_real_</span>)</span>
+<span id="cb423-10"><a href="#cb423-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb423-11"><a href="#cb423-11" aria-hidden="true" tabindex="-1"></a>  runs <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(s[<span class="sc">-</span><span class="dv">1</span>] <span class="sc">!=</span> s[<span class="sc">-</span>n])</span>
+<span id="cb423-12"><a href="#cb423-12" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">/</span> n</span>
+<span id="cb423-13"><a href="#cb423-13" aria-hidden="true" tabindex="-1"></a>  v <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">*</span> (<span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">-</span> n) <span class="sc">/</span> (n<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> (n <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb423-14"><a href="#cb423-14" aria-hidden="true" tabindex="-1"></a>  <span class="dv">2</span> <span class="sc">*</span> <span class="fu">pnorm</span>(<span class="sc">-</span><span class="fu">abs</span>((runs <span class="sc">-</span> mu) <span class="sc">/</span> <span class="fu">sqrt</span>(v)))</span>
+<span id="cb423-15"><a href="#cb423-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb423-16"><a href="#cb423-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb423-17"><a href="#cb423-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Canonical three-rater panel (one row per CDA).</span></span>
+<span id="cb423-18"><a href="#cb423-18" aria-hidden="true" tabindex="-1"></a>canon <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb423-19"><a href="#cb423-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"04_median_and_centre_coords"</span>, <span class="st">"combined_cda_data_median.csv"</span>),</span>
+<span id="cb423-20"><a href="#cb423-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
+<span id="cb423-21"><a href="#cb423-21" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb423-22"><a href="#cb423-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) <span class="sc">%&gt;%</span></span>
+<span id="cb423-23"><a href="#cb423-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb423-24"><a href="#cb423-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">c</span>(Scorer1, Scorer2, Scorer3), as.integer),</span>
+<span id="cb423-25"><a href="#cb423-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">c</span>(Score1, Score2, Score3, Median_Score), as.numeric)</span>
+<span id="cb423-26"><a href="#cb423-26" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb423-27"><a href="#cb423-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb423-28"><a href="#cb423-28" aria-hidden="true" tabindex="-1"></a><span class="co"># data/cdascorer_anon/ holds one file per rater, named Scorer&lt;ID&gt;.csv - see</span></span>
+<span id="cb423-29"><a href="#cb423-29" aria-hidden="true" tabindex="-1"></a><span class="co"># the anonymisation script under scripts/.</span></span>
+<span id="cb423-30"><a href="#cb423-30" aria-hidden="true" tabindex="-1"></a>read_raw_set <span class="ot">&lt;-</span> <span class="cf">function</span>(set) {</span>
+<span id="cb423-31"><a href="#cb423-31" aria-hidden="true" tabindex="-1"></a>  files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"cdascorer_anon"</span>, set), <span class="at">pattern =</span> <span class="st">"[.]csv$"</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb423-32"><a href="#cb423-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(files, <span class="cf">function</span>(f) {</span>
+<span id="cb423-33"><a href="#cb423-33" aria-hidden="true" tabindex="-1"></a>    scorer_id <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">sub</span>(<span class="st">"^Scorer"</span>, <span class="st">""</span>, tools<span class="sc">::</span><span class="fu">file_path_sans_ext</span>(<span class="fu">basename</span>(f))))</span>
+<span id="cb423-34"><a href="#cb423-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_csv</span>(f, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb423-35"><a href="#cb423-35" aria-hidden="true" tabindex="-1"></a>      <span class="fu">transmute</span>(</span>
+<span id="cb423-36"><a href="#cb423-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">Set =</span> set, <span class="at">Scorer =</span> scorer_id, <span class="at">seq =</span> <span class="fu">row_number</span>(),</span>
+<span id="cb423-37"><a href="#cb423-37" aria-hidden="true" tabindex="-1"></a>        <span class="at">Basename =</span> <span class="fu">basename</span>(img), <span class="at">Row =</span> row, <span class="at">Col =</span> col, <span class="at">Pos =</span> pos, <span class="at">score =</span> <span class="fu">as.numeric</span>(score)</span>
+<span id="cb423-38"><a href="#cb423-38" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb423-39"><a href="#cb423-39" aria-hidden="true" tabindex="-1"></a>  }))</span>
+<span id="cb423-40"><a href="#cb423-40" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb423-41"><a href="#cb423-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb423-42"><a href="#cb423-42" aria-hidden="true" tabindex="-1"></a>raw_resid <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">read_raw_set</span>(<span class="st">"set1"</span>), <span class="fu">read_raw_set</span>(<span class="st">"set2"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb423-43"><a href="#cb423-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(canon <span class="sc">%&gt;%</span> <span class="fu">select</span>(Basename, Row, Col, Pos, Score1, Score2, Score3),</span>
+<span id="cb423-44"><a href="#cb423-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Basename"</span>, <span class="st">"Row"</span>, <span class="st">"Col"</span>, <span class="st">"Pos"</span>)</span>
+<span id="cb423-45"><a href="#cb423-45" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb423-46"><a href="#cb423-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Score1), <span class="sc">!</span><span class="fu">is.na</span>(Score2), <span class="sc">!</span><span class="fu">is.na</span>(Score3)) <span class="sc">%&gt;%</span></span>
+<span id="cb423-47"><a href="#cb423-47" aria-hidden="true" tabindex="-1"></a>  <span class="co"># keep only rows where the raw score is genuinely one of the three panel scores,</span></span>
+<span id="cb423-48"><a href="#cb423-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># so (sum - score)/2 is exactly the median of the other two.</span></span>
+<span id="cb423-49"><a href="#cb423-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">abs</span>(score <span class="sc">-</span> Score1) <span class="sc">&lt;</span> <span class="fl">1e-9</span> <span class="sc">|</span> <span class="fu">abs</span>(score <span class="sc">-</span> Score2) <span class="sc">&lt;</span> <span class="fl">1e-9</span> <span class="sc">|</span> <span class="fu">abs</span>(score <span class="sc">-</span> Score3) <span class="sc">&lt;</span> <span class="fl">1e-9</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb423-50"><a href="#cb423-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb423-51"><a href="#cb423-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">loo_ref =</span> (Score1 <span class="sc">+</span> Score2 <span class="sc">+</span> Score3 <span class="sc">-</span> score) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb423-52"><a href="#cb423-52" aria-hidden="true" tabindex="-1"></a>    <span class="at">resid =</span> score <span class="sc">-</span> loo_ref</span>
+<span id="cb423-53"><a href="#cb423-53" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb423-54"><a href="#cb423-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb423-55"><a href="#cb423-55" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
+<span id="cb423-56"><a href="#cb423-56" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Matched raw scores:"</span>, <span class="fu">nrow</span>(raw_resid), <span class="st">"across"</span>,</span>
+<span id="cb423-57"><a href="#cb423-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">n_distinct</span>(<span class="fu">paste</span>(raw_resid<span class="sc">$</span>Scorer, raw_resid<span class="sc">$</span>Set)), <span class="st">"rater-sessions</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb423-58"><a href="#cb423-58" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Matched raw scores: 17943 across 17 rater-sessions</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb425"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb425-1"><a href="#cb425-1" aria-hidden="true" tabindex="-1"></a>session_stats <span class="ot">&lt;-</span> raw_resid <span class="sc">%&gt;%</span></span>
+<span id="cb425-2"><a href="#cb425-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer, Set) <span class="sc">%&gt;%</span></span>
+<span id="cb425-3"><a href="#cb425-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(seq, <span class="at">.by_group =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb425-4"><a href="#cb425-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb425-5"><a href="#cb425-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(), <span class="at">lag1_acf =</span> <span class="fu">cor</span>(<span class="fu">head</span>(resid, <span class="sc">-</span><span class="dv">1</span>), <span class="fu">tail</span>(resid, <span class="sc">-</span><span class="dv">1</span>)),</span>
+<span id="cb425-6"><a href="#cb425-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">runs_p =</span> <span class="fu">runs_p</span>(resid), <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb425-7"><a href="#cb425-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb425-8"><a href="#cb425-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">as.data.frame</span>(session_stats))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   Scorer  Set    n  lag1_acf       runs_p
+1       1 set2 1239 0.2239123 2.690592e-06
+2       2 set1 1022 0.3930621 6.831192e-17
+3       2 set2 1202 0.2405599 5.123409e-08
+4       3 set1  849 0.2781367 7.094532e-12
+5       3 set2 1210 0.3405173 4.085638e-15
+6       4 set1 1134 0.2693134 3.208917e-17
+7       4 set2 1272 0.2319615 6.609796e-10
+8       5 set1  721 0.5299579 7.416831e-07
+9       6 set1  928 0.4498328 3.552481e-27
+10      6 set2 1095 0.3152765 1.797515e-20
+11      7 set2  746 0.2118905 6.913679e-06
+12      8 set1  896 0.4764902 7.859320e-29
+13      8 set2 1160 0.2362518 5.907354e-14
+14      9 set1 1072 0.3451985 4.319820e-11
+15      9 set2 1172 0.3392847 1.172501e-12
+16     10 set1 1121 0.4434017 3.954312e-25
+17     10 set2 1104 0.3467157 9.618124e-12</code></pre>
+</div>
+</div>
+<section id="within-image-vs-across-image-autocorrelation" class="level3">
+<h3 class="anchored" data-anchor-id="within-image-vs-across-image-autocorrelation">10.1 Within-image vs across-image autocorrelation</h3>
+<p>If the autocorrelation is genuine temporal momentum it should persist when consecutive scores come from <em>different</em> images; if it is image-blocking it should vanish at image boundaries.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb427"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb427-1"><a href="#cb427-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 10.1.1</span></span>
+<span id="cb427-2"><a href="#cb427-2" aria-hidden="true" tabindex="-1"></a>raw_lag <span class="ot">&lt;-</span> raw_resid <span class="sc">%&gt;%</span></span>
+<span id="cb427-3"><a href="#cb427-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer, Set) <span class="sc">%&gt;%</span></span>
+<span id="cb427-4"><a href="#cb427-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(seq, <span class="at">.by_group =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb427-5"><a href="#cb427-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lag_resid =</span> <span class="fu">lag</span>(resid), <span class="at">lag_base =</span> <span class="fu">lag</span>(Basename)) <span class="sc">%&gt;%</span></span>
+<span id="cb427-6"><a href="#cb427-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb427-7"><a href="#cb427-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(lag_resid)) <span class="sc">%&gt;%</span></span>
+<span id="cb427-8"><a href="#cb427-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">boundary =</span> <span class="fu">if_else</span>(lag_base <span class="sc">==</span> Basename, <span class="st">"Same image"</span>, <span class="st">"Different image"</span>))</span>
+<span id="cb427-9"><a href="#cb427-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb427-10"><a href="#cb427-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
+<span id="cb427-11"><a href="#cb427-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Consecutive pairs from the same image:"</span>,</span>
+<span id="cb427-12"><a href="#cb427-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">percent</span>(<span class="fu">mean</span>(raw_lag<span class="sc">$</span>boundary <span class="sc">==</span> <span class="st">"Same image"</span>), <span class="at">accuracy =</span> <span class="fl">0.1</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span></span>
+<span id="cb427-13"><a href="#cb427-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Consecutive pairs from the same image: 96.5% </code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb429"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb429-1"><a href="#cb429-1" aria-hidden="true" tabindex="-1"></a>boundary_fit <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">c</span>(<span class="st">"Same image"</span>, <span class="st">"Different image"</span>), <span class="cf">function</span>(g) {</span>
+<span id="cb429-2"><a href="#cb429-2" aria-hidden="true" tabindex="-1"></a>  sub <span class="ot">&lt;-</span> raw_lag <span class="sc">%&gt;%</span> <span class="fu">filter</span>(boundary <span class="sc">==</span> g)</span>
+<span id="cb429-3"><a href="#cb429-3" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">lm</span>(resid <span class="sc">~</span> lag_resid <span class="sc">+</span> <span class="fu">interaction</span>(Scorer, Set), <span class="at">data =</span> sub)</span>
+<span id="cb429-4"><a href="#cb429-4" aria-hidden="true" tabindex="-1"></a>  ci <span class="ot">&lt;-</span> <span class="fu">confint</span>(f, <span class="st">"lag_resid"</span>)</span>
+<span id="cb429-5"><a href="#cb429-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb429-6"><a href="#cb429-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">boundary =</span> g, <span class="at">coef =</span> <span class="fu">unname</span>(<span class="fu">coef</span>(f)[<span class="st">"lag_resid"</span>]),</span>
+<span id="cb429-7"><a href="#cb429-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">lo =</span> ci[<span class="dv">1</span>], <span class="at">hi =</span> ci[<span class="dv">2</span>],</span>
+<span id="cb429-8"><a href="#cb429-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">p =</span> <span class="fu">summary</span>(f)<span class="sc">$</span>coefficients[<span class="st">"lag_resid"</span>, <span class="dv">4</span>], <span class="at">n =</span> <span class="fu">nrow</span>(sub)</span>
+<span id="cb429-9"><a href="#cb429-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb429-10"><a href="#cb429-10" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb429-11"><a href="#cb429-11" aria-hidden="true" tabindex="-1"></a>boundary_fit<span class="sc">$</span>boundary <span class="ot">&lt;-</span> <span class="fu">factor</span>(boundary_fit<span class="sc">$</span>boundary, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Same image"</span>, <span class="st">"Different image"</span>))</span>
+<span id="cb429-12"><a href="#cb429-12" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(boundary_fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 × 6
+  boundary           coef      lo     hi     p     n
+  &lt;fct&gt;             &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt;
+1 Same image      0.364    0.350  0.378  0     17307
+2 Different image 0.00254 -0.0830 0.0881 0.954   619</code></pre>
+</div>
+</div>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb431"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb431-1"><a href="#cb431-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 10.1.2</span></span>
+<span id="cb431-2"><a href="#cb431-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(boundary_fit, <span class="fu">aes</span>(boundary, coef)) <span class="sc">+</span></span>
+<span id="cb431-3"><a href="#cb431-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb431-4"><a href="#cb431-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_pointrange</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lo, <span class="at">ymax =</span> hi), <span class="at">color =</span> <span class="st">"steelblue"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>, <span class="at">size =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb431-5"><a href="#cb431-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Lag-1 residual autocorrelation"</span>) <span class="sc">+</span></span>
+<span id="cb431-6"><a href="#cb431-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb431-7"><a href="#cb431-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">14</span>))</span>
+<span id="cb431-8"><a href="#cb431-8" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="pairwise_agreement_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid" width="576"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb432"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb432-1"><a href="#cb432-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"raw_image_boundary_autocorrelation.png"</span>, <span class="at">width =</span> <span class="dv">6</span>, <span class="at">height =</span> <span class="fl">4.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p><strong>What this shows:</strong></p>
+<ul>
+<li>Pooled across the original scoring the residual is strongly positively autocorrelated — but this is <strong>entirely a within-image effect</strong>. ~97% of consecutive scores share an image; the lag-1 autocorrelation is large and highly significant for same-image pairs yet indistinguishable from zero across image boundaries (CI spans 0).</li>
+<li>This matches the rescore drift autocorrelation test in <code>06_intra_rater_reliability</code>: when the context changes — randomised rescore order, or crossing an image boundary — there is no residual momentum. The apparent clustering is image-blocking, not sequential anchoring.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="image-level-structure-of-disagreement-confound-free" class="level2">
+<h2 class="anchored" data-anchor-id="image-level-structure-of-disagreement-confound-free">11. Image-level structure of disagreement (confound-free)</h2>
+<p>The temporal tests show disagreement is organised at the image level, but the raw-score autocorrelation conflates several things (the experimental layout, the abundance of agreed 0s, per-image bias). A cleaner test, free of temporal order and of the self-vs-median issue, looks at the <strong>difference between two raters</strong> on the same CDA: the true severity cancels, leaving only their relative disagreement. If that difference is consistent within an image but shifts between images, disagreement has an image-level component. This is the intraclass correlation (ICC) of the pairwise difference with image as the grouping factor: the fraction of disagreement variance attributable to <em>which image</em> a CDA is on.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb433"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb433-1"><a href="#cb433-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 11</span></span>
+<span id="cb433-2"><a href="#cb433-2" aria-hidden="true" tabindex="-1"></a><span class="co"># All within-CDA rater pairs, oriented lower-ID minus higher-ID, with image label.</span></span>
+<span id="cb433-3"><a href="#cb433-3" aria-hidden="true" tabindex="-1"></a>mk_pair <span class="ot">&lt;-</span> <span class="cf">function</span>(d, a, b) {</span>
+<span id="cb433-4"><a href="#cb433-4" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">%&gt;%</span></span>
+<span id="cb433-5"><a href="#cb433-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">transmute</span>(Basename, Median_Score,</span>
+<span id="cb433-6"><a href="#cb433-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">sa =</span> .data[[<span class="fu">paste0</span>(<span class="st">"Scorer"</span>, a)]], <span class="at">sb =</span> .data[[<span class="fu">paste0</span>(<span class="st">"Scorer"</span>, b)]],</span>
+<span id="cb433-7"><a href="#cb433-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">ya =</span> .data[[<span class="fu">paste0</span>(<span class="st">"Score"</span>, a)]], <span class="at">yb =</span> .data[[<span class="fu">paste0</span>(<span class="st">"Score"</span>, b)]]</span>
+<span id="cb433-8"><a href="#cb433-8" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb433-9"><a href="#cb433-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(sa), <span class="sc">!</span><span class="fu">is.na</span>(sb), <span class="sc">!</span><span class="fu">is.na</span>(ya), <span class="sc">!</span><span class="fu">is.na</span>(yb)) <span class="sc">%&gt;%</span></span>
+<span id="cb433-10"><a href="#cb433-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb433-11"><a href="#cb433-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">pair =</span> <span class="fu">paste</span>(<span class="fu">pmin</span>(sa, sb), <span class="fu">pmax</span>(sa, sb), <span class="at">sep =</span> <span class="st">"-"</span>),</span>
+<span id="cb433-12"><a href="#cb433-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">diff =</span> <span class="fu">if_else</span>(sa <span class="sc">&lt;</span> sb, ya <span class="sc">-</span> yb, yb <span class="sc">-</span> ya)</span>
+<span id="cb433-13"><a href="#cb433-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb433-14"><a href="#cb433-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb433-15"><a href="#cb433-15" aria-hidden="true" tabindex="-1"></a>pairs <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">mk_pair</span>(canon, <span class="dv">1</span>, <span class="dv">2</span>), <span class="fu">mk_pair</span>(canon, <span class="dv">1</span>, <span class="dv">3</span>), <span class="fu">mk_pair</span>(canon, <span class="dv">2</span>, <span class="dv">3</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb433-16"><a href="#cb433-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pair, Basename, Median_Score, diff)</span>
+<span id="cb433-17"><a href="#cb433-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb433-18"><a href="#cb433-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Random-effects (one-way ANOVA) ICC of the difference by image, for one rater-pair.</span></span>
+<span id="cb433-19"><a href="#cb433-19" aria-hidden="true" tabindex="-1"></a>icc_by_pair <span class="ot">&lt;-</span> <span class="cf">function</span>(df) {</span>
+<span id="cb433-20"><a href="#cb433-20" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb433-21"><a href="#cb433-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Basename) <span class="sc">%&gt;%</span></span>
+<span id="cb433-22"><a href="#cb433-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">ni =</span> <span class="fu">n</span>(), <span class="at">mi =</span> <span class="fu">mean</span>(diff), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb433-23"><a href="#cb433-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(ni <span class="sc">&gt;=</span> <span class="dv">2</span>)</span>
+<span id="cb433-24"><a href="#cb433-24" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">semi_join</span>(g, <span class="at">by =</span> <span class="st">"Basename"</span>)</span>
+<span id="cb433-25"><a href="#cb433-25" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">nrow</span>(g)</span>
+<span id="cb433-26"><a href="#cb433-26" aria-hidden="true" tabindex="-1"></a>  N <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df)</span>
+<span id="cb433-27"><a href="#cb433-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (k <span class="sc">&lt;</span> <span class="dv">3</span> <span class="sc">||</span> N <span class="sc">&lt;</span> <span class="dv">10</span>) {</span>
+<span id="cb433-28"><a href="#cb433-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">tibble</span>(<span class="at">k =</span> k, <span class="at">N =</span> N, <span class="at">icc =</span> <span class="cn">NA_real_</span>, <span class="at">btw_sd =</span> <span class="cn">NA</span>, <span class="at">wth_sd =</span> <span class="cn">NA</span>))</span>
+<span id="cb433-29"><a href="#cb433-29" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb433-30"><a href="#cb433-30" aria-hidden="true" tabindex="-1"></a>  grand <span class="ot">&lt;-</span> <span class="fu">mean</span>(df<span class="sc">$</span>diff)</span>
+<span id="cb433-31"><a href="#cb433-31" aria-hidden="true" tabindex="-1"></a>  ss_b <span class="ot">&lt;-</span> <span class="fu">sum</span>(g<span class="sc">$</span>ni <span class="sc">*</span> (g<span class="sc">$</span>mi <span class="sc">-</span> grand)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb433-32"><a href="#cb433-32" aria-hidden="true" tabindex="-1"></a>  g_mi <span class="ot">&lt;-</span> g <span class="sc">%&gt;%</span> <span class="fu">select</span>(Basename, mi)</span>
+<span id="cb433-33"><a href="#cb433-33" aria-hidden="true" tabindex="-1"></a>  ss_w <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb433-34"><a href="#cb433-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">left_join</span>(g_mi, <span class="at">by =</span> <span class="st">"Basename"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb433-35"><a href="#cb433-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">s =</span> <span class="fu">sum</span>((diff <span class="sc">-</span> mi)<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb433-36"><a href="#cb433-36" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(s)</span>
+<span id="cb433-37"><a href="#cb433-37" aria-hidden="true" tabindex="-1"></a>  ms_b <span class="ot">&lt;-</span> ss_b <span class="sc">/</span> (k <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb433-38"><a href="#cb433-38" aria-hidden="true" tabindex="-1"></a>  ms_w <span class="ot">&lt;-</span> ss_w <span class="sc">/</span> (N <span class="sc">-</span> k)</span>
+<span id="cb433-39"><a href="#cb433-39" aria-hidden="true" tabindex="-1"></a>  n0 <span class="ot">&lt;-</span> (N <span class="sc">-</span> <span class="fu">sum</span>(g<span class="sc">$</span>ni<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> N) <span class="sc">/</span> (k <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb433-40"><a href="#cb433-40" aria-hidden="true" tabindex="-1"></a>  var_b <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="dv">0</span>, (ms_b <span class="sc">-</span> ms_w) <span class="sc">/</span> n0)</span>
+<span id="cb433-41"><a href="#cb433-41" aria-hidden="true" tabindex="-1"></a>  var_w <span class="ot">&lt;-</span> ms_w</span>
+<span id="cb433-42"><a href="#cb433-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">k =</span> k, <span class="at">N =</span> N, <span class="at">icc =</span> var_b <span class="sc">/</span> (var_b <span class="sc">+</span> var_w), <span class="at">btw_sd =</span> <span class="fu">sqrt</span>(var_b), <span class="at">wth_sd =</span> <span class="fu">sqrt</span>(var_w))</span>
+<span id="cb433-43"><a href="#cb433-43" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb433-44"><a href="#cb433-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb433-45"><a href="#cb433-45" aria-hidden="true" tabindex="-1"></a>run_icc <span class="ot">&lt;-</span> <span class="cf">function</span>(dat, label) {</span>
+<span id="cb433-46"><a href="#cb433-46" aria-hidden="true" tabindex="-1"></a>  res <span class="ot">&lt;-</span> dat <span class="sc">%&gt;%</span></span>
+<span id="cb433-47"><a href="#cb433-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(pair) <span class="sc">%&gt;%</span></span>
+<span id="cb433-48"><a href="#cb433-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_modify</span>(<span class="sc">~</span> <span class="fu">icc_by_pair</span>(.x)) <span class="sc">%&gt;%</span></span>
+<span id="cb433-49"><a href="#cb433-49" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb433-50"><a href="#cb433-50" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(icc)) <span class="sc">%&gt;%</span></span>
+<span id="cb433-51"><a href="#cb433-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">subset =</span> label)</span>
+<span id="cb433-52"><a href="#cb433-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb433-53"><a href="#cb433-53" aria-hidden="true" tabindex="-1"></a>    <span class="st">"[%s] %d pairs | median ICC = %.3f | within-image SD = %.2f | between-image SD = %.2f</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb433-54"><a href="#cb433-54" aria-hidden="true" tabindex="-1"></a>    label, <span class="fu">nrow</span>(res), <span class="fu">median</span>(res<span class="sc">$</span>icc), <span class="fu">median</span>(res<span class="sc">$</span>wth_sd), <span class="fu">median</span>(res<span class="sc">$</span>btw_sd)</span>
+<span id="cb433-55"><a href="#cb433-55" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb433-56"><a href="#cb433-56" aria-hidden="true" tabindex="-1"></a>  res</span>
+<span id="cb433-57"><a href="#cb433-57" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb433-58"><a href="#cb433-58" aria-hidden="true" tabindex="-1"></a>icc_all <span class="ot">&lt;-</span> <span class="fu">run_icc</span>(pairs, <span class="st">"All CDAs (incl. 0s)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[All CDAs (incl. 0s)] 27 pairs | median ICC = 0.137 | within-image SD = 0.67 | between-image SD = 0.25</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb435"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb435-1"><a href="#cb435-1" aria-hidden="true" tabindex="-1"></a>icc_nz <span class="ot">&lt;-</span> <span class="fu">run_icc</span>(pairs <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Median_Score <span class="sc">&gt;</span> <span class="dv">0</span>), <span class="st">"Non-zero median only"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[Non-zero median only] 27 pairs | median ICC = 0.221 | within-image SD = 0.79 | between-image SD = 0.43</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb437"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb437-1"><a href="#cb437-1" aria-hidden="true" tabindex="-1"></a>icc_res <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(icc_all, icc_nz) <span class="sc">%&gt;%</span></span>
+<span id="cb437-2"><a href="#cb437-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">subset =</span> <span class="fu">factor</span>(subset, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"All CDAs (incl. 0s)"</span>, <span class="st">"Non-zero median only"</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<section id="icc-of-pairwise-disagreement-by-image" class="level3">
+<h3 class="anchored" data-anchor-id="icc-of-pairwise-disagreement-by-image">11.1 ICC of pairwise disagreement by image</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb438"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb438-1"><a href="#cb438-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 11.1</span></span>
+<span id="cb438-2"><a href="#cb438-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(icc_res, <span class="fu">aes</span>(subset, icc, <span class="at">fill =</span> subset)) <span class="sc">+</span></span>
+<span id="cb438-3"><a href="#cb438-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.5</span>, <span class="at">outlier.shape =</span> <span class="cn">NA</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb438-4"><a href="#cb438-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_jitter</span>(<span class="at">width =</span> <span class="fl">0.12</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="fl">1.6</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb438-5"><a href="#cb438-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb438-6"><a href="#cb438-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"All CDAs (incl. 0s)"</span> <span class="ot">=</span> <span class="st">"grey65"</span>,</span>
+<span id="cb438-7"><a href="#cb438-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Non-zero median only"</span> <span class="ot">=</span> <span class="st">"#3182bd"</span></span>
+<span id="cb438-8"><a href="#cb438-8" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb438-9"><a href="#cb438-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">NA</span>)) <span class="sc">+</span></span>
+<span id="cb438-10"><a href="#cb438-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"ICC of pairwise difference by image</span><span class="sc">\n</span><span class="st">(per rater-pair)"</span>) <span class="sc">+</span></span>
+<span id="cb438-11"><a href="#cb438-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb438-12"><a href="#cb438-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>))</span>
+<span id="cb438-13"><a href="#cb438-13" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="pairwise_agreement_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid" width="672"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb439"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb439-1"><a href="#cb439-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"pairwise_image_icc.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p><strong>What this shows:</strong></p>
+<ul>
+<li>Each point is one rater-pair; the ICC is the share of their disagreement variance explained by image.</li>
+<li>The median ICC is modest but clearly non-zero (≈0.14 with 0s, ≈0.22 without): two raters’ relative offset has a real per-image component, while most disagreement remains CDA-specific (within-image SD ≫ between-image SD).</li>
+<li>Crucially, <strong>removing the abundant agreed-0 CDAs raises the ICC</strong> rather than lowering it — so the image-level structure is not an artefact of zero-heavy control regions; it is strongest among genuinely contested CDAs.</li>
+</ul>
+</section>
+<section id="illustration-per-image-mean-difference-for-the-best-sampled-pairs" class="level3">
+<h3 class="anchored" data-anchor-id="illustration-per-image-mean-difference-for-the-best-sampled-pairs">11.2 Illustration: per-image mean difference for the best-sampled pairs</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb440"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb440-1"><a href="#cb440-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 11.2</span></span>
+<span id="cb440-2"><a href="#cb440-2" aria-hidden="true" tabindex="-1"></a>top_pairs <span class="ot">&lt;-</span> pairs <span class="sc">%&gt;%</span></span>
+<span id="cb440-3"><a href="#cb440-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(pair, Basename) <span class="sc">%&gt;%</span></span>
+<span id="cb440-4"><a href="#cb440-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(pair, <span class="at">name =</span> <span class="st">"n_images"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb440-5"><a href="#cb440-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_max</span>(n_images, <span class="at">n =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb440-6"><a href="#cb440-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(pair)</span>
+<span id="cb440-7"><a href="#cb440-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb440-8"><a href="#cb440-8" aria-hidden="true" tabindex="-1"></a>img_means <span class="ot">&lt;-</span> pairs <span class="sc">%&gt;%</span></span>
+<span id="cb440-9"><a href="#cb440-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(pair <span class="sc">%in%</span> top_pairs) <span class="sc">%&gt;%</span></span>
+<span id="cb440-10"><a href="#cb440-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(pair, Basename) <span class="sc">%&gt;%</span></span>
+<span id="cb440-11"><a href="#cb440-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb440-12"><a href="#cb440-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">ni =</span> <span class="fu">n</span>(), <span class="at">mean_diff =</span> <span class="fu">mean</span>(diff),</span>
+<span id="cb440-13"><a href="#cb440-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">se =</span> <span class="fu">ifelse</span>(<span class="fu">n</span>() <span class="sc">&gt;</span> <span class="dv">1</span>, <span class="fu">sd</span>(diff) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()), <span class="cn">NA</span>), <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb440-14"><a href="#cb440-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb440-15"><a href="#cb440-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(ni <span class="sc">&gt;=</span> <span class="dv">5</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb440-16"><a href="#cb440-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(pair) <span class="sc">%&gt;%</span></span>
+<span id="cb440-17"><a href="#cb440-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(mean_diff, <span class="at">.by_group =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb440-18"><a href="#cb440-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">img_rank =</span> <span class="fu">row_number</span>()) <span class="sc">%&gt;%</span></span>
+<span id="cb440-19"><a href="#cb440-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb440-20"><a href="#cb440-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb440-21"><a href="#cb440-21" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(img_means, <span class="fu">aes</span>(img_rank, mean_diff)) <span class="sc">+</span></span>
+<span id="cb440-22"><a href="#cb440-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
+<span id="cb440-23"><a href="#cb440-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_pointrange</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> mean_diff <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> se, <span class="at">ymax =</span> mean_diff <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> se),</span>
+<span id="cb440-24"><a href="#cb440-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"steelblue"</span>, <span class="at">size =</span> <span class="fl">0.3</span></span>
+<span id="cb440-25"><a href="#cb440-25" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb440-26"><a href="#cb440-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>pair, <span class="at">scales =</span> <span class="st">"free_x"</span>, <span class="at">labeller =</span> label_both) <span class="sc">+</span></span>
+<span id="cb440-27"><a href="#cb440-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb440-28"><a href="#cb440-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Image (ranked by mean difference)"</span>,</span>
+<span id="cb440-29"><a href="#cb440-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Mean score difference</span><span class="sc">\n</span><span class="st">(rater A − rater B)"</span></span>
+<span id="cb440-30"><a href="#cb440-30" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb440-31"><a href="#cb440-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb440-32"><a href="#cb440-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb440-33"><a href="#cb440-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.6</span>, <span class="st">"lines"</span>),</span>
+<span id="cb440-34"><a href="#cb440-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb440-35"><a href="#cb440-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>)</span>
+<span id="cb440-36"><a href="#cb440-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb440-37"><a href="#cb440-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="pairwise_agreement_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid" width="1152"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb441"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb441-1"><a href="#cb441-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"pairwise_per_image_mean_diff.png"</span>, <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="fl">4.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p><strong>What this shows:</strong></p>
+<ul>
+<li>For the best-sampled rater-pairs, each point is the mean difference on one image with its 95% CI.</li>
+<li>The per-image means span a range (a between-image gradient) wider than the within-image error bars, illustrating the ICC: the two raters’ relative offset shifts from image to image while being comparatively settled within each image.</li>
+</ul>
+<hr>
+</section>
+</section>
 <section id="discussion" class="level2">
-<h2 class="anchored" data-anchor-id="discussion">8. Discussion</h2>
+<h2 class="anchored" data-anchor-id="discussion">12. Discussion</h2>
 <section id="pairwise-agreement-between-raters-1" class="level3">
-<h3 class="anchored" data-anchor-id="pairwise-agreement-between-raters-1">8.1 Pairwise % agreement between raters</h3>
+<h3 class="anchored" data-anchor-id="pairwise-agreement-between-raters-1">12.1 Pairwise % agreement between raters</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="off-by-one-disagreement-rate-1" class="level3">
-<h3 class="anchored" data-anchor-id="off-by-one-disagreement-rate-1">8.2 Off-by-one disagreement rate</h3>
+<h3 class="anchored" data-anchor-id="off-by-one-disagreement-rate-1">12.2 Off-by-one disagreement rate</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="shared-cda-count-per-rater-pair-1" class="level3">
-<h3 class="anchored" data-anchor-id="shared-cda-count-per-rater-pair-1">8.3 Shared CDA count per rater pair</h3>
+<h3 class="anchored" data-anchor-id="shared-cda-count-per-rater-pair-1">12.3 Shared CDA count per rater pair</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="effect-of-removing-each-rater-on-average-pairwise-agreement-1" class="level3">
-<h3 class="anchored" data-anchor-id="effect-of-removing-each-rater-on-average-pairwise-agreement-1">8.4 Effect of removing each rater on average pairwise agreement</h3>
+<h3 class="anchored" data-anchor-id="effect-of-removing-each-rater-on-average-pairwise-agreement-1">12.4 Effect of removing each rater on average pairwise agreement</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="verification-random-sampling" class="level3">
-<h3 class="anchored" data-anchor-id="verification-random-sampling">8.5 Verification: random sampling</h3>
+<h3 class="anchored" data-anchor-id="verification-random-sampling">12.5 Verification: random sampling</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="agreement-patterns-between-rater-pairs-1" class="level3">
-<h3 class="anchored" data-anchor-id="agreement-patterns-between-rater-pairs-1">8.6 Agreement patterns between rater pairs</h3>
+<h3 class="anchored" data-anchor-id="agreement-patterns-between-rater-pairs-1">12.6 Agreement patterns between rater pairs</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="per-rater-agreement-with-median-1" class="level3">
-<h3 class="anchored" data-anchor-id="per-rater-agreement-with-median-1">8.7 Per-rater agreement with median</h3>
+<h3 class="anchored" data-anchor-id="per-rater-agreement-with-median-1">12.7 Per-rater agreement with median</h3>
 <p><em>Add notes here.</em></p>
 </section>
+<section id="agreement-breakdown-by-median-score-1" class="level3">
+<h3 class="anchored" data-anchor-id="agreement-breakdown-by-median-score-1">12.8 Agreement breakdown by median score</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="stacked-bar-of-agreement-by-median-score-1" class="level3">
+<h3 class="anchored" data-anchor-id="stacked-bar-of-agreement-by-median-score-1">12.9 Stacked bar of agreement by median score</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="temporal-test-2-original-scoring-image-ordered-1" class="level3">
+<h3 class="anchored" data-anchor-id="temporal-test-2-original-scoring-image-ordered-1">12.10 Temporal test 2 — original scoring (image-ordered)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="icc-of-pairwise-disagreement-by-image-1" class="level3">
+<h3 class="anchored" data-anchor-id="icc-of-pairwise-disagreement-by-image-1">12.11 ICC of pairwise disagreement by image</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="illustration-per-image-mean-difference-for-the-best-sampled-pairs-1" class="level3">
+<h3 class="anchored" data-anchor-id="illustration-per-image-mean-difference-for-the-best-sampled-pairs-1">12.12 Illustration: per-image mean difference for the best-sampled pairs</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="confounds-and-interpretation-image-level-structure" class="level3">
+<h3 class="anchored" data-anchor-id="confounds-and-interpretation-image-level-structure">12.13 Confounds and interpretation (image-level structure)</h3>
+<p><strong>Same image = same experiment.</strong> Original scoring is not a random sequence. CDAs on one image are spots on one leaf from one infiltration, so they share construct, leaf age, lighting and background. Two effects follow: (i) the underlying severities are correlated, and (ii) a rater’s <em>reading</em> of that leaf (exposure, contrast, what counts as “necrotic” under that lighting) is correlated. The §10 within-image autocorrelation and the §11 ICC both capture this image-level structure; neither is evidence of temporal anchoring, which the randomised rescore (see <code>06_intra_rater_reliability</code>) and the across-image boundary (§10.1) both rule out.</p>
+<p><strong>The abundance of 0s and non-random layout.</strong> Infiltration layouts group controls together, so a rater genuinely does see runs of 0s — but those are near-universally agreed, so they contribute <em>agreement</em>, not disagreement structure. This is why the analyses use <strong>residuals / pairwise differences</strong> rather than raw scores (which would be trivially autocorrelated by the design), and why the §11 ICC is computed both with and without 0s. The result is reassuring: excluding 0s <em>increases</em> the image-level ICC, so the structure lives in the contested mid-range CDAs, not in the clustered controls.</p>
+<p><strong>Is class balancing necessary?</strong> For the <em>temporal</em> tests, no — and it would be harmful: down-sampling or re-weighting score classes destroys the true adjacency of the sequence, so a “lag-1” on a balanced series no longer means consecutive-in-time. The appropriate controls there are analysing residuals (not raw scores) and the within/across-image split, both of which are done. For the <em>image-level</em> ICC, balance is handled implicitly: the difference between two raters already removes the severity (class) signal, and reporting the non-zero subset alongside the full set shows the conclusion is not driven by the dominant 0 class.</p>
+<p><strong>Overall.</strong> Over-/under-scoring does <strong>not</strong> have temporal momentum across contexts — a rater’s last score does not pull their next one once the image changes. What is real is a modest <strong>image-level</strong> structure to disagreement: two raters’ relative calibration drifts somewhat from image to image (plausibly per-leaf lighting/background and per-session adaptation) while staying more consistent within an image. Most disagreement, however, remains CDA-specific — the irreducible ambiguity of scoring an individual cell-death area.</p>
+</section>
 <section id="overall-narrative" class="level3">
-<h3 class="anchored" data-anchor-id="overall-narrative">8.8 Overall narrative</h3>
+<h3 class="anchored" data-anchor-id="overall-narrative">12.14 Overall narrative</h3>
 <p><em>Add notes here.</em></p>
 </section>
 </section>
