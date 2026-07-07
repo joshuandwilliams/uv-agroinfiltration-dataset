@@ -50,20 +50,45 @@ build_scorer_matrix <- function(score_data) {
 #'   for each one.
 #' @param suppress_warnings Suppress kripp.alpha()'s warnings (e.g. from
 #'   degenerate resamples).
+#' @param cache_path If not NULL, cache the result at this path (as .rds)
+#'   keyed on a hash of `matrix`/`method`/`n_boot`/`sample_size`/`replace`/
+#'   `seed`. A cache hit skips resampling entirely (each replicate calls
+#'   irr::kripp.alpha(), which is what makes n_boot = 1000 slow); a cache
+#'   miss (first run, or any of those inputs changing) resamples as normal
+#'   and writes the new result. The parent directory is created if needed.
 #' @return A numeric vector of length `n_boot`, the alpha value from each
 #'   replicate.
 bootstrap_kripp_alpha <- function(matrix, method, n_boot = 1000, sample_size = ncol(matrix),
-                                  replace = FALSE, seed = 42, suppress_warnings = FALSE) {
+                                  replace = FALSE, seed = 42, suppress_warnings = FALSE,
+                                  cache_path = NULL) {
+  cache_key <- NULL
+  if (!is.null(cache_path)) {
+    cache_key <- digest::digest(list(matrix, method, n_boot, sample_size, replace, seed))
+    if (file.exists(cache_path)) {
+      cached <- readRDS(cache_path)
+      if (identical(cached$key, cache_key)) {
+        return(cached$boot)
+      }
+    }
+  }
+
   if (!is.null(seed)) set.seed(seed)
   draw_once <- function() {
     idx <- sample(ncol(matrix), sample_size, replace = replace)
     irr::kripp.alpha(matrix[, idx], method = method)$value
   }
-  if (suppress_warnings) {
+  boot <- if (suppress_warnings) {
     replicate(n_boot, suppressWarnings(draw_once()))
   } else {
     replicate(n_boot, draw_once())
   }
+
+  if (!is.null(cache_path)) {
+    dir.create(dirname(cache_path), showWarnings = FALSE, recursive = TRUE)
+    saveRDS(list(key = cache_key, boot = boot), cache_path)
+  }
+
+  boot
 }
 
 #' Compute pairwise scorer-vs-scorer agreement from a long score table.

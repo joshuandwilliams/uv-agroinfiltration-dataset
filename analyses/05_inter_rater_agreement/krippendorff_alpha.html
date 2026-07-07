@@ -265,9 +265,13 @@ Attaching package: 'dplyr'</code></pre>
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.1.2</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>alpha_raw_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"ordinal"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>)</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>alpha_raw_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"ordinal"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_ordinal.rds"</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Bootstrap mean α: 0.9349 </code></pre>
@@ -359,9 +363,13 @@ Attaching package: 'dplyr'</code></pre>
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.2.2</span></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>)</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_interval_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_interval.rds"</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_interval_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Bootstrap mean α: 0.9334 </code></pre>
@@ -472,9 +480,13 @@ Attaching package: 'dplyr'</code></pre>
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.1.1</span></span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>alpha_resid_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(residual_matrix, <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>)</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α (residuals):"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_resid_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>alpha_resid_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  residual_matrix,</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_resid_interval.rds"</span>)</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α (residuals):"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_resid_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Bootstrap mean α (residuals): -0.1287 </code></pre>
