@@ -93,7 +93,11 @@ Bootstrap distribution (1,000 iterations, n = 500 CDAs per draw):
 
 ```{r}
 # 2.1.2
-alpha_raw_boot <- bootstrap_kripp_alpha(scorer_matrix, method = "ordinal", sample_size = 500)
+alpha_raw_boot <- bootstrap_kripp_alpha(
+  scorer_matrix,
+  method = "ordinal", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal.rds")
+)
 
 cat("Bootstrap mean α:", round(mean(alpha_raw_boot), 4), "\n")
 cat(
@@ -168,7 +172,11 @@ Bootstrap distribution (1,000 iterations, n = 500 CDAs per draw):
 
 ```{r}
 # 2.2.2
-alpha_raw_interval_boot <- bootstrap_kripp_alpha(scorer_matrix, method = "interval", sample_size = 500)
+alpha_raw_interval_boot <- bootstrap_kripp_alpha(
+  scorer_matrix,
+  method = "interval", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval.rds")
+)
 
 cat("Bootstrap mean α:", round(mean(alpha_raw_interval_boot), 4), "\n")
 cat(
@@ -261,7 +269,11 @@ cat("Krippendorff's alpha (interval, residuals):", round(alpha_resid$value, 4), 
 
 ```{r}
 # 3.1.1
-alpha_resid_boot <- bootstrap_kripp_alpha(residual_matrix, method = "interval", sample_size = 500)
+alpha_resid_boot <- bootstrap_kripp_alpha(
+  residual_matrix,
+  method = "interval", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_resid_interval.rds")
+)
 
 cat("Bootstrap mean α (residuals):", round(mean(alpha_resid_boot), 4), "\n")
 cat(

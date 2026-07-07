@@ -46,6 +46,52 @@ test_that("bootstrap_kripp_alpha with seed = NULL does not reset the RNG", {
   expect_false(isTRUE(all.equal(before, after)))
 })
 
+test_that("bootstrap_kripp_alpha caches results and reuses them on a hit", {
+  cache_path <- withr::local_tempfile(fileext = ".rds")
+  set.seed(1)
+  mat <- matrix(sample(0:6, 4 * 20, replace = TRUE), nrow = 4)
+
+  expect_false(file.exists(cache_path))
+  first <- bootstrap_kripp_alpha(
+    mat,
+    method = "ordinal", n_boot = 5, sample_size = 10, cache_path = cache_path
+  )
+  expect_true(file.exists(cache_path))
+
+  # Tamper with the cache file's stored value so a cache *hit* is unmistakably
+  # distinguishable from a silent recompute.
+  cached <- readRDS(cache_path)
+  cached$boot <- rep(999, 5)
+  saveRDS(cached, cache_path)
+
+  second <- bootstrap_kripp_alpha(
+    mat,
+    method = "ordinal", n_boot = 5, sample_size = 10, cache_path = cache_path
+  )
+  expect_equal(second, rep(999, 5))
+  expect_false(isTRUE(all.equal(second, first)))
+})
+
+test_that("bootstrap_kripp_alpha recomputes when the cached inputs no longer match", {
+  cache_path <- withr::local_tempfile(fileext = ".rds")
+  set.seed(1)
+  mat <- matrix(sample(0:6, 4 * 20, replace = TRUE), nrow = 4)
+
+  bootstrap_kripp_alpha(mat, method = "ordinal", n_boot = 5, sample_size = 10, cache_path = cache_path)
+
+  # Same cache file, but a different matrix - should be treated as a cache miss.
+  set.seed(2)
+  other_mat <- matrix(sample(0:6, 4 * 20, replace = TRUE), nrow = 4)
+  result <- bootstrap_kripp_alpha(
+    other_mat,
+    method = "ordinal", n_boot = 5, sample_size = 10, cache_path = cache_path
+  )
+
+  cached <- readRDS(cache_path)
+  expect_equal(cached$key, digest::digest(list(other_mat, "ordinal", 5, 10, FALSE, 42)))
+  expect_equal(result, cached$boot)
+})
+
 test_that("bootstrap_kripp_alpha supports sampling with replacement", {
   set.seed(1)
   mat <- matrix(sample(0:6, 3 * 15, replace = TRUE), nrow = 3)
