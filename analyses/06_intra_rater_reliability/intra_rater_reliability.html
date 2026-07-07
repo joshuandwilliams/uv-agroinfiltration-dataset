@@ -1233,44 +1233,155 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <hr>
 </section>
 </section>
+<section id="rescore-drift-autocorrelation-sequential-order" class="level2">
+<h2 class="anchored" data-anchor-id="rescore-drift-autocorrelation-sequential-order">8. Rescore drift autocorrelation (sequential order)</h2>
+<p>The rescore originals were presented in a randomised order, so consecutive trials are unrelated images. Any autocorrelation in the drift <code>new − old</code> is therefore a <strong>pure sequential effect</strong>. The cost is power: only ~100 trials per rater.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 8.1</span></span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).</span></span>
+<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a>runs_p <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb75-4"><a href="#cb75-4" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> <span class="fu">sign</span>(x[x <span class="sc">!=</span> <span class="dv">0</span>])</span>
+<span id="cb75-5"><a href="#cb75-5" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">length</span>(s)</span>
+<span id="cb75-6"><a href="#cb75-6" aria-hidden="true" tabindex="-1"></a>  n1 <span class="ot">&lt;-</span> <span class="fu">sum</span>(s <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb75-7"><a href="#cb75-7" aria-hidden="true" tabindex="-1"></a>  n2 <span class="ot">&lt;-</span> <span class="fu">sum</span>(s <span class="sc">&lt;</span> <span class="dv">0</span>)</span>
+<span id="cb75-8"><a href="#cb75-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (n1 <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> n2 <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> n <span class="sc">&lt;</span> <span class="dv">3</span>) {</span>
+<span id="cb75-9"><a href="#cb75-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NA_real_</span>)</span>
+<span id="cb75-10"><a href="#cb75-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb75-11"><a href="#cb75-11" aria-hidden="true" tabindex="-1"></a>  runs <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(s[<span class="sc">-</span><span class="dv">1</span>] <span class="sc">!=</span> s[<span class="sc">-</span>n])</span>
+<span id="cb75-12"><a href="#cb75-12" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">/</span> n</span>
+<span id="cb75-13"><a href="#cb75-13" aria-hidden="true" tabindex="-1"></a>  v <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">*</span> (<span class="dv">2</span> <span class="sc">*</span> n1 <span class="sc">*</span> n2 <span class="sc">-</span> n) <span class="sc">/</span> (n<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> (n <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb75-14"><a href="#cb75-14" aria-hidden="true" tabindex="-1"></a>  <span class="dv">2</span> <span class="sc">*</span> <span class="fu">pnorm</span>(<span class="sc">-</span><span class="fu">abs</span>((runs <span class="sc">-</span> mu) <span class="sc">/</span> <span class="fu">sqrt</span>(v)))</span>
+<span id="cb75-15"><a href="#cb75-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb75-16"><a href="#cb75-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb75-17"><a href="#cb75-17" aria-hidden="true" tabindex="-1"></a><span class="co"># rescore_anon/ holds one file per rater, already anonymised (filename and</span></span>
+<span id="cb75-18"><a href="#cb75-18" aria-hidden="true" tabindex="-1"></a><span class="co"># `scorer` column both give the same ID).</span></span>
+<span id="cb75-19"><a href="#cb75-19" aria-hidden="true" tabindex="-1"></a>rescore_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
+<span id="cb75-20"><a href="#cb75-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"06_intra_rater_reliability"</span>, <span class="st">"rescore_anon"</span>),</span>
+<span id="cb75-21"><a href="#cb75-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">"[.]csv$"</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span></span>
+<span id="cb75-22"><a href="#cb75-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb75-23"><a href="#cb75-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Rows are kept in file order = presentation order.</span></span>
+<span id="cb75-24"><a href="#cb75-24" aria-hidden="true" tabindex="-1"></a>rescore <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(rescore_files, <span class="cf">function</span>(f) {</span>
+<span id="cb75-25"><a href="#cb75-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">read_csv</span>(f, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb75-26"><a href="#cb75-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb75-27"><a href="#cb75-27" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer =</span> <span class="fu">factor</span>(scorer), <span class="at">seq =</span> <span class="fu">row_number</span>(),</span>
+<span id="cb75-28"><a href="#cb75-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">old_score =</span> <span class="fu">as.integer</span>(old_score), <span class="at">new_score =</span> <span class="fu">as.integer</span>(new_score),</span>
+<span id="cb75-29"><a href="#cb75-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">drift =</span> new_score <span class="sc">-</span> old_score</span>
+<span id="cb75-30"><a href="#cb75-30" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb75-31"><a href="#cb75-31" aria-hidden="true" tabindex="-1"></a>})) <span class="sc">%&gt;%</span></span>
+<span id="cb75-32"><a href="#cb75-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(drift)) <span class="sc">%&gt;%</span></span>
+<span id="cb75-33"><a href="#cb75-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer) <span class="sc">%&gt;%</span></span>
+<span id="cb75-34"><a href="#cb75-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cum =</span> <span class="fu">cumsum</span>(drift <span class="sc">-</span> <span class="fu">mean</span>(drift))) <span class="sc">%&gt;%</span></span>
+<span id="cb75-35"><a href="#cb75-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb75-36"><a href="#cb75-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb75-37"><a href="#cb75-37" aria-hidden="true" tabindex="-1"></a>rescore_stats <span class="ot">&lt;-</span> rescore <span class="sc">%&gt;%</span></span>
+<span id="cb75-38"><a href="#cb75-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer) <span class="sc">%&gt;%</span></span>
+<span id="cb75-39"><a href="#cb75-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb75-40"><a href="#cb75-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb75-41"><a href="#cb75-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">lag1_acf =</span> <span class="fu">cor</span>(<span class="fu">head</span>(drift, <span class="sc">-</span><span class="dv">1</span>), <span class="fu">tail</span>(drift, <span class="sc">-</span><span class="dv">1</span>)),</span>
+<span id="cb75-42"><a href="#cb75-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">runs_p =</span> <span class="fu">runs_p</span>(drift),</span>
+<span id="cb75-43"><a href="#cb75-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_drift =</span> <span class="fu">mean</span>(drift), <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb75-44"><a href="#cb75-44" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb75-45"><a href="#cb75-45" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(rescore_stats)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 5
+  Scorer     n lag1_acf runs_p mean_drift
+  &lt;fct&gt;  &lt;int&gt;    &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt;
+1 1        100  0.0627   0.912    -0.14  
+2 2         99  0.0755   0.425    -0.0202
+3 4         99  0.280    0.112    -0.0303
+4 6         99 -0.00271  0.432     0.222 
+5 9        100  0.0417   0.589     1     </code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>rescore_lag <span class="ot">&lt;-</span> rescore <span class="sc">%&gt;%</span></span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Scorer) <span class="sc">%&gt;%</span></span>
+<span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lag_drift =</span> <span class="fu">lag</span>(drift)) <span class="sc">%&gt;%</span></span>
+<span id="cb77-4"><a href="#cb77-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb77-5"><a href="#cb77-5" aria-hidden="true" tabindex="-1"></a>m_rescore <span class="ot">&lt;-</span> <span class="fu">lm</span>(drift <span class="sc">~</span> lag_drift <span class="sc">+</span> Scorer, <span class="at">data =</span> rescore_lag)</span>
+<span id="cb77-6"><a href="#cb77-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb77-7"><a href="#cb77-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"</span><span class="sc">\n</span><span class="st">Pooled lag-1 drift autocorrelation: coef = %.3f, p = %.3f</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb77-8"><a href="#cb77-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coef</span>(m_rescore)[<span class="st">"lag_drift"</span>], <span class="fu">summary</span>(m_rescore)<span class="sc">$</span>coefficients[<span class="st">"lag_drift"</span>, <span class="dv">4</span>]</span>
+<span id="cb77-9"><a href="#cb77-9" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Pooled lag-1 drift autocorrelation: coef = 0.084, p = 0.065</code></pre>
+</div>
+</div>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb79"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 8.2</span></span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(rescore, <span class="fu">aes</span>(seq, cum)) <span class="sc">+</span></span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb79-5"><a href="#cb79-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Scorer, <span class="at">nrow =</span> <span class="dv">1</span>, <span class="at">labeller =</span> <span class="fu">as_labeller</span>(<span class="cf">function</span>(x) <span class="fu">paste</span>(<span class="st">"Rater:"</span>, x))) <span class="sc">+</span></span>
+<span id="cb79-6"><a href="#cb79-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rescoring order"</span>, <span class="at">y =</span> <span class="st">"Cumulative</span><span class="sc">\n</span><span class="st">mean-centred drift"</span>) <span class="sc">+</span></span>
+<span id="cb79-7"><a href="#cb79-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb79-8"><a href="#cb79-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb79-9"><a href="#cb79-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.5</span>, <span class="st">"lines"</span>),</span>
+<span id="cb79-10"><a href="#cb79-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb79-11"><a href="#cb79-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>)</span>
+<span id="cb79-12"><a href="#cb79-12" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb79-13"><a href="#cb79-13" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="intra_rater_reliability_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid" width="1344"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb80"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"rescore_drift_sequence.png"</span>, <span class="at">width =</span> <span class="dv">14</span>, <span class="at">height =</span> <span class="fl">3.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p><strong>What this shows:</strong></p>
+<ul>
+<li>The cumulative drift wanders in long excursions — but a cumulative sum of <em>independent</em> noise is a random walk that wanders identically, so the eye is unreliable here; the formal tests are what count.</li>
+<li>Every rater’s runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.</li>
+</ul>
+<hr>
+</section>
 <section id="discussion" class="level2">
-<h2 class="anchored" data-anchor-id="discussion">8. Discussion</h2>
+<h2 class="anchored" data-anchor-id="discussion">9. Discussion</h2>
 <section id="summary-statistics-1" class="level3">
-<h3 class="anchored" data-anchor-id="summary-statistics-1">8.1 Summary statistics</h3>
+<h3 class="anchored" data-anchor-id="summary-statistics-1">9.1 Summary statistics</h3>
 <p>All raters rescored 100 CDAs. Some raters skipped CDAs in the original scoring, which is why three raters only have 99 collected scores in the original scores.</p>
 <p>On these non-zero-median CDAs, raters’ exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Rater 9 stnd out as significantly lower than the other four Raters, achieving an exact self-agreement rate of just 30%.</p>
 <p>Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.</p>
 </section>
 <section id="score-class-distribution-of-rescored-cdas-1" class="level3">
-<h3 class="anchored" data-anchor-id="score-class-distribution-of-rescored-cdas-1">8.2 Score class distribution of rescored CDAs</h3>
+<h3 class="anchored" data-anchor-id="score-class-distribution-of-rescored-cdas-1">9.2 Score class distribution of rescored CDAs</h3>
 <ul>
 <li>The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.</li>
 </ul>
 </section>
 <section id="exact-and-within-1-intra-rater-agreement-per-rater-1" class="level3">
-<h3 class="anchored" data-anchor-id="exact-and-within-1-intra-rater-agreement-per-rater-1">8.3 Exact and within-±1 intra-rater agreement per rater</h3>
+<h3 class="anchored" data-anchor-id="exact-and-within-1-intra-rater-agreement-per-rater-1">9.3 Exact and within-±1 intra-rater agreement per rater</h3>
 <ul>
 <li>I’m not going to investigate this further. Some reasons that different raters may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.</li>
 </ul>
 </section>
 <section id="intra-rater-self-agreement-by-original-score-1" class="level3">
-<h3 class="anchored" data-anchor-id="intra-rater-self-agreement-by-original-score-1">8.4 Intra-rater self-agreement by original score</h3>
+<h3 class="anchored" data-anchor-id="intra-rater-self-agreement-by-original-score-1">9.4 Intra-rater self-agreement by original score</h3>
 <ul>
 <li>Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.</li>
 </ul>
 </section>
 <section id="confusion-matrix-of-original-vs-rescore-per-rater-1" class="level3">
-<h3 class="anchored" data-anchor-id="confusion-matrix-of-original-vs-rescore-per-rater-1">8.5 Confusion matrix of original vs rescore per rater</h3>
+<h3 class="anchored" data-anchor-id="confusion-matrix-of-original-vs-rescore-per-rater-1">9.5 Confusion matrix of original vs rescore per rater</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="distribution-of-new_score-old_score-per-rater-1" class="level3">
-<h3 class="anchored" data-anchor-id="distribution-of-new_score-old_score-per-rater-1">8.6 Distribution of new_score − old_score per rater</h3>
+<h3 class="anchored" data-anchor-id="distribution-of-new_score-old_score-per-rater-1">9.6 Distribution of new_score − old_score per rater</h3>
 <ul>
 <li>Rater 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.</li>
 </ul>
 </section>
 <section id="proportion-of-cdas-where-the-median-label-would-change-per-rater-1" class="level3">
-<h3 class="anchored" data-anchor-id="proportion-of-cdas-where-the-median-label-would-change-per-rater-1">8.7 Proportion of CDAs where the median label would change per rater</h3>
+<h3 class="anchored" data-anchor-id="proportion-of-cdas-where-the-median-label-would-change-per-rater-1">9.7 Proportion of CDAs where the median label would change per rater</h3>
 <ul>
 <li>Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.</li>
 <li>The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.</li>
@@ -1278,7 +1389,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </ul>
 </section>
 <section id="absolute-difference-distribution-within--vs-between-rater" class="level3">
-<h3 class="anchored" data-anchor-id="absolute-difference-distribution-within--vs-between-rater">8.8 Absolute difference distribution (within- vs between-rater)</h3>
+<h3 class="anchored" data-anchor-id="absolute-difference-distribution-within--vs-between-rater">9.8 Absolute difference distribution (within- vs between-rater)</h3>
 <ul>
 <li>The majority of disagreement between raters can be explained by task ambiguity that occurs even within the same rater. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.</li>
 <li>The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.</li>
@@ -1286,25 +1397,29 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 </ul>
 </section>
 <section id="disagreement-by-score-class-within--vs-between-rater" class="level3">
-<h3 class="anchored" data-anchor-id="disagreement-by-score-class-within--vs-between-rater">8.9 Disagreement by score class (within- vs between-rater)</h3>
+<h3 class="anchored" data-anchor-id="disagreement-by-score-class-within--vs-between-rater">9.9 Disagreement by score class (within- vs between-rater)</h3>
 <ul>
 <li>This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.</li>
 </ul>
 </section>
 <section id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α-1" class="level3">
-<h3 class="anchored" data-anchor-id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α-1">8.10 Reliability coefficient: intra- vs inter-rater Krippendorff’s α</h3>
+<h3 class="anchored" data-anchor-id="reliability-coefficient-intra--vs-inter-rater-krippendorffs-α-1">9.10 Reliability coefficient: intra- vs inter-rater Krippendorff’s α</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores-1" class="level3">
-<h3 class="anchored" data-anchor-id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores-1">8.11 Bootstrap distribution of pooled intra-rater α (raw scores)</h3>
+<h3 class="anchored" data-anchor-id="bootstrap-distribution-of-pooled-intra-rater-α-raw-scores-1">9.11 Bootstrap distribution of pooled intra-rater α (raw scores)</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="intra--vs-inter-rater-α-distributions-1" class="level3">
-<h3 class="anchored" data-anchor-id="intra--vs-inter-rater-α-distributions-1">8.12 Intra- vs inter-rater α distributions</h3>
+<h3 class="anchored" data-anchor-id="intra--vs-inter-rater-α-distributions-1">9.12 Intra- vs inter-rater α distributions</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="rescore-drift-autocorrelation-sequential-order-1" class="level3">
+<h3 class="anchored" data-anchor-id="rescore-drift-autocorrelation-sequential-order-1">9.13 Rescore drift autocorrelation (sequential order)</h3>
 <p><em>Add notes here.</em></p>
 </section>
 <section id="overall-narrative" class="level3">
-<h3 class="anchored" data-anchor-id="overall-narrative">8.13 Overall narrative</h3>
+<h3 class="anchored" data-anchor-id="overall-narrative">9.14 Overall narrative</h3>
 <p>The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — raters agree with themselves about as well as the panel agrees with each other, so an individual’s day-to-day inconsistency is roughly the same magnitude as the disagreement between different raters.</p>
 </section>
 </section>
