@@ -30,6 +30,7 @@ Pairwise % agreement (see `pairwise_agreement.qmd`) captures agreement on exact 
 ### 1.1 Load required packages
 
 ```{r}
+#| output: false
 # 1.1
 library(readr)
 library(ggplot2)

@@ -33,7 +33,7 @@ import dataset_preparation
 data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
 
 # Rater columns contain anonymised IDs. Reverse-map to real names so that
-# save_cropped_images() can locate raw image files on the shared drive.
+# save_cropped_images() can locate source image files on the shared drive.
 key = pd.read_csv(repo_root / "anonymisation_keys" / "anonymisation_key.csv")
 id_to_name = dict(zip(key['ID'], key['Scorer_Name']))
 for col in ['Scorer1', 'Scorer2', 'Scorer3']:

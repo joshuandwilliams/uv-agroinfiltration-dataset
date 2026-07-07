@@ -304,13 +304,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>undersampled_variance_explained <span class="op">=</span> plot_eigenvalues(undersampled_pca, <span class="st">"undersampled"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Sum of first 10 eigenvalues: 0.704236750927564</code></pre>
+<pre><code>Sum of first 10 eigenvalues: 0.7042367511063036</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <p><img src="07_visual_complexity_files/figure-html/cell-5-output-2.png" class="img-fluid"></p>
 </div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Sum of first 10 eigenvalues: 0.6845020759685175</code></pre>
+<pre><code>Sum of first 10 eigenvalues: 0.6845020758785189</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <p><img src="07_visual_complexity_files/figure-html/cell-5-output-4.png" class="img-fluid"></p>
@@ -361,7 +361,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </section>
 <section id="plot-pcs-1-and-2-coloured-by-project" class="level3">
 <h3 class="anchored" data-anchor-id="plot-pcs-1-and-2-coloured-by-project">3.2 Plot PCs 1 and 2 coloured by project</h3>
-<p>Each cropped CDA image comes from a raw image belonging to one project. The cropped filenames are formatted <code>&lt;Basename&gt;_&lt;Row&gt;_&lt;Col&gt;_&lt;Pos&gt;.tif</code>, so stripping the trailing <code>_Row_Col_Pos</code> recovers the raw-image basename, which we map to a project via <code>image_info.csv</code> (the <code>Path</code> column is recorded once per folder, so it is filled downwards; the top-level folder is the project).</p>
+<p>Each cropped CDA image comes from a source image belonging to one project. The cropped filenames are formatted <code>&lt;Basename&gt;_&lt;Row&gt;_&lt;Col&gt;_&lt;Pos&gt;.tif</code>, so stripping the trailing <code>_Row_Col_Pos</code> recovers the source-image basename, which we map to a project via <code>image_info.csv</code> (the <code>Path</code> column is recorded once per folder, so it is filled downwards; the top-level folder is the project).</p>
 <div class="cell" data-execution_count="6">
 <details>
 <summary>Code</summary>
@@ -715,11 +715,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Best k value: 4
-Best silhouette score: 0.012206702281498089
+Best silhouette score: 0.012206772613609326
 Adjusted Rand Index (ARI) for best k: 0.5773278218582212
 Overall accuracy: 0.622
 Per-class accuracy: {np.int64(0): np.float64(0.982), np.int64(1): np.float64(0.089), np.int64(2): np.float64(0.225), np.int64(3): np.float64(0.413), np.int64(4): np.float64(0.481), np.int64(5): np.float64(0.363), np.int64(6): np.float64(0.392)}
-Mean distance to neighbours for each score [np.float64(3.489534931395098), np.float64(4.095022719070009), np.float64(4.534285471019981), np.float64(5.0659565952899195), np.float64(5.490088689197188), np.float64(6.165313415054682), np.float64(6.981138456948045)]</code></pre>
+Mean distance to neighbours for each score [np.float64(3.4895334204597708), np.float64(4.0950199805892336), np.float64(4.53428494260418), np.float64(5.065952661777657), np.float64(5.490088929907363), np.float64(6.1653160552699955), np.float64(6.981140413095019)]</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <p><img src="07_visual_complexity_files/figure-html/cell-12-output-2.png" class="img-fluid"></p>
@@ -729,11 +729,11 @@ Mean distance to neighbours for each score [np.float64(3.489534931395098), np.fl
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Best k value: 10
-Best silhouette score: -0.011244848197755912
-Adjusted Rand Index (ARI) for best k: 0.23964522883543912
+Best silhouette score: -0.011279657961475306
+Adjusted Rand Index (ARI) for best k: 0.23956230438596646
 Overall accuracy: 0.457
 Per-class accuracy: {np.int64(0): np.float64(0.821), np.int64(1): np.float64(0.394), np.int64(2): np.float64(0.365), np.int64(3): np.float64(0.358), np.int64(4): np.float64(0.388), np.int64(5): np.float64(0.381), np.int64(6): np.float64(0.493)}
-Mean distance to neighbours for each score [np.float64(4.1475677464727925), np.float64(4.505453369688308), np.float64(4.833650300626062), np.float64(5.436715774640313), np.float64(5.869324165534722), np.float64(6.684010356368269), np.float64(7.506121015723251)]</code></pre>
+Mean distance to neighbours for each score [np.float64(4.147566465723689), np.float64(4.5054530505514165), np.float64(4.833649972718723), np.float64(5.436711740901969), np.float64(5.869324467586454), np.float64(6.68401231710847), np.float64(7.506119926209412)]</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <p><img src="07_visual_complexity_files/figure-html/cell-12-output-5.png" class="img-fluid"></p>

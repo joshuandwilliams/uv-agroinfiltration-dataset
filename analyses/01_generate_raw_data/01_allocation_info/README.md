@@ -8,7 +8,7 @@ to verify the allocation in downstream analyses. There are two dataset parts
 
 ### `image_info.csv` — manually created
 Manually recorded before annotation began for each dataset part. Contains one row
-per raw agroinfiltration image with the following columns:
+per source agroinfiltration image with the following columns:
 
 | Column          | Description                                                  |
 |-----------------|--------------------------------------------------------------|

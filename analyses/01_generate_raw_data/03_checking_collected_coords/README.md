@@ -11,7 +11,7 @@ is handled programmatically by `clean_scores()` in the next step
 
 Each CDA annotation was reviewed one by one using the viewer scripts in this
 folder. For every CDA, the bounding boxes drawn by each scorer were inspected
-against the raw agroinfiltration image to verify they were correctly placed.
+against the source agroinfiltration image to verify they were correctly placed.
 
 At least 100–200 corrections were made across both dataset parts:
 
@@ -35,14 +35,14 @@ from the previous step. These are the inputs to `04_median_and_centre_coords`.
 
 ### `view_each_cda.qmd`
 Tkinter viewer that steps through each CDA one at a time, displaying all bounding
-boxes and scores for that CDA overlaid on the raw image. Left/right arrow keys
+boxes and scores for that CDA overlaid on the source image. Left/right arrow keys
 to navigate. Requires connection to the lab network drive.
 
 ### `view_each_raw_img.qmd`
-Tkinter viewer that displays all CDA annotations for an entire raw agroinfiltration
+Tkinter viewer that displays all CDA annotations for an entire source agroinfiltration
 image at once. Press space to save the current canvas as a JPG (used to generate
 `dsc_0103_example_annotations.jpg`). Requires connection to the lab network drive.
 
 ### `dsc_0103_example_annotations.jpg`
-Example output showing all annotations overlaid on a raw agroinfiltration image,
+Example output showing all annotations overlaid on a source agroinfiltration image,
 illustrating the checking process.

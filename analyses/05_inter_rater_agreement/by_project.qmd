@@ -1,5 +1,5 @@
 ---
-title: "Project differences between raw images"
+title: "Project differences between source images"
 format:
   html:
     code-fold: true
@@ -13,25 +13,25 @@ Date: 08/06/2026
 
 Do pairwise scoring frequencies match our expectations given the image distribution strategy?
 
-Are there differences in CDA counts per raw agro image between different projects, and do those projects differ in how consistently they were scored?
+Are there differences in CDA counts per source agro image between different projects, and do those projects differ in how consistently they were scored?
 
 **Hypothesis:**
 
 In part 1 of the CDA dataset, raters will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.
 
-There will be differences in CDA counts per raw agro image, and in scoring agreement, between different projects.
+There will be differences in CDA counts per source agro image, and in scoring agreement, between different projects.
 
 **Rationale:**
 
-Part 1 of the CDA dataset contains some dual-infiltration CDAs, which were ignored during scoring but not during raw agro image distribution. Part 2 does not.
+Part 1 of the CDA dataset contains some dual-infiltration CDAs, which were ignored during scoring but not during source agro image distribution. Part 2 does not.
 
-Different projects used different biological systems, different numbers of leaves per raw image, and different numbers of infiltrations per leaf.
+Different projects used different biological systems, different numbers of leaves per source image, and different numbers of infiltrations per leaf.
 
 The image distribution strategy itself is documented separately in `01_generate_raw_data/01_allocation_info/image_distribution_strategy.qmd`.
 
 ## 1. Dual-infiltration images
 
-Some images contained both yellow/green and orange CDAs ("dual-infiltration" images, see example below). The orange CDAs were ignored during scoring, but not during the raw agro image allocation estimates. The dual-infiltration images are all from Project C and Project H (per `project_anonymisation_key.csv`'s `Dual_Infiltration` column).
+Some images contained both yellow/green and orange CDAs ("dual-infiltration" images, see example below). The orange CDAs were ignored during scoring, but not during the source agro image allocation estimates. The dual-infiltration images are all from Project C and Project H (per `project_anonymisation_key.csv`'s `Dual_Infiltration` column).
 
 ![Dual-infiltration example: each leaf received two infiltrations, producing both green and orange cell death areas. The orange areas were ignored during scoring.](assets/dual_infiltration_example.png){width="400"}
 
@@ -40,6 +40,7 @@ Some images contained both yellow/green and orange CDAs ("dual-infiltration" ima
 ### 2.1 Load required packages
 
 ```{r}
+#| output: false
 # 2.1.1
 library(readr)
 library(ggplot2)
@@ -435,7 +436,7 @@ The average agreement per project ties directly into the agreement vs proportion
 
 ## 7. Expected vs actual CDA counts
 
-### 7.1 Estimated vs actual CDAs per raw image
+### 7.1 Estimated vs actual CDAs per source image
 
 ```{r fig.width=11, fig.height=10}
 #| fig-width: 11
@@ -707,7 +708,7 @@ _Add notes here._
 
 _Add notes here._
 
-### 10.8 Estimated vs actual CDAs per raw image
+### 10.8 Estimated vs actual CDAs per source image
 
 _Add notes here._
 

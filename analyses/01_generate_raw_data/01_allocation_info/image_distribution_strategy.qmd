@@ -12,13 +12,13 @@ Date: 08/06/2026
 
 **Goal:**
 
-Document how raw agroinfiltration images were allocated to raters, so that the
+Document how source agroinfiltration images were allocated to raters, so that the
 expected number of scores collected by each rater (and each rater pair) can be
 reasoned about in the downstream analyses.
 
 ## Strategy
 
-- The estimated total number of cell death areas (CDAs) per raw agro image was taken as `leaf_count * pos_per_leaf`.
+- The estimated total number of cell death areas (CDAs) per source agro image was taken as `leaf_count * pos_per_leaf`.
 - Image order was randomised.
 - Images were divided equally (by CDA count) between raters using a staggered approach, so that some raters never scored the same image:
 
@@ -38,7 +38,7 @@ The allocation itself is produced by `allocations.py` and recorded in
 `randomised_info.csv` (per-image scorer assignments) and `image_info.csv`
 (per-image CDA counts).
 
-## 1. Total raw images
+## 1. Total source images
 
 ```{python}
 # 1
@@ -51,7 +51,7 @@ n_raw_images = image_info[["Path", "Image"]].drop_duplicates().shape[0]
 n_raw_images
 ```
 
-## 2. Raw images per set
+## 2. Source images per set
 
 ```{python}
 # 2

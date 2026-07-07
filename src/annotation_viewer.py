@@ -1,5 +1,5 @@
 """
-Tools for viewing and saving CDA annotations overlaid on raw agroinfiltration images.
+Tools for viewing and saving CDA annotations overlaid on source agroinfiltration images.
 
 Two entry points:
   view_annotations()         — interactive Tkinter viewer, mode='cda' or mode='raw'
@@ -73,7 +73,7 @@ def save_annotation_image(
     skip_existing: bool = False,
 ) -> None:
     """
-    Save a single annotated JPEG for a raw agroinfiltration image.
+    Save a single annotated JPEG for a source agroinfiltration image.
 
     Opens Scorer1's copy of the image, draws all bounding boxes and score labels
     for every CDA in rows, and saves to output_path.
@@ -81,7 +81,7 @@ def save_annotation_image(
     Parameters
     ----------
     basename : str
-        Raw image filename (e.g. 'DSC_0103.TIF').
+        Source image filename (e.g. 'DSC_0103.TIF').
     rows : pd.DataFrame
         All annotation rows belonging to this basename.
     raw_folder_path : Union[str, Path]
@@ -143,7 +143,7 @@ def save_all_annotation_images(
     skip_existing: bool = False,
 ) -> None:
     """
-    Save annotation JPEGs for every unique raw image in data.
+    Save annotation JPEGs for every unique source image in data.
 
     Parameters
     ----------
@@ -175,7 +175,7 @@ def view_annotations(
     starting_row: int = 0,
 ) -> None:
     """
-    Interactively view CDA annotations overlaid on raw agroinfiltration images.
+    Interactively view CDA annotations overlaid on source agroinfiltration images.
 
     Parameters
     ----------
