@@ -11,19 +11,15 @@ Date: 15/5/2024 – 10/6/2024
 
 **Goal:**
 
-Investigate changes to average pairwise agreement when each scorer is removed. Investigate differences in agreement across raw agroinfiltration images.
+Investigate changes to average pairwise agreement when each rater is removed. Investigate differences in agreement across raw agroinfiltration images.
 
 **Hypothesis:**
 
-Excluding scores from scorers with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity.
+Excluding scores from raters with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity.
 
 **Rationale:**
 
-Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which scorers most reduce overall agreement informs future data collection decisions.
-
-**Experimental plan:**
-
-Compute pairwise % agreement between all scorer pairs, visualise as a heatmap (with and without median-0 CDAs), count shared CDAs per pair, compute leave-one-out average agreement for each scorer, verify with random sampling, and compute the agreement pattern plots.
+Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which raters most reduce overall agreement informs future data collection decisions.
 
 ---
 
@@ -99,7 +95,7 @@ score_data_long_no_0 <- long_score_table(score_data_no_0)
 
 ---
 
-## 2. Pairwise % Agreement Between Scorers
+## 2. Pairwise % Agreement Between Raters
 
 ```{r}
 # 2
@@ -133,7 +129,7 @@ plot_agree <- function(df, title) {
     scale_x_discrete(limits = as.character(1:10)) +
     scale_y_discrete(limits = as.character(1:10)) +
     coord_cartesian(xlim = c(1, 10), ylim = c(1, 10)) +
-    labs(x = "Scorer X", y = "Scorer Y", title = title) +
+    labs(x = "Rater X", y = "Rater Y", title = title) +
     theme_ira() +
     theme(plot.title = element_text(size = 15, face = "bold"))
 }
@@ -145,13 +141,10 @@ p_agree
 save_plot(p_agree, "pairwise_agreement.png", width = 22, height = 10)
 ```
 
-**Discussion:**
-_Add notes here._
-
 ### 2.1 Off-by-one disagreement rate
 
-How often do two scorers differ by *exactly* one severity point? Pooled across all
-unordered scorer pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1)
+How often do two raters differ by *exactly* one severity point? Pooled across all
+unordered rater pairs per CDA, the off-by-one rate is the near-miss rate (|diff| ≤ 1)
 minus the exact rate (diff = 0).
 
 ```{r}
@@ -189,17 +182,14 @@ cat(sprintf(
 
 **What this shows:**
 
-- Across all CDAs, two scorers differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which scorers almost always agree exactly.
-- Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two scorers.
-
-**Discussion:**
-_Add notes here._
+- Across all CDAs, two raters differ by exactly one severity point ~29% of the time. This is dominated by median-0 CDAs, on which raters almost always agree exactly.
+- Restricting to non-zero-median CDAs, the off-by-one rate rises to ~45%: on the CDAs that actually carry disease signal, an off-by-one disagreement is the single most common outcome between any two raters.
 
 ---
 
-## 3. Shared CDA Count per Scorer Pair
+## 3. Shared CDA Count per Rater Pair
 
-How many CDAs did each pair of scorers both score?
+How many CDAs did each pair of raters both score?
 
 ```{r fig.width=11, fig.height=10}
 #| fig-width: 11
@@ -216,18 +206,15 @@ p <- ggplot(
   geom_tile(color = "black", linewidth = 1) +
   geom_text(aes(label = ifelse(is.na(Total), "", Total)), color = "black", size = 5, vjust = 0.5) +
   scale_fill_gradient(low = "white", high = "firebrick", name = "Shared CDAs", na.value = "white") +
-  labs(x = "Scorer X", y = "Scorer Y") +
+  labs(x = "Rater X", y = "Rater Y") +
   theme_ira()
 p
 save_plot(p, "shared_cda_count.png", width = 11, height = 10)
 ```
 
-**Discussion:**
-_Add notes here._
-
 ---
 
-## 4. Effect of Removing Each Scorer on Average Pairwise Agreement
+## 4. Effect of Removing Each Rater on Average Pairwise Agreement
 
 ```{r}
 # 4
@@ -256,7 +243,7 @@ results <- lapply(unique_scorers, function(scorer) {
     nrow()
   avg_T <- average_pairwise_agreement(pairwise_score_data(subset_T))
   data.frame(
-    Scorer_Removed = scorer, Score_Count = n_cdas_sub,
+    Rater_Removed = scorer, Score_Count = n_cdas_sub,
     Avg_Pairwise_Agreement = avg_T
   )
 })
@@ -271,17 +258,14 @@ result_df <- bind_rows(results) %>%
 
 result_df %>%
   select(
-    Scorer_Removed, Score_Count, Avg_Pairwise_Agreement,
+    Rater_Removed, Score_Count, Avg_Pairwise_Agreement,
     Images_Lost, Agreement_Change_Per_Img_Lost, Change_Per_Img_x1000
   )
 ```
 
-Why does pairwise agreement increase for most scorer removals?
+Why does pairwise agreement increase for most rater removals?
 
-When a scorer is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each scorer removal also removes a further 36% of the CDAs that scorer uniquely shared, biasing the remaining pool toward agreement.
-
-**Discussion:**
-_Add notes here._
+When a rater is removed, CDAs that now have only 2 remaining scores are also removed — but only if those 2 scores disagree. Since disagreement occurs ~36% of the time, each rater removal also removes a further 36% of the CDAs that rater uniquely shared, biasing the remaining pool toward agreement.
 
 ---
 
@@ -313,12 +297,9 @@ cat("Original (weighted):", round(average_agreement, 2), "%\n")
 cat("Random sample of 1,000 pairs:", round(agreement_1000 * 100, 2), "%\n")
 ```
 
-**Discussion:**
-_Add notes here._
-
 ---
 
-## 6. Agreement Patterns Between Scorer Pairs
+## 6. Agreement Patterns Between Rater Pairs
 
 ```{r fig.width=22, fig.height=10}
 #| fig-width: 22
@@ -381,7 +362,7 @@ make_patterns_plot <- function(sdl) {
     ) +
     facet_grid(Scorer.y ~ Scorer.x, switch = "both") +
     theme_bw() +
-    labs(x = "Scorer X", y = "Scorer Y") +
+    labs(x = "Rater X", y = "Rater Y") +
     theme(
       panel.spacing = unit(0.25, "lines"),
       strip.placement = "outside",
@@ -401,18 +382,15 @@ save_plot(p_patterns, "agreement_patterns.png", width = 11, height = 10)
 
 **What this shows:**
 
-- Scorer 5 systematically scores higher than others across all facets.
-- The Scorer 8 vs Scorer 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.
-- Removing 0s makes individual scorer biases more visible.
-
-**Discussion:**
-_Add notes here._
+- Rater 5 systematically scores higher than others across all facets.
+- The Rater 8 vs Rater 10 facet shows a lighter 0–0 cell, consistent with their lower pairwise agreement.
+- Removing 0s makes individual rater biases more visible.
 
 ---
 
-## 7. Per-Scorer Agreement with Median
+## 7. Per-Rater Agreement with Median
 
-Stacked bar chart showing each scorer's exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from `AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd` (human-only, no model results).
+Stacked bar chart showing each rater's exact agreement and within-±1 agreement with the CDA median score, computed across all CDAs scored by that individual. Adapted from `AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd` (human-only, no model results).
 
 ```{r fig.width=8, fig.height=6}
 #| fig-width: 8
@@ -463,7 +441,7 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
     breaks = c("Exact agreement", "Additional within ±1")
   ) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
-  labs(x = "Scorer", y = "Agreement with Median Score") +
+  labs(x = "Rater", y = "Agreement with Median Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -477,9 +455,42 @@ save_plot(p, "scorer_accuracy.png", width = 8, height = 6)
 
 **What this shows:**
 
-- Scorer 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.
-- The majority of scorers achieve >70% exact agreement and >95% within-±1 agreement.
+- Rater 5 stands out with substantially lower exact agreement and within-±1 agreement with the median, consistent with the systematic upward bias seen in other analyses.
+- The majority of raters achieve >70% exact agreement and >95% within-±1 agreement.
 - The "Avg" bar summarises the overall human performance baseline comparable to model evaluation metrics.
 
-**Discussion:**
+---
+
+## 8. Discussion
+
+### 8.1 Pairwise % agreement between raters
+
+_Add notes here._
+
+### 8.2 Off-by-one disagreement rate
+
+_Add notes here._
+
+### 8.3 Shared CDA count per rater pair
+
+_Add notes here._
+
+### 8.4 Effect of removing each rater on average pairwise agreement
+
+_Add notes here._
+
+### 8.5 Verification: random sampling
+
+_Add notes here._
+
+### 8.6 Agreement patterns between rater pairs
+
+_Add notes here._
+
+### 8.7 Per-rater agreement with median
+
+_Add notes here._
+
+### 8.8 Overall narrative
+
 _Add notes here._

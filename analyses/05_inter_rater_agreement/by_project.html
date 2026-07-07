@@ -130,7 +130,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>Do pairwise scoring frequencies match our expectations given the image distribution strategy?</p>
 <p>Are there differences in CDA counts per raw agro image between different projects, and do those projects differ in how consistently they were scored?</p>
 <p><strong>Hypothesis:</strong></p>
-<p>In part 1 of the CDA dataset, scorers will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.</p>
+<p>In part 1 of the CDA dataset, raters will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.</p>
 <p>There will be differences in CDA counts per raw agro image, and in scoring agreement, between different projects.</p>
 <p><strong>Rationale:</strong></p>
 <p>Part 1 of the CDA dataset contains some dual-infiltration CDAs, which were ignored during scoring but not during raw agro image distribution. Part 2 does not.</p>
@@ -209,7 +209,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>count_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"image_info.csv"</span>)</span>
 <span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Scorer columns (scorer1/2/3) are already anonymised IDs in this file - see</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># scripts/generate_anonymised_raw_data.py.</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># the anonymisation script under scripts/.</span></span>
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>alloc_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"randomised_info_anon.csv"</span>)</span>
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>score_data_1 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(score1_path, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
@@ -269,7 +269,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>allocation_data_combined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(allocation_data_1, allocation_data_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>Convert to long form (one row per scorer assignment). <code>ScorerName</code> is already an anonymised ID (see 2.2.1).</p>
+<p>Convert to long form (one row per rater assignment). <code>ScorerName</code> is already an anonymised ID (see 2.2.1).</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -351,7 +351,6 @@ Attaching package: 'dplyr'</code></pre>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"peragrobyproject.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="per-image-agreement-size-and-zeros-by-project" class="level2">
 <h2 class="anchored" data-anchor-id="per-image-agreement-size-and-zeros-by-project">4. Per-image agreement, size, and zeros by project</h2>
@@ -390,7 +389,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(image_stats, <span class="fu">aes</span>(<span class="at">x =</span> Avg_Percent_Agreement, <span class="at">fill =</span> Folder)) <span class="sc">+</span></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="dv">5</span>, <span class="at">boundary =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>) <span class="sc">+</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Average % Agreement with Median"</span>, <span class="at">y =</span> <span class="st">"Number of Images"</span>) <span class="sc">+</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Average % Agreement with Median Severity Score"</span>, <span class="at">y =</span> <span class="st">"Number of Images"</span>) <span class="sc">+</span></span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -411,10 +410,6 @@ Attaching package: 'dplyr'</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>Most images had 75-95% agreement with the median, but some were as low as 40%.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>Different images from different projects would involve different biological systems, different lighting conditions, and different score distributions, increasing or decreasing the simplicity of their scoring. They were also scored by different combinations of scorers, some of whom would share more similar scoring biases than others.</li>
 </ul>
 </section>
 <section id="cda-count-per-image" class="level3">
@@ -449,11 +444,6 @@ Attaching package: 'dplyr'</code></pre>
 <li>Image sizes vary widely, from a less than 10 CDAs to over 120.</li>
 <li>Most images had betwen 21-30 cell death areas.</li>
 </ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>The smallest images had just two leaves, each with 4 cell death areas (8 total). The largest had 16 leaves, each with 8 cell death areas (128 total).</li>
-<li>The majority of images had 5 leaves, each with 6 cell death areas (30 total), which explains the peak. Another subset had the same layout, but with each leaf having two of four orange cell death areas which were ignored (20 or 10 total), providing the second peak.</li>
-</ul>
 </section>
 <section id="agreement-vs-proportion-of-0s" class="level3">
 <h3 class="anchored" data-anchor-id="agreement-vs-proportion-of-0s">4.3 Agreement vs proportion of 0s</h3>
@@ -464,7 +454,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(image_stats, <span class="fu">aes</span>(<span class="at">x =</span> Percent_0, <span class="at">y =</span> Avg_Percent_Agreement, <span class="at">color =</span> Folder)) <span class="sc">+</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.7</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>) <span class="sc">+</span></span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"% of scores that were 0"</span>, <span class="at">y =</span> <span class="st">"Average % Agreement with Median"</span>) <span class="sc">+</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"% of scores that were 0"</span>, <span class="at">y =</span> <span class="st">"Average % Agreement with Median Severity Score"</span>) <span class="sc">+</span></span>
 <span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -485,10 +475,6 @@ Attaching package: 'dplyr'</code></pre>
 <p><strong>What this shows:</strong></p>
 <ul>
 <li>Images dominated by 0s tend to have higher agreement with the median, and these cluster by project.</li>
-</ul>
-<p><strong>Discussion:</strong></p>
-<ul>
-<li>0s are the least ambiguous score, and some projects (biological systems) produce far more 0s than others.</li>
 </ul>
 </section>
 <section id="average-agreement-with-median-per-project-with-95-ci" class="level3">
@@ -523,7 +509,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.35</span>, <span class="at">size =</span> <span class="fl">1.4</span>, <span class="at">color =</span> <span class="st">"steelblue4"</span></span>
 <span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> CI_Lower, <span class="at">ymax =</span> CI_Upper), <span class="at">width =</span> <span class="fl">0.2</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
-<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Average % Agreement with Median"</span>) <span class="sc">+</span></span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Average % Agreement with Median Severity Score"</span>) <span class="sc">+</span></span>
 <span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylim</span>(<span class="dv">0</span>, <span class="dv">100</span>) <span class="sc">+</span></span>
 <span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
@@ -546,11 +532,10 @@ Attaching package: 'dplyr'</code></pre>
 <li>Projects B and G have the highest and most tightly estimated agreement with the median; Project H is a clear outlier on the low end.</li>
 <li>CIs are widest for the smallest projects (A, F — only 4 images each), so those means should be read cautiously.</li>
 </ul>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 </section>
-<section id="images-per-scorer-faceted-by-project" class="level2">
-<h2 class="anchored" data-anchor-id="images-per-scorer-faceted-by-project">5. Images per scorer faceted by project</h2>
+<section id="images-per-rater-faceted-by-project" class="level2">
+<h2 class="anchored" data-anchor-id="images-per-rater-faceted-by-project">5. Images per rater faceted by project</h2>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -567,7 +552,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">5</span>) <span class="sc">+</span></span>
 <span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Folder, <span class="at">scales =</span> <span class="st">"free_y"</span>, <span class="at">nrow =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
 <span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="fu">min</span>(count_data<span class="sc">$</span>row_count), <span class="fu">max</span>(count_data<span class="sc">$</span>row_count))) <span class="sc">+</span></span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Scorer"</span>, <span class="at">y =</span> <span class="st">"Agroinfiltration Image Count"</span>, <span class="at">color =</span> <span class="st">"Scorer ID"</span>) <span class="sc">+</span></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Agroinfiltration Image Count"</span>, <span class="at">color =</span> <span class="st">"Rater ID"</span>) <span class="sc">+</span></span>
 <span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">text         =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
@@ -587,7 +572,6 @@ Attaching package: 'dplyr'</code></pre>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"projectalloc.png"</span>, <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="average-pairwise-agreement-per-project" class="level2">
 <h2 class="anchored" data-anchor-id="average-pairwise-agreement-per-project">6. Average pairwise agreement per project</h2>
@@ -708,7 +692,6 @@ Attaching package: 'dplyr'</code></pre>
 </details>
 </div>
 <p>The average agreement per project ties directly into the agreement vs proportion-of-0s plot in §4.3.</p>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="expected-vs-actual-cda-counts" class="level2">
 <h2 class="anchored" data-anchor-id="expected-vs-actual-cda-counts">7. Expected vs actual CDA counts</h2>
@@ -750,10 +733,9 @@ Attaching package: 'dplyr'</code></pre>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"expectedvsactual.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
-<section id="expected-count-per-scorer-pair-assumes-no-dual-infiltration" class="level3">
-<h3 class="anchored" data-anchor-id="expected-count-per-scorer-pair-assumes-no-dual-infiltration">7.2 Expected count per scorer pair (assumes no dual-infiltration)</h3>
+<section id="expected-count-per-rater-pair-assumes-no-dual-infiltration" class="level3">
+<h3 class="anchored" data-anchor-id="expected-count-per-rater-pair-assumes-no-dual-infiltration">7.2 Expected count per rater pair (assumes no dual-infiltration)</h3>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -788,7 +770,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Expected (no dual-infiltration)"</span> <span class="ot">=</span> <span class="st">"dashed"</span>)) <span class="sc">+</span></span>
 <span id="cb31-30"><a href="#cb31-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">limits =</span> set_levels) <span class="sc">+</span></span>
 <span id="cb31-31"><a href="#cb31-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">NA</span>)) <span class="sc">+</span></span>
-<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dataset"</span>, <span class="at">y =</span> <span class="st">"CDA Count per Scorer Pair"</span>) <span class="sc">+</span></span>
+<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dataset"</span>, <span class="at">y =</span> <span class="st">"CDA Count per Rater Pair"</span>) <span class="sc">+</span></span>
 <span id="cb31-33"><a href="#cb31-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb31-34"><a href="#cb31-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb31-35"><a href="#cb31-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -807,12 +789,11 @@ Attaching package: 'dplyr'</code></pre>
 </details>
 </div>
 <p>The frequencies are below what we would expect.</p>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 </section>
 <section id="sensitivity-analysis-removing-projects" class="level2">
 <h2 class="anchored" data-anchor-id="sensitivity-analysis-removing-projects">8. Sensitivity analysis: removing projects</h2>
-<p>Each project is removed in turn (along with any two-scorer CDAs that then disagree), and the overall pairwise agreement is recomputed.</p>
+<p>Each project is removed in turn (along with any two-rater CDAs that then disagree), and the overall pairwise agreement is recomputed.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -1007,11 +988,10 @@ Attaching package: 'dplyr'</code></pre>
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"sensitivity_agreement_change.png"</span>, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
 </section>
 <section id="score-class-distribution-by-project-heatmap" class="level2">
 <h2 class="anchored" data-anchor-id="score-class-distribution-by-project-heatmap">9. Score class distribution by project (heatmap)</h2>
-<p>Proportion of CDA severity classes (median score) within each project, mirroring the scorer heatmap in <code>02_score_distributions.qmd</code> §3.2.</p>
+<p>Proportion of CDA severity classes (median score) within each project, mirroring the rater heatmap in <code>02_score_distributions.qmd</code> §3.2.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -1037,10 +1017,10 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(class_pct, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> <span class="fu">factor</span>(Median_Score), <span class="at">fill =</span> Proportion)) <span class="sc">+</span></span>
 <span id="cb37-21"><a href="#cb37-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"black"</span>) <span class="sc">+</span></span>
 <span id="cb37-22"><a href="#cb37-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.1f%%"</span>, Proportion <span class="sc">*</span> <span class="dv">100</span>)), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">size =</span> <span class="fl">4.5</span>) <span class="sc">+</span></span>
-<span id="cb37-23"><a href="#cb37-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">name =</span> <span class="st">"Proportion"</span>, <span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>) <span class="sc">+</span></span>
+<span id="cb37-23"><a href="#cb37-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">name =</span> <span class="st">"Proportion</span><span class="sc">\n</span><span class="st">(within Project)"</span>, <span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>) <span class="sc">+</span></span>
 <span id="cb37-24"><a href="#cb37-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> folder_labels) <span class="sc">+</span></span>
 <span id="cb37-25"><a href="#cb37-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_equal</span>() <span class="sc">+</span></span>
-<span id="cb37-26"><a href="#cb37-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Score Class"</span>) <span class="sc">+</span></span>
+<span id="cb37-26"><a href="#cb37-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Median Severity Score"</span>) <span class="sc">+</span></span>
 <span id="cb37-27"><a href="#cb37-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb37-28"><a href="#cb37-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb37-29"><a href="#cb37-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
@@ -1059,7 +1039,64 @@ Attaching package: 'dplyr'</code></pre>
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"score_class_by_project_heatmap.png"</span>, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">7</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><strong>Discussion:</strong> <em>Add notes here.</em></p>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">10. Discussion</h2>
+<section id="cda-count-per-image-by-project-1" class="level3">
+<h3 class="anchored" data-anchor-id="cda-count-per-image-by-project-1">10.1 CDA count per image by project</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="agreement-with-median-per-image-1" class="level3">
+<h3 class="anchored" data-anchor-id="agreement-with-median-per-image-1">10.2 Agreement with median per image</h3>
+<ul>
+<li>Different images from different projects would involve different biological systems, different lighting conditions, and different score distributions, increasing or decreasing the simplicity of their scoring. They were also scored by different combinations of raters, some of whom would share more similar scoring biases than others.</li>
+</ul>
+</section>
+<section id="cda-count-per-image-1" class="level3">
+<h3 class="anchored" data-anchor-id="cda-count-per-image-1">10.3 CDA count per image</h3>
+<ul>
+<li>The smallest images had just two leaves, each with 4 cell death areas (8 total). The largest had 16 leaves, each with 8 cell death areas (128 total).</li>
+<li>The majority of images had 5 leaves, each with 6 cell death areas (30 total), which explains the peak. Another subset had the same layout, but with each leaf having two of four orange cell death areas which were ignored (20 or 10 total), providing the second peak.</li>
+</ul>
+</section>
+<section id="agreement-vs-proportion-of-0s-1" class="level3">
+<h3 class="anchored" data-anchor-id="agreement-vs-proportion-of-0s-1">10.4 Agreement vs proportion of 0s</h3>
+<ul>
+<li>0s are the least ambiguous score, and some projects (biological systems) produce far more 0s than others.</li>
+</ul>
+</section>
+<section id="average-agreement-with-median-per-project-with-95-ci-1" class="level3">
+<h3 class="anchored" data-anchor-id="average-agreement-with-median-per-project-with-95-ci-1">10.5 Average agreement with median per project (with 95% CI)</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="images-per-rater-faceted-by-project-1" class="level3">
+<h3 class="anchored" data-anchor-id="images-per-rater-faceted-by-project-1">10.6 Images per rater faceted by project</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="average-pairwise-agreement-per-project-1" class="level3">
+<h3 class="anchored" data-anchor-id="average-pairwise-agreement-per-project-1">10.7 Average pairwise agreement per project</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="estimated-vs-actual-cdas-per-raw-image-1" class="level3">
+<h3 class="anchored" data-anchor-id="estimated-vs-actual-cdas-per-raw-image-1">10.8 Estimated vs actual CDAs per raw image</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="expected-count-per-rater-pair" class="level3">
+<h3 class="anchored" data-anchor-id="expected-count-per-rater-pair">10.9 Expected count per rater pair</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="sensitivity-analysis-removing-projects-1" class="level3">
+<h3 class="anchored" data-anchor-id="sensitivity-analysis-removing-projects-1">10.10 Sensitivity analysis: removing projects</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="score-class-distribution-by-project" class="level3">
+<h3 class="anchored" data-anchor-id="score-class-distribution-by-project">10.11 Score class distribution by project</h3>
+<p><em>Add notes here.</em></p>
+</section>
+<section id="overall-narrative" class="level3">
+<h3 class="anchored" data-anchor-id="overall-narrative">10.12 Overall narrative</h3>
+<p><em>Add notes here.</em></p>
+</section>
 </section>
 
 </main>

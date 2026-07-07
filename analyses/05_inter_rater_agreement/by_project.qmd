@@ -17,7 +17,7 @@ Are there differences in CDA counts per raw agro image between different project
 
 **Hypothesis:**
 
-In part 1 of the CDA dataset, scorers will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.
+In part 1 of the CDA dataset, raters will have collected fewer scores than expected. In part 2 of the dataset, they will match the expected number of scores collected.
 
 There will be differences in CDA counts per raw agro image, and in scoring agreement, between different projects.
 
@@ -129,7 +129,7 @@ allocation_data_2 <- new_columns(allocation_data_2, count_data_2)
 allocation_data_combined <- rbind(allocation_data_1, allocation_data_2)
 ```
 
-Convert to long form (one row per scorer assignment). `ScorerName` is already
+Convert to long form (one row per rater assignment). `ScorerName` is already
 an anonymised ID (see 2.2.1).
 
 ```{r}
@@ -198,9 +198,6 @@ p
 save_plot(p, "peragrobyproject.png", width = 11, height = 10)
 ```
 
-**Discussion:**
-_Add notes here._
-
 ## 4. Per-image agreement, size, and zeros by project
 
 Per-image statistics (agreement with the median, CDA count, and proportion of 0s) computed from the canonical median dataset and coloured by project.
@@ -237,7 +234,7 @@ image_stats <- median_long %>%
 p <- ggplot(image_stats, aes(x = Avg_Percent_Agreement, fill = Folder)) +
   geom_histogram(binwidth = 5, boundary = 0, colour = "white") +
   scale_fill_brewer(palette = "Set1") +
-  labs(x = "Average % Agreement with Median", y = "Number of Images") +
+  labs(x = "Average % Agreement with Median Severity Score", y = "Number of Images") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -252,10 +249,6 @@ save_plot(p, "agreement_by_image_by_project.png", width = 10, height = 6, dir = 
 **What this shows:**
 
 - Most images had 75-95% agreement with the median, but some were as low as 40%.
-
-**Discussion:**
-
-- Different images from different projects would involve different biological systems, different lighting conditions, and different score distributions, increasing or decreasing the simplicity of their scoring. They were also scored by different combinations of scorers, some of whom would share more similar scoring biases than others.
 
 ### 4.2 CDA count per image
 
@@ -283,11 +276,6 @@ save_plot(p, "cda_count_per_image_by_project.png", width = 10, height = 6, dir =
 - Image sizes vary widely, from a less than 10 CDAs to over 120.
 - Most images had betwen 21-30 cell death areas.
 
-**Discussion:**
-
-- The smallest images had just two leaves, each with 4 cell death areas (8 total). The largest had 16 leaves, each with 8 cell death areas (128 total).
-- The majority of images had 5 leaves, each with 6 cell death areas (30 total), which explains the peak. Another subset had the same layout, but with each leaf having two of four orange cell death areas which were ignored (20 or 10 total), providing the second peak.
-
 ### 4.3 Agreement vs proportion of 0s
 
 ```{r fig.width=10, fig.height=6}
@@ -297,7 +285,7 @@ save_plot(p, "cda_count_per_image_by_project.png", width = 10, height = 6, dir =
 p <- ggplot(image_stats, aes(x = Percent_0, y = Avg_Percent_Agreement, color = Folder)) +
   geom_point(alpha = 0.7, size = 2) +
   scale_color_brewer(palette = "Set1") +
-  labs(x = "% of scores that were 0", y = "Average % Agreement with Median") +
+  labs(x = "% of scores that were 0", y = "Average % Agreement with Median Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -312,10 +300,6 @@ save_plot(p, "agreement_vs_zeros_by_project.png", width = 10, height = 6)
 **What this shows:**
 
 - Images dominated by 0s tend to have higher agreement with the median, and these cluster by project.
-
-**Discussion:**
-
-- 0s are the least ambiguous score, and some projects (biological systems) produce far more 0s than others.
 
 ### 4.4 Average agreement with median per project (with 95% CI)
 
@@ -350,7 +334,7 @@ p <- ggplot(project_agreement, aes(x = Folder, y = Mean)) +
     alpha = 0.35, size = 1.4, color = "steelblue4"
   ) +
   geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), width = 0.2, linewidth = 0.7) +
-  labs(x = "Project", y = "Average % Agreement with Median") +
+  labs(x = "Project", y = "Average % Agreement with Median Severity Score") +
   ylim(0, 100) +
   theme_minimal() +
   theme(
@@ -367,10 +351,7 @@ save_plot(p, "avg_agreement_with_median_by_project.png", width = 10, height = 6,
 - Projects B and G have the highest and most tightly estimated agreement with the median; Project H is a clear outlier on the low end.
 - CIs are widest for the smallest projects (A, F — only 4 images each), so those means should be read cautiously.
 
-**Discussion:**
-_Add notes here._
-
-## 5. Images per scorer faceted by project
+## 5. Images per rater faceted by project
 
 ```{r fig.width=11, fig.height=10}
 #| fig-width: 11
@@ -388,7 +369,7 @@ p <- ggplot(count_data, aes(x = ScorerName, y = row_count, color = ScorerName)) 
   geom_point(size = 5) +
   facet_wrap(~Folder, scales = "free_y", nrow = 2) +
   scale_y_continuous(limits = c(min(count_data$row_count), max(count_data$row_count))) +
-  labs(x = "Scorer", y = "Agroinfiltration Image Count", color = "Scorer ID") +
+  labs(x = "Rater", y = "Agroinfiltration Image Count", color = "Rater ID") +
   theme_minimal() +
   theme(
     text         = element_text(size = 20),
@@ -401,9 +382,6 @@ p <- ggplot(count_data, aes(x = ScorerName, y = row_count, color = ScorerName)) 
 p
 save_plot(p, "projectalloc.png", width = 12, height = 6, dir = "thesis_plots")
 ```
-
-**Discussion:**
-_Add notes here._
 
 ## 6. Average pairwise agreement per project
 
@@ -455,9 +433,6 @@ save_plot(p, "avg_pairwise_agreement_by_project.png", width = 11, height = 10)
 
 The average agreement per project ties directly into the agreement vs proportion-of-0s plot in §4.3.
 
-**Discussion:**
-_Add notes here._
-
 ## 7. Expected vs actual CDA counts
 
 ### 7.1 Estimated vs actual CDAs per raw image
@@ -492,10 +467,7 @@ p
 save_plot(p, "expectedvsactual.png", width = 11, height = 10)
 ```
 
-**Discussion:**
-_Add notes here._
-
-### 7.2 Expected count per scorer pair (assumes no dual-infiltration)
+### 7.2 Expected count per rater pair (assumes no dual-infiltration)
 
 ```{r fig.width=7, fig.height=6}
 #| fig-width: 7
@@ -531,7 +503,7 @@ p <- ggplot(pairwise_combined, aes(x = Set, y = Total)) +
   scale_linetype_manual(name = NULL, values = c("Expected (no dual-infiltration)" = "dashed")) +
   scale_x_discrete(limits = set_levels) +
   scale_y_continuous(limits = c(0, NA)) +
-  labs(x = "Dataset", y = "CDA Count per Scorer Pair") +
+  labs(x = "Dataset", y = "CDA Count per Rater Pair") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -545,12 +517,9 @@ save_plot(p, "pairscorefreq.png", width = 7, height = 6)
 
 The frequencies are below what we would expect.
 
-**Discussion:**
-_Add notes here._
-
 ## 8. Sensitivity analysis: removing projects
 
-Each project is removed in turn (along with any two-scorer CDAs that then disagree), and the overall pairwise agreement is recomputed.
+Each project is removed in turn (along with any two-rater CDAs that then disagree), and the overall pairwise agreement is recomputed.
 
 ```{r}
 # 8.1
@@ -662,12 +631,9 @@ p
 save_plot(p, "sensitivity_agreement_change.png", width = 10, height = 6, dir = "thesis_plots")
 ```
 
-**Discussion:**
-_Add notes here._
-
 ## 9. Score class distribution by project (heatmap)
 
-Proportion of CDA severity classes (median score) within each project, mirroring the scorer heatmap in `02_score_distributions.qmd` §3.2.
+Proportion of CDA severity classes (median score) within each project, mirroring the rater heatmap in `02_score_distributions.qmd` §3.2.
 
 ```{r fig.width=10, fig.height=7}
 #| fig-width: 10
@@ -694,10 +660,10 @@ folder_labels <- setNames(
 p <- ggplot(class_pct, aes(x = Folder, y = factor(Median_Score), fill = Proportion)) +
   geom_tile(color = "black") +
   geom_text(aes(label = sprintf("%.1f%%", Proportion * 100)), color = "black", size = 4.5) +
-  scale_fill_gradient(name = "Proportion", low = "white", high = "firebrick") +
+  scale_fill_gradient(name = "Proportion\n(within Project)", low = "white", high = "firebrick") +
   scale_x_discrete(labels = folder_labels) +
   coord_equal() +
-  labs(x = "Project", y = "Score Class") +
+  labs(x = "Project", y = "Median Severity Score") +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
@@ -710,5 +676,53 @@ p
 save_plot(p, "score_class_by_project_heatmap.png", width = 10, height = 7, dir = "thesis_plots")
 ```
 
-**Discussion:**
+## 10. Discussion
+
+### 10.1 CDA count per image by project
+
+_Add notes here._
+
+### 10.2 Agreement with median per image
+
+- Different images from different projects would involve different biological systems, different lighting conditions, and different score distributions, increasing or decreasing the simplicity of their scoring. They were also scored by different combinations of raters, some of whom would share more similar scoring biases than others.
+
+### 10.3 CDA count per image
+
+- The smallest images had just two leaves, each with 4 cell death areas (8 total). The largest had 16 leaves, each with 8 cell death areas (128 total).
+- The majority of images had 5 leaves, each with 6 cell death areas (30 total), which explains the peak. Another subset had the same layout, but with each leaf having two of four orange cell death areas which were ignored (20 or 10 total), providing the second peak.
+
+### 10.4 Agreement vs proportion of 0s
+
+- 0s are the least ambiguous score, and some projects (biological systems) produce far more 0s than others.
+
+### 10.5 Average agreement with median per project (with 95% CI)
+
+_Add notes here._
+
+### 10.6 Images per rater faceted by project
+
+_Add notes here._
+
+### 10.7 Average pairwise agreement per project
+
+_Add notes here._
+
+### 10.8 Estimated vs actual CDAs per raw image
+
+_Add notes here._
+
+### 10.9 Expected count per rater pair
+
+_Add notes here._
+
+### 10.10 Sensitivity analysis: removing projects
+
+_Add notes here._
+
+### 10.11 Score class distribution by project
+
+_Add notes here._
+
+### 10.12 Overall narrative
+
 _Add notes here._
