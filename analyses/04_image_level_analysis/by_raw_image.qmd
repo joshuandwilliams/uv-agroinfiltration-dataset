@@ -11,19 +11,7 @@ Date: 08/06/2026
 
 **Goal:**
 
-Visualise the image dataset in a way that allows all scores / images to be seen
-
-**Hypothesis:**
-
-NA
-
-**Rationale:**
-
-NA
-
-**Experimental plan:**
-
-1.
+Visualise the image dataset in a way that allows all scores / images to be seen.
 
 ## 1. Setup
 
@@ -59,7 +47,7 @@ score_data <- read_csv(path_data, show_col_types = FALSE) %>%
   )
 ```
 
-### 1.3 Create a long table with one scorer and one score per row
+### 1.3 Create a long table with one rater and one score per row
 
 ```{r}
 # 1.3
@@ -135,26 +123,26 @@ image_info %>%
   knitr::kable(caption = "Raw images per set")
 ```
 
-### 2.3 Number of scorers per set
+### 2.3 Number of raters per set
 
-Each CDA was scored by up to three scorers (`Scorer1`–`Scorer3` in `combined_cda_data_median.csv`). Counting the distinct scorers that contributed to the images in each set:
+Each CDA was scored by up to three raters (`Scorer1`–`Scorer3` in `combined_cda_data_median.csv`). Counting the distinct raters that contributed to the images in each set:
 
 ```{r}
 # 2.3
-scorers_long <- score_data %>%
+raters_long <- score_data %>%
   select(Basename, Scorer1, Scorer2, Scorer3) %>%
   left_join(select(image_info, Image, Set), by = c("Basename" = "Image")) %>%
-  pivot_longer(c(Scorer1, Scorer2, Scorer3), values_to = "Scorer") %>%
-  filter(!is.na(Scorer), Scorer != "[]")
+  pivot_longer(c(Scorer1, Scorer2, Scorer3), values_to = "Rater") %>%
+  filter(!is.na(Rater), Rater != "[]")
 
-scorers_long %>%
+raters_long %>%
   group_by(Set) %>%
   summarise(
-    N_Scorers = n_distinct(Scorer),
-    Scorers = paste(sort(unique(as.numeric(Scorer))), collapse = ", "),
+    N_Raters = n_distinct(Rater),
+    Raters = paste(sort(unique(as.numeric(Rater))), collapse = ", "),
     .groups = "drop"
   ) %>%
-  knitr::kable(caption = "Distinct scorers per set")
+  knitr::kable(caption = "Distinct raters per set")
 ```
 
 ### 2.4 Distribution of raw images across projects
@@ -334,7 +322,7 @@ p <- ggplot(score_box, aes(x = Score, y = Proportion)) +
   ) +
   scale_fill_manual(values = sev_pal, guide = "none") +
   labs(
-    x = "Score", y = "Proportion per Image",
+    x = "Severity Score", y = "Proportion per Image",
     caption = "Number above each violin = images in the upper tail (> Q3 + 1.5 x IQR)"
   ) +
   theme_minimal() +
@@ -352,10 +340,6 @@ save_plot(p, "score_proportion_violins.png", width = 10, height = 6)
 - Some images had no 0s. This is interesting because there are normally control infiltrations.
 - Some images had almost all 0s.
 - Non-0 scores rarely comprised more than 50% of cell death areas in a raw image, with a couple of excepions for 2s and 6s.
-
-**Discussion:**
-
-- The images with no 0s are mostly images where two infiltrations were applied to the same leaf. In the case that there was none of the usual green cell death, there was an orange cell death of the other infiltration, and the annotators were instructed to ignore those cell death areas because they did not represent true "no cell death" examples.
 
 ### 3.3 Heatmap of proportions sorted by most common score
 
@@ -380,7 +364,7 @@ p <- ggplot(score_data_heatmap3, aes(x = Score, y = reorder(Basename, Most_Commo
   geom_tile() +
   geom_hline(yintercept = breakpoints, linetype = "dashed", color = "red", linewidth = 1) +
   scale_fill_gradient(low = "white", high = "firebrick") +
-  labs(x = "Score", y = "Agroinfiltration Image", fill = "Proportion") +
+  labs(x = "Severity Score", y = "Agroinfiltration Image", fill = "Proportion") +
   theme_minimal() +
   theme(
     axis.text.x  = element_text(size = 13, angle = 45, hjust = 1),
@@ -399,7 +383,17 @@ save_plot(p, "heatmap_proportion_sorted_by_most_common_score.png", 8, 16)
 - For images where the most common score was 5 or 6, there tended to be very few scores between 1 and 3.
 - For images where the most common score was 3, there tended to be very few extreme scores (0 or 6).
 
-**Discussion:**
+## 4. Discussion
+
+### 4.1 Distribution of each score's proportion across images (violins)
+
+- The images with no 0s are mostly images where two infiltrations were applied to the same leaf. In the case that there was none of the usual green cell death, there was an orange cell death of the other infiltration, and the annotators were instructed to ignore those cell death areas because they did not represent true "no cell death" examples.
+
+### 4.2 Heatmap of proportions sorted by most common score
 
 - The images for which most scores were extreme (0 or 5/6) were likely from biological systems that showed strong presence/absence phenotypes.
 - The images with very few 0s were likely from images where each cell death area received two infiltrations, and those with no green cell death were excluded from annotation.
+
+### 4.3 Overall narrative
+
+_Add notes here._

@@ -133,12 +133,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p><strong>Rationale:</strong></p>
 <p>The Banfield lab rotates infiltration patterns anti-clockwise across biological replicates to control for leaf position effects. If cell death severity varies systematically by position, this should be visible in the averaged scores.</p>
 <p>Position on the leaf varies according to existing research: - https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/10.1002/bit.24523 - https://link.springer.com/article/10.1186/s13007-015-0091-5</p>
-<p><strong>Experimental plan:</strong></p>
-<ol type="1">
-<li>Generate sector polygon coordinates from a leaf image using <code>scripts/generate_leaf_sector_outlines.py</code> (run first to produce the sector CSVs).</li>
-<li>Average median scores per leaf position for images with 5, 6, and 8 positions.</li>
-<li>Plot as a leaf-shaped sector heatmap using the polygon coordinates.</li>
-</ol>
 <hr>
 </section>
 <section id="setup" class="level2">
@@ -254,7 +248,7 @@ Attaching package: 'dplyr'</code></pre>
 <span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
 <span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_gradient</span>(</span>
 <span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>      <span class="at">low =</span> <span class="st">"cornflowerblue"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>,</span>
-<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      <span class="at">name =</span> <span class="st">"Avg Median</span><span class="sc">\n</span><span class="st">Score"</span>, <span class="at">limits =</span> score_lims</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      <span class="at">name =</span> <span class="st">"Avg Median</span><span class="sc">\n</span><span class="st">Severity Score"</span>, <span class="at">limits =</span> score_lims</span>
 <span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
 <span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coord_fixed</span>() <span class="sc">+</span></span>
 <span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="fu">paste0</span>(num_pos, <span class="st">" positions (n = "</span>, n_cdas, <span class="st">")"</span>)) <span class="sc">+</span></span>
@@ -286,7 +280,9 @@ Attaching package: 'dplyr'</code></pre>
 <ul>
 <li>The stem end of the leaf is consistently scored lower than the tip of the leaf.</li>
 </ul>
-<p><strong>Discussion:</strong></p>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">3. Discussion</h2>
 <ul>
 <li>The difference may be due to developmental age gradient (dicot leaves mature basipetally, such that the tip is the oldest). Older, more mature tissue tends to be closer to senescence and has a lower threshold for stress-induced HR cell death.</li>
 <li>The Buyel and Fischer paper, which measures transient expression, shows higher DsRed yield at the stem / base than the tip, which is an opposite pattern to the cell death scores I’m seeing. DsRed is non-cytotoxic reporter, so the leaves aren’t dying. Their gradient is purely expression-capacity measurement, so they’re measuring different things.</li>
