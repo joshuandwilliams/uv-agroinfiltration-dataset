@@ -48,17 +48,13 @@ import human_performance
 
 ### 1.2 Load scorer data
 
+Scorer IDs in this file are already anonymised (1-10) by the raw-data pipeline
+(`01_generate_raw_data/02_combining_cdascorer_outputs`), so no re-anonymisation
+is needed here.
+
 ```{python}
 # 1.2
 data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
-```
-
-### 1.3 Anonymise the scorers
-
-```{python}
-# 1.3
-anon_key = human_performance.generate_scorer_key(data)
-data_anon = human_performance.anonymise_scorers(data, anon_key)
 ```
 
 ## 2. Compute agreement metrics
@@ -80,7 +76,7 @@ if results_path.exists():
 	pairwise_nearmiss  = results_df["pairwise_nearmiss"].tolist()
 
 	# Re-generate confusion matrix plots (fast, seed=42)
-	data_normclass = human_performance.downsample_score_classes_csv(data_anon, seed=42)
+	data_normclass = human_performance.downsample_score_classes_csv(data, seed=42)
 	data_long      = pd.wide_to_long(data_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
 	data_long_noNA = data_long.dropna(subset=['Score'])
 	unique_labels  = np.sort(data_long_noNA['Score'].unique())
@@ -105,7 +101,7 @@ else:
 		print(f"Iteration (seed): {i} / {num_iterations}")
 
 		# Downsample score classes
-		data_normclass = human_performance.downsample_score_classes_csv(data_anon, seed=i)
+		data_normclass = human_performance.downsample_score_classes_csv(data, seed=i)
 
 		# Data long format
 		data_long = pd.wide_to_long(data_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
@@ -268,7 +264,7 @@ else:
 	print("Running 1000-iteration LOO loop...")
 	loo_exact_dist, loo_nearmiss_dist = [], []
 	for i in range(1, 1001):
-		data_normclass = human_performance.downsample_score_classes_csv(data_anon, seed=i)
+		data_normclass = human_performance.downsample_score_classes_csv(data, seed=i)
 		loo_exact_dist.append(loo_metric1_accuracy(data_normclass, 0))
 		loo_nearmiss_dist.append(loo_metric1_accuracy(data_normclass, 1))
 	pd.DataFrame({"loo_exact_dist": loo_exact_dist,
