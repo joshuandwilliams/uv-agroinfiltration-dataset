@@ -40,11 +40,8 @@ library(here)
 
 ```{r}
 # 1.2
-save_plot <- function(p, filename, width, height) {
-  ggsave(here("analyses", "05_inter_rater_agreement", "supp_plots", filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
+source(here("src", "plotting_helpers.R"))
+save_plot <- make_save_plot("05_inter_rater_agreement")
 ```
 
 ```{r}

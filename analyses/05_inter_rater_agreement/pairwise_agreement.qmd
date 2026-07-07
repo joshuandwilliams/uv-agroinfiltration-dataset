@@ -42,7 +42,6 @@ library(forcats)
 library(patchwork)
 library(scales)
 library(here)
-library(RColorBrewer)
 ```
 
 ### 1.2 Load data
@@ -71,75 +70,11 @@ head(score_data)
 
 ```{r}
 # 1.3.1
-long_score_table <- function(data) {
-  long <- data %>%
-    select(
-      Basename, Row, Col, Pos, Median_Score,
-      Scorer1, Score1, Scorer2, Score2, Scorer3, Score3
-    ) %>%
-    pivot_longer(
-      cols          = c(Scorer1, Score1, Scorer2, Score2, Scorer3, Score3),
-      names_to      = c(".value", "num"),
-      names_pattern = "(Scorer|Score)(\\d+)"
-    ) %>%
-    select(-num) %>%
-    filter(!is.na(Scorer), Score != "[]")
-  long$Scorer <- factor(long$Scorer, levels = sort(as.numeric(unique(long$Scorer))))
-  long
-}
+source(here("src", "data_helpers.R"))
+source(here("src", "agreement_metrics.R"))
+source(here("src", "plotting_helpers.R"))
 
-pairwise_score_data <- function(score_data_long) {
-  data <- score_data_long %>%
-    mutate(Score = as.numeric(Score)) %>%
-    group_by(Basename, Row, Col, Pos) %>%
-    mutate(id = row_number()) %>%
-    ungroup()
-
-  pairwise_comparisons <- data %>%
-    full_join(data, by = c("Basename", "Row", "Col", "Pos"), relationship = "many-to-many") %>%
-    filter(id.x < id.y) %>%
-    select(Scorer.x, Score.x, Scorer.y, Score.y) %>%
-    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
-    summarise(Count = n(), .groups = "drop")
-
-  filtered_data <- pairwise_comparisons %>%
-    filter(!is.na(Score.x) & !is.na(Score.y))
-
-  filtered_copy <- filtered_data
-  names(filtered_copy)[names(filtered_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
-  filtered_data <- rbind(filtered_data, filtered_copy)
-
-  agreement_data <- filtered_data %>%
-    group_by(Scorer.x, Scorer.y) %>%
-    summarise(
-      Total = sum(Count),
-      Agree = sum(Count * (Score.x == Score.y)),
-      Percent_Agree = (Agree / Total) * 100,
-      .groups = "drop"
-    ) %>%
-    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
-
-  all_combinations <- expand.grid(
-    Scorer.x = unique(agreement_data$Scorer.x),
-    Scorer.y = unique(agreement_data$Scorer.y)
-  )
-
-  all_combinations %>%
-    left_join(agreement_data, by = c("Scorer.x", "Scorer.y")) %>%
-    mutate(across(c(Total, Agree, Percent_Agree), ~ ifelse(is.na(.), NA, .))) %>%
-    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
-}
-
-average_pairwise_agreement <- function(data) {
-  valid <- data[!is.na(data$Total) & !is.na(data$Percent_Agree), ]
-  sum(valid$Percent_Agree * valid$Total) / sum(valid$Total)
-}
-
-save_plot <- function(p, filename, width, height) {
-  ggsave(here("analyses", "05_inter_rater_agreement", "supp_plots", filename),
-    plot = p, width = width, height = height, units = "in", dpi = 300
-  )
-}
+save_plot <- make_save_plot("05_inter_rater_agreement")
 
 theme_ira <- function() {
   theme_minimal() +
