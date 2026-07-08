@@ -27,21 +27,6 @@ Images of the same score are likely to be more similar than images of different 
 
 Due to variation in human scoring, even with the median of three scores taken, there may be human errors or biases which result in image misclassifications. However, these images that appear to be misclassified may instead just be uncommon.
 
-## Background
-
-### How does PCA work?
-
-PCA is a dimensionality reduction technique, aiming to capture the most important information in the data and minimizing redundancy and noise.
-
-1. Build a covariance matrix which captures the relationships between pairs of variables (in our case variables are pixel values). A high covariance suggests a strong relationship.
-2. Calculate eigenvectors, which are directions in the original multidimensional feature space, representing a PC. Calculate eigenvalues, which are the magnitude of variance captured by the corresponding eigenvector.
-3. Rank PCs by their eigenvalues.
-4. Transform the input data into a new coordinate system defined by the principal components.
-
-For each image, the total number of variables is:
-64 x 64 x 3 = 12,288
-Given this large number of variables, there is likely to be more variability in the data and capturing this with a small number of principal components is more challenging.
-
 ## 1. Setup
 
 ### 1.1 Import required libraries
@@ -67,15 +52,19 @@ plots_dir = repo_root / "analyses" / "07_visual_complexity" / "supp_plots"
 
 ### 1.2 Load images and labels
 
-Undersampling:
-
-- PCA does not use any class labels to reduce the dimensionality. However, it acts on the dataset as a whole to maximise the variance explained by any eigenvectors.
-- If the classes are unbalanced, the PCA may be biased towards explaining variance in the larger classes (such as 0).
-- We want the PCA to capture the underlying variance of all classes more equally, which gives a rationale for undersampling.
-- The same is true in the k-nearest neighbour clustering. If one group is much larger (e.g. 0s), in the PCA regions where that group overlaps with others (e.g. 1s or 2s), the closest neighbouring points to any given point in that region will likely be from the larger group, biasing the predictions towards that larger group.
-
 ```{python}
 # 1.2
+# Undersampling rationale: PCA does not use any class labels to reduce the
+# dimensionality, but it acts on the dataset as a whole to maximise the
+# variance explained by any eigenvectors. If the classes are unbalanced, the
+# PCA may be biased towards explaining variance in the larger classes (such
+# as 0). We want the PCA to capture the underlying variance of all classes
+# more equally, which gives a rationale for undersampling. The same is true
+# in the k-nearest neighbour clustering: if one group is much larger (e.g.
+# 0s), in the PCA regions where that group overlaps with others (e.g. 1s or
+# 2s), the closest neighbouring points to any given point in that region
+# will likely be from the larger group, biasing the predictions towards that
+# larger group.
 data_dir = str(repo_root / "data" / "cropped_images")
 image_size = 64
 def load_images_and_labels() -> Tuple[List[Any], List[int], List[Any]]:
@@ -180,10 +169,6 @@ variance_explained = plot_eigenvalues(pca, "original")
 undersampled_variance_explained = plot_eigenvalues(undersampled_pca, "undersampled")
 ```
 
-**Question:** What are the magnitudes of the eigenvalues of the first two PCs, and what do they tell us?
-
-**Answer:** The first two eigenvalues have magnitudes of 34.46% and 8.72%. They tell us the percentage of variation in the images explained by that eigenvector. Despite the large number of input variables, the first two PCs capture 43.18% of the data.
-
 ## 3. PCA scatter plots coloured by score
 
 ### 3.1 Plot PCs 1 and 2 coloured by label
@@ -212,16 +197,16 @@ plot_pca(labels, images_pca, variance_explained, "original")
 plot_pca(undersampled_labels, undersampled_images_pca, undersampled_variance_explained, "undersampled")
 ```
 
-**Question:** Do PCs 1 and 2 coloured by score show any trends/patterns?
-
-**Answer:** There is a visible trend of increasing score as PC1 increases and PC2 decreases. However, there are large overlaps between images of different scores, particularly in the middle scores.
-
 ### 3.2 Plot PCs 1 and 2 coloured by project
-
-Each cropped CDA image comes from a source image belonging to one project. The cropped filenames are formatted `<Basename>_<Row>_<Col>_<Pos>.tif`, so stripping the trailing `_Row_Col_Pos` recovers the source-image basename, which we map to a project via `image_info.csv` (the `Path` column is recorded once per folder, so it is filled downwards; the top-level folder is the project).
 
 ```{python}
 # 3.2.1
+# Each cropped CDA image comes from a source image belonging to one project.
+# The cropped filenames are formatted <Basename>_<Row>_<Col>_<Pos>.tif, so
+# stripping the trailing _Row_Col_Pos recovers the source-image basename,
+# which we map to a project via image_info.csv (the Path column is recorded
+# once per folder, so it is filled downwards; the top-level folder is the
+# project).
 import re
 import pandas as pd
 
@@ -273,17 +258,13 @@ def plot_pca_by_project(projects, images_pca, variance_explained, name):
 plot_pca_by_project(projects, images_pca, variance_explained, "original")
 ```
 
-**Question:** Do PCs 1 and 2 coloured by project show any clustering by project (i.e. is image source a confound in the PCA)?
-
 ## 4. Identifying outlier images
 
 ### 4.1 Images furthest from others in their class
 
-Focusing on Hypothesis 3.
-This hasn't yet been done for the undersampled dataset.
-
 ```{python}
 # 4.1
+# Focusing on Hypothesis 3. This hasn't yet been done for the undersampled dataset.
 # First 2 PCs
 images_pca_2d = images_pca[:, :2]
 
@@ -329,10 +310,11 @@ ranked_indices = np.argsort(-min_distances)
 
 ### 4.2 PCA scatter plot highlighting top 10 most-distant images
 
-Which images are: a) furthest from any others of their class (in 2D space using PC1 and PC2) and b) closer to an image of another class than any of their class
-
 ```{python}
 # 4.2
+# Highlights images that are: a) furthest from any others of their class (in
+# 2D space using PC1 and PC2) and b) closer to an image of another class than
+# any of their class.
 # Plot the PCA components
 plt.figure(figsize=(8, 6))
 
@@ -403,15 +385,9 @@ plt.savefig(str(plots_dir / "top10_ranking_images.png"), dpi=300, bbox_inches='t
 plt.show()
 ```
 
-**Question:** Looking at the images which are both most distant from others of their class, and whose nearest neighbouring datapoint is of another class, are there any trends that stand out?
-
-**Answer:** Whilst a high distance from others of their class may be indicative of mislabelling, it could equally as likely just be an unusual type of image. For example, the shapes of the CDAs in rank 2, 3, 4, and 6 are not the typical circular shape, and also all contain large dark areas of non-leaf. 2, 3, 4, and 6 all cluster fairly closely on the PCA plot also, so it may just be that that type of image is infrequent in the dataset.
-
 ## 5. k-Nearest-Neighbour clustering
 
 ### 5.1 kNN implementation
-
-Using the top two PCs for k-Nearest-Neighbour clustering. Need to decide best number of clusters.
 
 ```{python}
 # 5.1
@@ -554,52 +530,31 @@ undersampled_best_ari, undersampled_best_k = nearest_neighbour_clustering(unders
 
 ### 5.2 kNN results (focusing on undersampled dataset)
 
-**Question:** What do the silhouette scores tell us about how the images are clustering?
-
-**Answer:** Silhouette scores lie between -1 and 1, and denote how close each image is to others of its own cluster vs adjacent clusters. The best average silhouette score was -0.012 for a k value of 9. This is roughly zero, and indicates on average each image is close to the decision boundary between two clusters. This value indicates that the average distance between the points in one cluster are roughly equal to the average distance between them and the adjacent cluster.
-
-**Question:** Do adjacent scores cluster more closely than distant ones?
-
-**Answer:** The heatmap shows that the average distance between clusters increases in all cases when the distance between scores increases.
-
-The ARI is 0.319. This means roughly 32% of the variablility in the clustering assignments can be explained by the true class labels. This means there is some agreement between the clusters assigned based on k-NN and the true labels.
-
 ---
 
-## 6. Discussion
+## 6. Interpretation and Discussion
 
-### 6.1 Eigenvalue plots
-
-_Add notes here._
-
-### 6.2 PCA scatter plot coloured by label
-
-_Add notes here._
-
-### 6.3 PCA scatter plot coloured by project
+- What are the magnitudes of the eigenvalues of the first two PCs, and what do they tell us? The first two eigenvalues have magnitudes of 34.46% and 8.72%. They tell us the percentage of variation in the images explained by that eigenvector. Despite the large number of input variables, the first two PCs capture 43.18% of the data.
+- Do PCs 1 and 2 coloured by score show any trends/patterns? There is a visible trend of increasing score as PC1 increases and PC2 decreases. However, there are large overlaps between images of different scores, particularly in the middle scores.
+- Do PCs 1 and 2 coloured by project show any clustering by project (i.e. is image source a confound in the PCA)?
+- Looking at the images which are both most distant from others of their class, and whose nearest neighbouring datapoint is of another class, are there any trends that stand out? Whilst a high distance from others of their class may be indicative of mislabelling, it could equally as likely just be an unusual type of image. For example, the shapes of the CDAs in rank 2, 3, 4, and 6 are not the typical circular shape, and also all contain large dark areas of non-leaf. 2, 3, 4, and 6 all cluster fairly closely on the PCA plot also, so it may just be that that type of image is infrequent in the dataset.
+- What do the silhouette scores tell us about how the images are clustering? Silhouette scores lie between -1 and 1, and denote how close each image is to others of its own cluster vs adjacent clusters. The best average silhouette score was -0.012 for a k value of 9. This is roughly zero, and indicates on average each image is close to the decision boundary between two clusters. This value indicates that the average distance between the points in one cluster are roughly equal to the average distance between them and the adjacent cluster.
+- Do adjacent scores cluster more closely than distant ones? The heatmap shows that the average distance between clusters increases in all cases when the distance between scores increases.
+- The ARI is 0.319. This means roughly 32% of the variability in the clustering assignments can be explained by the true class labels. This means there is some agreement between the clusters assigned based on k-NN and the true labels.
 
 _Add notes here._
 
-### 6.4 PCA scatter plot highlighting top 10 most-distant images
+## 7. Additional Information
 
-_Add notes here._
+### 7.1 How does PCA work?
 
-### 6.5 Top 10 ranking images
+PCA is a dimensionality reduction technique, aiming to capture the most important information in the data and minimizing redundancy and noise.
 
-_Add notes here._
+1. Build a covariance matrix which captures the relationships between pairs of variables (in our case variables are pixel values). A high covariance suggests a strong relationship.
+2. Calculate eigenvectors, which are directions in the original multidimensional feature space, representing a PC. Calculate eigenvalues, which are the magnitude of variance captured by the corresponding eigenvector.
+3. Rank PCs by their eigenvalues.
+4. Transform the input data into a new coordinate system defined by the principal components.
 
-### 6.6 Silhouette scores
-
-_Add notes here._
-
-### 6.7 Distance between adjacent vs distant scores
-
-_Add notes here._
-
-### 6.8 Adjusted Rand Index
-
-_Add notes here._
-
-### 6.9 Overall narrative
-
-_Add notes here._
+For each image, the total number of variables is:
+64 x 64 x 3 = 12,288
+Given this large number of variables, there is likely to be more variability in the data and capturing this with a small number of principal components is more challenging.
