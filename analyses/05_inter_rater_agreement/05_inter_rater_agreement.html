@@ -565,17 +565,27 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>, <span class="at">face =</span> <span class="st">"bold"</span>))</span>
 <span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>p_agree <span class="ot">&lt;-</span> <span class="fu">plot_agree</span>(merged_df, <span class="st">"All CDAs"</span>) <span class="sc">/</span></span>
-<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_agree</span>(merged_df_no_0, <span class="st">"Excluding median = 0"</span>) <span class="sc">+</span></span>
-<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_layout</span>(<span class="at">guides =</span> <span class="st">"collect"</span>)</span>
-<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>p_agree</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Saved as two separate images (rather than one patchwork-combined image) so</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="co"># the thesis figure can compose them itself.</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>p_agree_all <span class="ot">&lt;-</span> <span class="fu">plot_agree</span>(merged_df, <span class="st">"All CDAs"</span>)</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>p_agree_all</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid" width="1152"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_agree, <span class="st">"pairwise_agreement.png"</span>, <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="dv">20</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_agree_all, <span class="st">"pairwise_agreement_all.png"</span>, <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="dv">10</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>p_agree_excl_zero <span class="ot">&lt;-</span> <span class="fu">plot_agree</span>(merged_df_no_0, <span class="st">"Excluding median = 0"</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>p_agree_excl_zero</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-11-2.png" class="img-fluid" width="1152"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_agree_excl_zero, <span class="st">"pairwise_agreement_excl_zero.png"</span>, <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="dv">10</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <hr>
@@ -585,34 +595,34 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.1</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co"># For each rater, drop their own scores and recompute Metric 3 (see</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 03_human_performance/04_project_level_analysis) over the rest - no</span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co"># "kept vs cleaned" ambiguity here (unlike the pairwise version below):</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Exact_Match is a per-CDA-rater indicator against a median already fixed</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co"># from the full original panel, so removing one rater's rows never changes</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co"># what any remaining row's Exact_Match value is.</span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>median_corrected_long <span class="ot">&lt;-</span> score_data_long <span class="sc">%&gt;%</span></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Score), Score <span class="sc">!=</span> <span class="st">"[]"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Score =</span> <span class="fu">as.integer</span>(Score)) <span class="sc">%&gt;%</span></span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">corrected_median_agreement</span>()</span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>baseline_metric3 <span class="ot">&lt;-</span> <span class="fu">mean</span>(median_corrected_long<span class="sc">$</span>Exact_Match) <span class="sc">*</span> <span class="dv">100</span></span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>unique_scorers_m3 <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="fu">sort</span>(<span class="fu">as.numeric</span>(<span class="fu">unique</span>(median_corrected_long<span class="sc">$</span>Scorer))))</span>
-<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>metric3_removal <span class="ot">&lt;-</span> <span class="fu">lapply</span>(unique_scorers_m3, <span class="cf">function</span>(scorer) {</span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>  remaining <span class="ot">&lt;-</span> median_corrected_long <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Scorer <span class="sc">!=</span> scorer)</span>
-<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">Rater_Removed =</span> scorer,</span>
-<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">Metric_3_Agreement =</span> <span class="fu">mean</span>(remaining<span class="sc">$</span>Exact_Match) <span class="sc">*</span> <span class="dv">100</span></span>
-<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>metric3_result_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(metric3_removal) <span class="sc">%&gt;%</span></span>
-<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Delta =</span> Metric_3_Agreement <span class="sc">-</span> baseline_metric3)</span>
-<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>metric3_result_df <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(<span class="fu">desc</span>(Metric_3_Agreement))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.1</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># For each rater, drop their own scores and recompute Metric 3 (see</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 03_human_performance/04_project_level_analysis) over the rest - no</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># "kept vs cleaned" ambiguity here (unlike the pairwise version below):</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Exact_Match is a per-CDA-rater indicator against a median already fixed</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># from the full original panel, so removing one rater's rows never changes</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># what any remaining row's Exact_Match value is.</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>median_corrected_long <span class="ot">&lt;-</span> score_data_long <span class="sc">%&gt;%</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Score), Score <span class="sc">!=</span> <span class="st">"[]"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Score =</span> <span class="fu">as.integer</span>(Score)) <span class="sc">%&gt;%</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">corrected_median_agreement</span>()</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>baseline_metric3 <span class="ot">&lt;-</span> <span class="fu">mean</span>(median_corrected_long<span class="sc">$</span>Exact_Match) <span class="sc">*</span> <span class="dv">100</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>unique_scorers_m3 <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="fu">sort</span>(<span class="fu">as.numeric</span>(<span class="fu">unique</span>(median_corrected_long<span class="sc">$</span>Scorer))))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>metric3_removal <span class="ot">&lt;-</span> <span class="fu">lapply</span>(unique_scorers_m3, <span class="cf">function</span>(scorer) {</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  remaining <span class="ot">&lt;-</span> median_corrected_long <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Scorer <span class="sc">!=</span> scorer)</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">Rater_Removed =</span> scorer,</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">Metric_3_Agreement =</span> <span class="fu">mean</span>(remaining<span class="sc">$</span>Exact_Match) <span class="sc">*</span> <span class="dv">100</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>metric3_result_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(metric3_removal) <span class="sc">%&gt;%</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Delta =</span> Metric_3_Agreement <span class="sc">-</span> baseline_metric3)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>metric3_result_df <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(<span class="fu">desc</span>(Metric_3_Agreement))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>   Rater_Removed Metric_3_Agreement       Delta
@@ -631,50 +641,50 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.2</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>bar_df3 <span class="ot">&lt;-</span> metric3_result_df <span class="sc">%&gt;%</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Rater_Removed =</span> <span class="fu">reorder</span>(Rater_Removed, <span class="sc">-</span>Delta))</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>bar_df3<span class="sc">$</span>xpos <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(bar_df3<span class="sc">$</span>Rater_Removed)</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(bar_df3) <span class="sc">+</span></span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_rect</span>(<span class="fu">aes</span>(</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">xmin =</span> xpos <span class="sc">-</span> <span class="fl">0.4</span>, <span class="at">xmax =</span> xpos <span class="sc">+</span> <span class="fl">0.4</span>,</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">ymin =</span> baseline_metric3, <span class="at">ymax =</span> Metric_3_Agreement,</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> Delta <span class="sc">&gt;</span> <span class="dv">0</span></span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">+</span></span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> baseline_metric3, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> xpos, <span class="at">y =</span> Metric_3_Agreement, <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%+.2f"</span>, Delta),</span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">vjust =</span> <span class="fu">ifelse</span>(Delta <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="sc">-</span><span class="fl">0.4</span>, <span class="fl">1.3</span>)</span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">size =</span> <span class="dv">4</span>) <span class="sc">+</span></span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="fu">sort</span>(bar_df3<span class="sc">$</span>xpos), <span class="at">labels =</span> <span class="fu">levels</span>(bar_df3<span class="sc">$</span>Rater_Removed)) <span class="sc">+</span></span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.1</span>)),</span>
-<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(<span class="sc">~</span>.,</span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">breaks =</span> baseline_metric3,</span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">labels =</span> <span class="fu">sprintf</span>(<span class="st">"Original (%.1f%%)"</span>, baseline_metric3)</span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"TRUE"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>, <span class="st">"FALSE"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater removed"</span>, <span class="at">y =</span> <span class="st">"Metric 3 agreement (%)"</span>) <span class="sc">+</span></span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">clip =</span> <span class="st">"off"</span>) <span class="sc">+</span></span>
-<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
-<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
-<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y.right =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"italic"</span>, <span class="at">colour =</span> <span class="st">"grey35"</span>),</span>
-<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.ticks.y.right =</span> <span class="fu">element_line</span>(<span class="at">colour =</span> <span class="st">"grey35"</span>),</span>
-<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.margin =</span> <span class="fu">margin</span>(<span class="dv">12</span>, <span class="dv">12</span>, <span class="fl">5.5</span>, <span class="dv">12</span>)</span>
-<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.2</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>bar_df3 <span class="ot">&lt;-</span> metric3_result_df <span class="sc">%&gt;%</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Rater_Removed =</span> <span class="fu">reorder</span>(Rater_Removed, <span class="sc">-</span>Delta))</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>bar_df3<span class="sc">$</span>xpos <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(bar_df3<span class="sc">$</span>Rater_Removed)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(bar_df3) <span class="sc">+</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_rect</span>(<span class="fu">aes</span>(</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">xmin =</span> xpos <span class="sc">-</span> <span class="fl">0.4</span>, <span class="at">xmax =</span> xpos <span class="sc">+</span> <span class="fl">0.4</span>,</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">ymin =</span> baseline_metric3, <span class="at">ymax =</span> Metric_3_Agreement,</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> Delta <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">+</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> baseline_metric3, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> xpos, <span class="at">y =</span> Metric_3_Agreement, <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%+.2f"</span>, Delta),</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">vjust =</span> <span class="fu">ifelse</span>(Delta <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="sc">-</span><span class="fl">0.4</span>, <span class="fl">1.3</span>)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">size =</span> <span class="dv">4</span>) <span class="sc">+</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="fu">sort</span>(bar_df3<span class="sc">$</span>xpos), <span class="at">labels =</span> <span class="fu">levels</span>(bar_df3<span class="sc">$</span>Rater_Removed)) <span class="sc">+</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.1</span>)),</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(<span class="sc">~</span>.,</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">breaks =</span> baseline_metric3,</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">labels =</span> <span class="fu">sprintf</span>(<span class="st">"Original (%.1f%%)"</span>, baseline_metric3)</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"TRUE"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>, <span class="st">"FALSE"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>), <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater removed"</span>, <span class="at">y =</span> <span class="st">"Metric 3 agreement (%)"</span>) <span class="sc">+</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">clip =</span> <span class="st">"off"</span>) <span class="sc">+</span></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y.right =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"italic"</span>, <span class="at">colour =</span> <span class="st">"grey35"</span>),</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.ticks.y.right =</span> <span class="fu">element_line</span>(<span class="at">colour =</span> <span class="st">"grey35"</span>),</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.margin =</span> <span class="fu">margin</span>(<span class="dv">12</span>, <span class="dv">12</span>, <span class="fl">5.5</span>, <span class="dv">12</span>)</span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid" width="960"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"rater_removal_metric3_sensitivity.png"</span>, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"rater_removal_metric3_sensitivity.png"</span>, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">6</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <hr>
@@ -684,130 +694,130 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>gen_pairwise_counts <span class="ot">&lt;-</span> <span class="cf">function</span>(score_data_long) {</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> score_data_long <span class="sc">%&gt;%</span></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Score =</span> <span class="fu">as.numeric</span>(Score)) <span class="sc">%&gt;%</span></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Basename, Row, Col, Pos) <span class="sc">%&gt;%</span></span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">id =</span> <span class="fu">row_number</span>()) <span class="sc">%&gt;%</span></span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  pairwise <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">full_join</span>(data, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Basename"</span>, <span class="st">"Row"</span>, <span class="st">"Col"</span>, <span class="st">"Pos"</span>), <span class="at">relationship =</span> <span class="st">"many-to-many"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(id.x <span class="sc">&lt;</span> id.y) <span class="sc">%&gt;%</span></span>
-<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Scorer.x, Score.x, Scorer.y, Score.y) <span class="sc">%&gt;%</span></span>
-<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Scorer.x, Score.x, Scorer.y, Score.y) <span class="sc">%&gt;%</span></span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">Count =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Score.x) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(Score.y))</span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># id.x &lt; id.y reflects column position (Scorer1/2/3), not rater ID value,</span></span>
-<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># so a given rater pair can appear with either rater in the Scorer.x slot</span></span>
-<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># depending on which column they happened to occupy for a given CDA.</span></span>
-<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Folding in the mirrored copy and then keeping only Scorer.x &lt; Scorer.y</span></span>
-<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># (by value) consolidates both into one consistent, value-ordered</span></span>
-<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># direction per pair - shown once, not twice.</span></span>
-<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>  sym_copy <span class="ot">&lt;-</span> pairwise</span>
-<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(sym_copy)[<span class="fu">names</span>(sym_copy) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Scorer.x"</span>, <span class="st">"Scorer.y"</span>)] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Scorer.y"</span>, <span class="st">"Scorer.x"</span>)</span>
-<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(sym_copy)[<span class="fu">names</span>(sym_copy) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Score.x"</span>, <span class="st">"Score.y"</span>)] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Score.y"</span>, <span class="st">"Score.x"</span>)</span>
-<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbind</span>(pairwise, sym_copy) <span class="sc">%&gt;%</span></span>
-<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">as.integer</span>(Scorer.x) <span class="sc">&lt;</span> <span class="fu">as.integer</span>(Scorer.y))</span>
-<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a><span class="co"># facet_grid always draws the full cross product of its two faceting</span></span>
-<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a><span class="co"># variables' declared factor levels, regardless of whether a given</span></span>
-<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a><span class="co"># combination has any data - so even with only the 45 upper-triangle rater</span></span>
-<span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a><span class="co"># pairs above, it would still draw all 100 panels (self-pairs + the</span></span>
-<span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a><span class="co"># now-empty lower-triangle mirror). This blanks those 55 non-pairs out</span></span>
-<span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a><span class="co"># entirely (rather than leaving them as visible empty bordered boxes), by</span></span>
-<span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a><span class="co"># replacing their panel grobs with nullGrob() after the plot is built.</span></span>
-<span id="cb22-37"><a href="#cb22-37" aria-hidden="true" tabindex="-1"></a>hide_non_pairs <span class="ot">&lt;-</span> <span class="cf">function</span>(p) {</span>
-<span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a>  panel_info <span class="ot">&lt;-</span> <span class="fu">ggplot_build</span>(p)<span class="sc">$</span>layout<span class="sc">$</span>layout</span>
-<span id="cb22-39"><a href="#cb22-39" aria-hidden="true" tabindex="-1"></a>  hide_panels <span class="ot">&lt;-</span> panel_info<span class="sc">$</span>PANEL[</span>
-<span id="cb22-40"><a href="#cb22-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.integer</span>(<span class="fu">as.character</span>(panel_info<span class="sc">$</span>Scorer.x)) <span class="sc">&gt;=</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(panel_info<span class="sc">$</span>Scorer.y))</span>
-<span id="cb22-41"><a href="#cb22-41" aria-hidden="true" tabindex="-1"></a>  ]</span>
-<span id="cb22-42"><a href="#cb22-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-43"><a href="#cb22-43" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">ggplotGrob</span>(p)</span>
-<span id="cb22-44"><a href="#cb22-44" aria-hidden="true" tabindex="-1"></a>  panel_idx <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"^panel"</span>, g<span class="sc">$</span>layout<span class="sc">$</span>name)</span>
-<span id="cb22-45"><a href="#cb22-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(panel_idx) <span class="sc">==</span> <span class="fu">nrow</span>(panel_info))</span>
-<span id="cb22-46"><a href="#cb22-46" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (pnum <span class="cf">in</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(hide_panels))) {</span>
-<span id="cb22-47"><a href="#cb22-47" aria-hidden="true" tabindex="-1"></a>    g<span class="sc">$</span>grobs[[panel_idx[pnum]]] <span class="ot">&lt;-</span> grid<span class="sc">::</span><span class="fu">nullGrob</span>()</span>
-<span id="cb22-48"><a href="#cb22-48" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb22-49"><a href="#cb22-49" aria-hidden="true" tabindex="-1"></a>  g</span>
-<span id="cb22-50"><a href="#cb22-50" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb22-51"><a href="#cb22-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-52"><a href="#cb22-52" aria-hidden="true" tabindex="-1"></a>make_patterns_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(sdl) {</span>
-<span id="cb22-53"><a href="#cb22-53" aria-hidden="true" tabindex="-1"></a>  levels_xy <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)</span>
-<span id="cb22-54"><a href="#cb22-54" aria-hidden="true" tabindex="-1"></a>  score_levels <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">6</span>)</span>
-<span id="cb22-55"><a href="#cb22-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-56"><a href="#cb22-56" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Self-pairs (a rater against themselves) carry no data and are excluded</span></span>
-<span id="cb22-57"><a href="#cb22-57" aria-hidden="true" tabindex="-1"></a>  <span class="co"># outright by gen_pairwise_counts's Scorer.x &lt; Scorer.y filter above.</span></span>
-<span id="cb22-58"><a href="#cb22-58" aria-hidden="true" tabindex="-1"></a>  counts <span class="ot">&lt;-</span> <span class="fu">gen_pairwise_counts</span>(sdl) <span class="sc">%&gt;%</span></span>
-<span id="cb22-59"><a href="#cb22-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb22-60"><a href="#cb22-60" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.x =</span> <span class="fu">factor</span>(Scorer.x, <span class="at">levels =</span> levels_xy),</span>
-<span id="cb22-61"><a href="#cb22-61" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.y =</span> <span class="fu">factor</span>(Scorer.y, <span class="at">levels =</span> levels_xy),</span>
-<span id="cb22-62"><a href="#cb22-62" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.x =</span> <span class="fu">factor</span>(Score.x, <span class="at">levels =</span> score_levels),</span>
-<span id="cb22-63"><a href="#cb22-63" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.y =</span> <span class="fu">factor</span>(Score.y, <span class="at">levels =</span> score_levels)</span>
-<span id="cb22-64"><a href="#cb22-64" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb22-65"><a href="#cb22-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-66"><a href="#cb22-66" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Complete the severity-score grid (0-6 x 0-6) *within* each rater pair</span></span>
-<span id="cb22-67"><a href="#cb22-67" aria-hidden="true" tabindex="-1"></a>  <span class="co"># that actually shares data (nesting), rather than crossing all 10x10</span></span>
-<span id="cb22-68"><a href="#cb22-68" aria-hidden="true" tabindex="-1"></a>  <span class="co"># rater combinations. The latter used to fabricate entirely-empty panels</span></span>
-<span id="cb22-69"><a href="#cb22-69" aria-hidden="true" tabindex="-1"></a>  <span class="co"># (self-pairs, or raters who never scored together) whose Score.x/Score.y</span></span>
-<span id="cb22-70"><a href="#cb22-70" aria-hidden="true" tabindex="-1"></a>  <span class="co"># were then all NA, which made ggplot's per-panel range() warn "no</span></span>
-<span id="cb22-71"><a href="#cb22-71" aria-hidden="true" tabindex="-1"></a>  <span class="co"># non-missing arguments to min/max" for every such panel.</span></span>
-<span id="cb22-72"><a href="#cb22-72" aria-hidden="true" tabindex="-1"></a>  complete_counts <span class="ot">&lt;-</span> counts <span class="sc">%&gt;%</span></span>
-<span id="cb22-73"><a href="#cb22-73" aria-hidden="true" tabindex="-1"></a>    <span class="fu">complete</span>(</span>
-<span id="cb22-74"><a href="#cb22-74" aria-hidden="true" tabindex="-1"></a>      <span class="fu">nesting</span>(Scorer.x, Scorer.y),</span>
-<span id="cb22-75"><a href="#cb22-75" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.x =</span> <span class="fu">factor</span>(score_levels, <span class="at">levels =</span> score_levels),</span>
-<span id="cb22-76"><a href="#cb22-76" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.y =</span> <span class="fu">factor</span>(score_levels, <span class="at">levels =</span> score_levels),</span>
-<span id="cb22-77"><a href="#cb22-77" aria-hidden="true" tabindex="-1"></a>      <span class="at">fill =</span> <span class="fu">list</span>(<span class="at">Count =</span> <span class="dv">0</span>)</span>
-<span id="cb22-78"><a href="#cb22-78" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb22-79"><a href="#cb22-79" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb22-80"><a href="#cb22-80" aria-hidden="true" tabindex="-1"></a>      <span class="at">Count_Binned =</span> <span class="fu">cut</span>(Count,</span>
-<span id="cb22-81"><a href="#cb22-81" aria-hidden="true" tabindex="-1"></a>        <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">10</span>, <span class="dv">100</span>, <span class="dv">250</span>, <span class="cn">Inf</span>),</span>
-<span id="cb22-82"><a href="#cb22-82" aria-hidden="true" tabindex="-1"></a>        <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"1"</span>, <span class="st">"2-10"</span>, <span class="st">"11-100"</span>, <span class="st">"101-250"</span>, <span class="st">"251-1000"</span>),</span>
-<span id="cb22-83"><a href="#cb22-83" aria-hidden="true" tabindex="-1"></a>        <span class="at">include.lowest =</span> <span class="cn">TRUE</span></span>
-<span id="cb22-84"><a href="#cb22-84" aria-hidden="true" tabindex="-1"></a>      ),</span>
-<span id="cb22-85"><a href="#cb22-85" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.y =</span> <span class="fu">fct_rev</span>(Scorer.y)</span>
-<span id="cb22-86"><a href="#cb22-86" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb22-87"><a href="#cb22-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-88"><a href="#cb22-88" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(complete_counts, <span class="fu">aes</span>(<span class="at">x =</span> Score.x, <span class="at">y =</span> Score.y)) <span class="sc">+</span></span>
-<span id="cb22-89"><a href="#cb22-89" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> Count_Binned), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb22-90"><a href="#cb22-90" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Score.x/Score.y are discrete factors (see above), so the exact-agreement</span></span>
-<span id="cb22-91"><a href="#cb22-91" aria-hidden="true" tabindex="-1"></a>    <span class="co"># diagonal is drawn as a segment between the first and last factor</span></span>
-<span id="cb22-92"><a href="#cb22-92" aria-hidden="true" tabindex="-1"></a>    <span class="co"># positions rather than geom_abline (which needs a continuous scale).</span></span>
-<span id="cb22-93"><a href="#cb22-93" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_segment</span>(</span>
-<span id="cb22-94"><a href="#cb22-94" aria-hidden="true" tabindex="-1"></a>      <span class="at">x =</span> <span class="dv">1</span>, <span class="at">xend =</span> <span class="fu">length</span>(score_levels), <span class="at">y =</span> <span class="dv">1</span>, <span class="at">yend =</span> <span class="fu">length</span>(score_levels),</span>
-<span id="cb22-95"><a href="#cb22-95" aria-hidden="true" tabindex="-1"></a>      <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span></span>
-<span id="cb22-96"><a href="#cb22-96" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
-<span id="cb22-97"><a href="#cb22-97" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_manual</span>(</span>
-<span id="cb22-98"><a href="#cb22-98" aria-hidden="true" tabindex="-1"></a>      <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb22-99"><a href="#cb22-99" aria-hidden="true" tabindex="-1"></a>        <span class="st">"1"</span> <span class="ot">=</span> <span class="st">"#eff3ff"</span>,</span>
-<span id="cb22-100"><a href="#cb22-100" aria-hidden="true" tabindex="-1"></a>        <span class="st">"2-10"</span> <span class="ot">=</span> <span class="st">"#9ecae1"</span>,</span>
-<span id="cb22-101"><a href="#cb22-101" aria-hidden="true" tabindex="-1"></a>        <span class="st">"11-100"</span> <span class="ot">=</span> <span class="st">"#3182bd"</span>,</span>
-<span id="cb22-102"><a href="#cb22-102" aria-hidden="true" tabindex="-1"></a>        <span class="st">"101-250"</span> <span class="ot">=</span> <span class="st">"#fdae61"</span>,</span>
-<span id="cb22-103"><a href="#cb22-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">"251-1000"</span> <span class="ot">=</span> <span class="st">"#d73027"</span></span>
-<span id="cb22-104"><a href="#cb22-104" aria-hidden="true" tabindex="-1"></a>      ),</span>
-<span id="cb22-105"><a href="#cb22-105" aria-hidden="true" tabindex="-1"></a>      <span class="at">name =</span> <span class="st">"Frequency"</span>, <span class="at">na.value =</span> <span class="st">"white"</span>, <span class="at">drop =</span> <span class="cn">FALSE</span></span>
-<span id="cb22-106"><a href="#cb22-106" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
-<span id="cb22-107"><a href="#cb22-107" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(Scorer.y <span class="sc">~</span> Scorer.x, <span class="at">switch =</span> <span class="st">"both"</span>) <span class="sc">+</span></span>
-<span id="cb22-108"><a href="#cb22-108" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb22-109"><a href="#cb22-109" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
-<span id="cb22-110"><a href="#cb22-110" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(</span>
-<span id="cb22-111"><a href="#cb22-111" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.25</span>, <span class="st">"lines"</span>),</span>
-<span id="cb22-112"><a href="#cb22-112" aria-hidden="true" tabindex="-1"></a>      <span class="at">strip.placement =</span> <span class="st">"outside"</span>,</span>
-<span id="cb22-113"><a href="#cb22-113" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb22-114"><a href="#cb22-114" aria-hidden="true" tabindex="-1"></a>      <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
-<span id="cb22-115"><a href="#cb22-115" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>),</span>
-<span id="cb22-116"><a href="#cb22-116" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb22-117"><a href="#cb22-117" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb22-118"><a href="#cb22-118" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>)</span>
-<span id="cb22-119"><a href="#cb22-119" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb22-120"><a href="#cb22-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-121"><a href="#cb22-121" aria-hidden="true" tabindex="-1"></a>  <span class="fu">hide_non_pairs</span>(p)</span>
-<span id="cb22-122"><a href="#cb22-122" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb22-123"><a href="#cb22-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-124"><a href="#cb22-124" aria-hidden="true" tabindex="-1"></a>p_patterns <span class="ot">&lt;-</span> <span class="fu">make_patterns_plot</span>(score_data_long)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>gen_pairwise_counts <span class="ot">&lt;-</span> <span class="cf">function</span>(score_data_long) {</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> score_data_long <span class="sc">%&gt;%</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Score =</span> <span class="fu">as.numeric</span>(Score)) <span class="sc">%&gt;%</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Basename, Row, Col, Pos) <span class="sc">%&gt;%</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">id =</span> <span class="fu">row_number</span>()) <span class="sc">%&gt;%</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  pairwise <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">full_join</span>(data, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Basename"</span>, <span class="st">"Row"</span>, <span class="st">"Col"</span>, <span class="st">"Pos"</span>), <span class="at">relationship =</span> <span class="st">"many-to-many"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(id.x <span class="sc">&lt;</span> id.y) <span class="sc">%&gt;%</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Scorer.x, Score.x, Scorer.y, Score.y) <span class="sc">%&gt;%</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(Scorer.x, Score.x, Scorer.y, Score.y) <span class="sc">%&gt;%</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">Count =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(Score.x) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(Score.y))</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># id.x &lt; id.y reflects column position (Scorer1/2/3), not rater ID value,</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># so a given rater pair can appear with either rater in the Scorer.x slot</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># depending on which column they happened to occupy for a given CDA.</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Folding in the mirrored copy and then keeping only Scorer.x &lt; Scorer.y</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># (by value) consolidates both into one consistent, value-ordered</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># direction per pair - shown once, not twice.</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>  sym_copy <span class="ot">&lt;-</span> pairwise</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(sym_copy)[<span class="fu">names</span>(sym_copy) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Scorer.x"</span>, <span class="st">"Scorer.y"</span>)] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Scorer.y"</span>, <span class="st">"Scorer.x"</span>)</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(sym_copy)[<span class="fu">names</span>(sym_copy) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Score.x"</span>, <span class="st">"Score.y"</span>)] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Score.y"</span>, <span class="st">"Score.x"</span>)</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rbind</span>(pairwise, sym_copy) <span class="sc">%&gt;%</span></span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">as.integer</span>(Scorer.x) <span class="sc">&lt;</span> <span class="fu">as.integer</span>(Scorer.y))</span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a><span class="co"># facet_grid always draws the full cross product of its two faceting</span></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a><span class="co"># variables' declared factor levels, regardless of whether a given</span></span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a><span class="co"># combination has any data - so even with only the 45 upper-triangle rater</span></span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a><span class="co"># pairs above, it would still draw all 100 panels (self-pairs + the</span></span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a><span class="co"># now-empty lower-triangle mirror). This blanks those 55 non-pairs out</span></span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a><span class="co"># entirely (rather than leaving them as visible empty bordered boxes), by</span></span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a><span class="co"># replacing their panel grobs with nullGrob() after the plot is built.</span></span>
+<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a>hide_non_pairs <span class="ot">&lt;-</span> <span class="cf">function</span>(p) {</span>
+<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a>  panel_info <span class="ot">&lt;-</span> <span class="fu">ggplot_build</span>(p)<span class="sc">$</span>layout<span class="sc">$</span>layout</span>
+<span id="cb23-39"><a href="#cb23-39" aria-hidden="true" tabindex="-1"></a>  hide_panels <span class="ot">&lt;-</span> panel_info<span class="sc">$</span>PANEL[</span>
+<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.integer</span>(<span class="fu">as.character</span>(panel_info<span class="sc">$</span>Scorer.x)) <span class="sc">&gt;=</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(panel_info<span class="sc">$</span>Scorer.y))</span>
+<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a>  ]</span>
+<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">ggplotGrob</span>(p)</span>
+<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a>  panel_idx <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"^panel"</span>, g<span class="sc">$</span>layout<span class="sc">$</span>name)</span>
+<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(panel_idx) <span class="sc">==</span> <span class="fu">nrow</span>(panel_info))</span>
+<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (pnum <span class="cf">in</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(hide_panels))) {</span>
+<span id="cb23-47"><a href="#cb23-47" aria-hidden="true" tabindex="-1"></a>    g<span class="sc">$</span>grobs[[panel_idx[pnum]]] <span class="ot">&lt;-</span> grid<span class="sc">::</span><span class="fu">nullGrob</span>()</span>
+<span id="cb23-48"><a href="#cb23-48" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb23-49"><a href="#cb23-49" aria-hidden="true" tabindex="-1"></a>  g</span>
+<span id="cb23-50"><a href="#cb23-50" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-51"><a href="#cb23-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-52"><a href="#cb23-52" aria-hidden="true" tabindex="-1"></a>make_patterns_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(sdl) {</span>
+<span id="cb23-53"><a href="#cb23-53" aria-hidden="true" tabindex="-1"></a>  levels_xy <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)</span>
+<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a>  score_levels <span class="ot">&lt;-</span> <span class="fu">as.character</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">6</span>)</span>
+<span id="cb23-55"><a href="#cb23-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-56"><a href="#cb23-56" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Self-pairs (a rater against themselves) carry no data and are excluded</span></span>
+<span id="cb23-57"><a href="#cb23-57" aria-hidden="true" tabindex="-1"></a>  <span class="co"># outright by gen_pairwise_counts's Scorer.x &lt; Scorer.y filter above.</span></span>
+<span id="cb23-58"><a href="#cb23-58" aria-hidden="true" tabindex="-1"></a>  counts <span class="ot">&lt;-</span> <span class="fu">gen_pairwise_counts</span>(sdl) <span class="sc">%&gt;%</span></span>
+<span id="cb23-59"><a href="#cb23-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb23-60"><a href="#cb23-60" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.x =</span> <span class="fu">factor</span>(Scorer.x, <span class="at">levels =</span> levels_xy),</span>
+<span id="cb23-61"><a href="#cb23-61" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.y =</span> <span class="fu">factor</span>(Scorer.y, <span class="at">levels =</span> levels_xy),</span>
+<span id="cb23-62"><a href="#cb23-62" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.x =</span> <span class="fu">factor</span>(Score.x, <span class="at">levels =</span> score_levels),</span>
+<span id="cb23-63"><a href="#cb23-63" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.y =</span> <span class="fu">factor</span>(Score.y, <span class="at">levels =</span> score_levels)</span>
+<span id="cb23-64"><a href="#cb23-64" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb23-65"><a href="#cb23-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-66"><a href="#cb23-66" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Complete the severity-score grid (0-6 x 0-6) *within* each rater pair</span></span>
+<span id="cb23-67"><a href="#cb23-67" aria-hidden="true" tabindex="-1"></a>  <span class="co"># that actually shares data (nesting), rather than crossing all 10x10</span></span>
+<span id="cb23-68"><a href="#cb23-68" aria-hidden="true" tabindex="-1"></a>  <span class="co"># rater combinations. The latter used to fabricate entirely-empty panels</span></span>
+<span id="cb23-69"><a href="#cb23-69" aria-hidden="true" tabindex="-1"></a>  <span class="co"># (self-pairs, or raters who never scored together) whose Score.x/Score.y</span></span>
+<span id="cb23-70"><a href="#cb23-70" aria-hidden="true" tabindex="-1"></a>  <span class="co"># were then all NA, which made ggplot's per-panel range() warn "no</span></span>
+<span id="cb23-71"><a href="#cb23-71" aria-hidden="true" tabindex="-1"></a>  <span class="co"># non-missing arguments to min/max" for every such panel.</span></span>
+<span id="cb23-72"><a href="#cb23-72" aria-hidden="true" tabindex="-1"></a>  complete_counts <span class="ot">&lt;-</span> counts <span class="sc">%&gt;%</span></span>
+<span id="cb23-73"><a href="#cb23-73" aria-hidden="true" tabindex="-1"></a>    <span class="fu">complete</span>(</span>
+<span id="cb23-74"><a href="#cb23-74" aria-hidden="true" tabindex="-1"></a>      <span class="fu">nesting</span>(Scorer.x, Scorer.y),</span>
+<span id="cb23-75"><a href="#cb23-75" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.x =</span> <span class="fu">factor</span>(score_levels, <span class="at">levels =</span> score_levels),</span>
+<span id="cb23-76"><a href="#cb23-76" aria-hidden="true" tabindex="-1"></a>      <span class="at">Score.y =</span> <span class="fu">factor</span>(score_levels, <span class="at">levels =</span> score_levels),</span>
+<span id="cb23-77"><a href="#cb23-77" aria-hidden="true" tabindex="-1"></a>      <span class="at">fill =</span> <span class="fu">list</span>(<span class="at">Count =</span> <span class="dv">0</span>)</span>
+<span id="cb23-78"><a href="#cb23-78" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb23-79"><a href="#cb23-79" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb23-80"><a href="#cb23-80" aria-hidden="true" tabindex="-1"></a>      <span class="at">Count_Binned =</span> <span class="fu">cut</span>(Count,</span>
+<span id="cb23-81"><a href="#cb23-81" aria-hidden="true" tabindex="-1"></a>        <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">10</span>, <span class="dv">100</span>, <span class="dv">250</span>, <span class="cn">Inf</span>),</span>
+<span id="cb23-82"><a href="#cb23-82" aria-hidden="true" tabindex="-1"></a>        <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"1"</span>, <span class="st">"2-10"</span>, <span class="st">"11-100"</span>, <span class="st">"101-250"</span>, <span class="st">"251-1000"</span>),</span>
+<span id="cb23-83"><a href="#cb23-83" aria-hidden="true" tabindex="-1"></a>        <span class="at">include.lowest =</span> <span class="cn">TRUE</span></span>
+<span id="cb23-84"><a href="#cb23-84" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb23-85"><a href="#cb23-85" aria-hidden="true" tabindex="-1"></a>      <span class="at">Scorer.y =</span> <span class="fu">fct_rev</span>(Scorer.y)</span>
+<span id="cb23-86"><a href="#cb23-86" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb23-87"><a href="#cb23-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-88"><a href="#cb23-88" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(complete_counts, <span class="fu">aes</span>(<span class="at">x =</span> Score.x, <span class="at">y =</span> Score.y)) <span class="sc">+</span></span>
+<span id="cb23-89"><a href="#cb23-89" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> Count_Binned), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb23-90"><a href="#cb23-90" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Score.x/Score.y are discrete factors (see above), so the exact-agreement</span></span>
+<span id="cb23-91"><a href="#cb23-91" aria-hidden="true" tabindex="-1"></a>    <span class="co"># diagonal is drawn as a segment between the first and last factor</span></span>
+<span id="cb23-92"><a href="#cb23-92" aria-hidden="true" tabindex="-1"></a>    <span class="co"># positions rather than geom_abline (which needs a continuous scale).</span></span>
+<span id="cb23-93"><a href="#cb23-93" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_segment</span>(</span>
+<span id="cb23-94"><a href="#cb23-94" aria-hidden="true" tabindex="-1"></a>      <span class="at">x =</span> <span class="dv">1</span>, <span class="at">xend =</span> <span class="fu">length</span>(score_levels), <span class="at">y =</span> <span class="dv">1</span>, <span class="at">yend =</span> <span class="fu">length</span>(score_levels),</span>
+<span id="cb23-95"><a href="#cb23-95" aria-hidden="true" tabindex="-1"></a>      <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span></span>
+<span id="cb23-96"><a href="#cb23-96" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb23-97"><a href="#cb23-97" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_manual</span>(</span>
+<span id="cb23-98"><a href="#cb23-98" aria-hidden="true" tabindex="-1"></a>      <span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb23-99"><a href="#cb23-99" aria-hidden="true" tabindex="-1"></a>        <span class="st">"1"</span> <span class="ot">=</span> <span class="st">"#eff3ff"</span>,</span>
+<span id="cb23-100"><a href="#cb23-100" aria-hidden="true" tabindex="-1"></a>        <span class="st">"2-10"</span> <span class="ot">=</span> <span class="st">"#9ecae1"</span>,</span>
+<span id="cb23-101"><a href="#cb23-101" aria-hidden="true" tabindex="-1"></a>        <span class="st">"11-100"</span> <span class="ot">=</span> <span class="st">"#3182bd"</span>,</span>
+<span id="cb23-102"><a href="#cb23-102" aria-hidden="true" tabindex="-1"></a>        <span class="st">"101-250"</span> <span class="ot">=</span> <span class="st">"#fdae61"</span>,</span>
+<span id="cb23-103"><a href="#cb23-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">"251-1000"</span> <span class="ot">=</span> <span class="st">"#d73027"</span></span>
+<span id="cb23-104"><a href="#cb23-104" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb23-105"><a href="#cb23-105" aria-hidden="true" tabindex="-1"></a>      <span class="at">name =</span> <span class="st">"Frequency"</span>, <span class="at">na.value =</span> <span class="st">"white"</span>, <span class="at">drop =</span> <span class="cn">FALSE</span></span>
+<span id="cb23-106"><a href="#cb23-106" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb23-107"><a href="#cb23-107" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(Scorer.y <span class="sc">~</span> Scorer.x, <span class="at">switch =</span> <span class="st">"both"</span>) <span class="sc">+</span></span>
+<span id="cb23-108"><a href="#cb23-108" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb23-109"><a href="#cb23-109" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
+<span id="cb23-110"><a href="#cb23-110" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(</span>
+<span id="cb23-111"><a href="#cb23-111" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.spacing =</span> <span class="fu">unit</span>(<span class="fl">0.25</span>, <span class="st">"lines"</span>),</span>
+<span id="cb23-112"><a href="#cb23-112" aria-hidden="true" tabindex="-1"></a>      <span class="at">strip.placement =</span> <span class="st">"outside"</span>,</span>
+<span id="cb23-113"><a href="#cb23-113" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb23-114"><a href="#cb23-114" aria-hidden="true" tabindex="-1"></a>      <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
+<span id="cb23-115"><a href="#cb23-115" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb23-116"><a href="#cb23-116" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb23-117"><a href="#cb23-117" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb23-118"><a href="#cb23-118" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>)</span>
+<span id="cb23-119"><a href="#cb23-119" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb23-120"><a href="#cb23-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-121"><a href="#cb23-121" aria-hidden="true" tabindex="-1"></a>  <span class="fu">hide_non_pairs</span>(p)</span>
+<span id="cb23-122"><a href="#cb23-122" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-123"><a href="#cb23-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-124"><a href="#cb23-124" aria-hidden="true" tabindex="-1"></a>p_patterns <span class="ot">&lt;-</span> <span class="fu">make_patterns_plot</span>(score_data_long)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning in min(x): no non-missing arguments to min; returning Inf</code></pre>
@@ -2107,18 +2117,18 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb455"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb455-1"><a href="#cb455-1" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">::</span><span class="fu">grid.newpage</span>()</span>
-<span id="cb455-2"><a href="#cb455-2" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">::</span><span class="fu">grid.draw</span>(p_patterns)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb456"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb456-1"><a href="#cb456-1" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">::</span><span class="fu">grid.newpage</span>()</span>
+<span id="cb456-2"><a href="#cb456-2" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">::</span><span class="fu">grid.draw</span>(p_patterns)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="1536"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb456"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb456-1"><a href="#cb456-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Matches the chunk's fig.width/fig.height (16 x 16) - see</span></span>
-<span id="cb456-2"><a href="#cb456-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 06_intra_rater_reliability's equivalent plots for the repo's convention of</span></span>
-<span id="cb456-3"><a href="#cb456-3" aria-hidden="true" tabindex="-1"></a><span class="co"># always matching the two.</span></span>
-<span id="cb456-4"><a href="#cb456-4" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_patterns, <span class="st">"agreement_patterns.png"</span>, <span class="at">width =</span> <span class="dv">16</span>, <span class="at">height =</span> <span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb457"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb457-1"><a href="#cb457-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Matches the chunk's fig.width/fig.height (16 x 16) - see</span></span>
+<span id="cb457-2"><a href="#cb457-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 06_intra_rater_reliability's equivalent plots for the repo's convention of</span></span>
+<span id="cb457-3"><a href="#cb457-3" aria-hidden="true" tabindex="-1"></a><span class="co"># always matching the two.</span></span>
+<span id="cb457-4"><a href="#cb457-4" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_patterns, <span class="st">"agreement_patterns.png"</span>, <span class="at">width =</span> <span class="dv">16</span>, <span class="at">height =</span> <span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <hr>
@@ -2130,16 +2140,16 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb457"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb457-1"><a href="#cb457-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.1</span></span>
-<span id="cb457-2"><a href="#cb457-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Computed on the full rater x CDA matrix directly (no median involved).</span></span>
-<span id="cb457-3"><a href="#cb457-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Two distance metrics are compared here and in 7.2 as a robustness check on</span></span>
-<span id="cb457-4"><a href="#cb457-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the assumed measurement level: ordinal (treats 0-6 as ordered categories)</span></span>
-<span id="cb457-5"><a href="#cb457-5" aria-hidden="true" tabindex="-1"></a><span class="co"># and interval (treats 0-6 as equally spaced). If the two estimates agree,</span></span>
-<span id="cb457-6"><a href="#cb457-6" aria-hidden="true" tabindex="-1"></a><span class="co"># the reliability conclusion doesn't hinge on which scale assumption is</span></span>
-<span id="cb457-7"><a href="#cb457-7" aria-hidden="true" tabindex="-1"></a><span class="co"># correct. Missing values are handled automatically: expected agreement is</span></span>
-<span id="cb457-8"><a href="#cb457-8" aria-hidden="true" tabindex="-1"></a><span class="co"># estimated from all rated pairs.</span></span>
-<span id="cb457-9"><a href="#cb457-9" aria-hidden="true" tabindex="-1"></a>alpha_raw <span class="ot">&lt;-</span> <span class="fu">kripp.alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"ordinal"</span>)</span>
-<span id="cb457-10"><a href="#cb457-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Krippendorff's alpha (ordinal, raw scores):"</span>, <span class="fu">round</span>(alpha_raw<span class="sc">$</span>value, <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb458"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb458-1"><a href="#cb458-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.1</span></span>
+<span id="cb458-2"><a href="#cb458-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Computed on the full rater x CDA matrix directly (no median involved).</span></span>
+<span id="cb458-3"><a href="#cb458-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Two distance metrics are compared here and in 7.2 as a robustness check on</span></span>
+<span id="cb458-4"><a href="#cb458-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the assumed measurement level: ordinal (treats 0-6 as ordered categories)</span></span>
+<span id="cb458-5"><a href="#cb458-5" aria-hidden="true" tabindex="-1"></a><span class="co"># and interval (treats 0-6 as equally spaced). If the two estimates agree,</span></span>
+<span id="cb458-6"><a href="#cb458-6" aria-hidden="true" tabindex="-1"></a><span class="co"># the reliability conclusion doesn't hinge on which scale assumption is</span></span>
+<span id="cb458-7"><a href="#cb458-7" aria-hidden="true" tabindex="-1"></a><span class="co"># correct. Missing values are handled automatically: expected agreement is</span></span>
+<span id="cb458-8"><a href="#cb458-8" aria-hidden="true" tabindex="-1"></a><span class="co"># estimated from all rated pairs.</span></span>
+<span id="cb458-9"><a href="#cb458-9" aria-hidden="true" tabindex="-1"></a>alpha_raw <span class="ot">&lt;-</span> <span class="fu">kripp.alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"ordinal"</span>)</span>
+<span id="cb458-10"><a href="#cb458-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Krippendorff's alpha (ordinal, raw scores):"</span>, <span class="fu">round</span>(alpha_raw<span class="sc">$</span>value, <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Krippendorff's alpha (ordinal, raw scores): 0.9354 </code></pre>
@@ -2148,25 +2158,25 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb459"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb459-1"><a href="#cb459-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.2</span></span>
-<span id="cb459-2"><a href="#cb459-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.</span></span>
-<span id="cb459-3"><a href="#cb459-3" aria-hidden="true" tabindex="-1"></a>alpha_raw_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
-<span id="cb459-4"><a href="#cb459-4" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
-<span id="cb459-5"><a href="#cb459-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"ordinal"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
-<span id="cb459-6"><a href="#cb459-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_ordinal.rds"</span>)</span>
-<span id="cb459-7"><a href="#cb459-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb459-8"><a href="#cb459-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb459-9"><a href="#cb459-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb460"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb460-1"><a href="#cb460-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.2</span></span>
+<span id="cb460-2"><a href="#cb460-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.</span></span>
+<span id="cb460-3"><a href="#cb460-3" aria-hidden="true" tabindex="-1"></a>alpha_raw_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
+<span id="cb460-4"><a href="#cb460-4" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
+<span id="cb460-5"><a href="#cb460-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"ordinal"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
+<span id="cb460-6"><a href="#cb460-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_ordinal.rds"</span>)</span>
+<span id="cb460-7"><a href="#cb460-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb460-8"><a href="#cb460-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb460-9"><a href="#cb460-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Bootstrap mean α: 0.9349 </code></pre>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb461"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb461-1"><a href="#cb461-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
-<span id="cb461-2"><a href="#cb461-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"95% CI: ["</span>, <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_boot, <span class="fl">0.025</span>), <span class="dv">4</span>), <span class="st">","</span>,</span>
-<span id="cb461-3"><a href="#cb461-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_boot, <span class="fl">0.975</span>), <span class="dv">4</span>), <span class="st">"]</span><span class="sc">\n</span><span class="st">"</span></span>
-<span id="cb461-4"><a href="#cb461-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb462"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb462-1"><a href="#cb462-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
+<span id="cb462-2"><a href="#cb462-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"95% CI: ["</span>, <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_boot, <span class="fl">0.025</span>), <span class="dv">4</span>), <span class="st">","</span>,</span>
+<span id="cb462-3"><a href="#cb462-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_boot, <span class="fl">0.975</span>), <span class="dv">4</span>), <span class="st">"]</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb462-4"><a href="#cb462-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>95% CI: [ 0.9232 , 0.9453 ]</code></pre>
@@ -2175,50 +2185,50 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb463"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb463-1"><a href="#cb463-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.3</span></span>
-<span id="cb463-2"><a href="#cb463-2" aria-hidden="true" tabindex="-1"></a>boot_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">alpha =</span> alpha_raw_boot)</span>
-<span id="cb463-3"><a href="#cb463-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb463-4"><a href="#cb463-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(boot_df, <span class="fu">aes</span>(<span class="at">x =</span> alpha)) <span class="sc">+</span></span>
-<span id="cb463-5"><a href="#cb463-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.005</span>, <span class="at">fill =</span> <span class="st">"cornflowerblue"</span>, <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
-<span id="cb463-6"><a href="#cb463-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
-<span id="cb463-7"><a href="#cb463-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fu">mean</span>(alpha_raw_boot), <span class="at">color =</span> <span class="st">"Bootstrap mean"</span>,</span>
-<span id="cb463-8"><a href="#cb463-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"Bootstrap mean"</span></span>
-<span id="cb463-9"><a href="#cb463-9" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb463-10"><a href="#cb463-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
-<span id="cb463-11"><a href="#cb463-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"α = 0.8 reliability threshold"</span>,</span>
-<span id="cb463-12"><a href="#cb463-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"α = 0.8 reliability threshold"</span></span>
-<span id="cb463-13"><a href="#cb463-13" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
-<span id="cb463-14"><a href="#cb463-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
-<span id="cb463-15"><a href="#cb463-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
-<span id="cb463-16"><a href="#cb463-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb463-17"><a href="#cb463-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>,</span>
-<span id="cb463-18"><a href="#cb463-18" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"black"</span></span>
-<span id="cb463-19"><a href="#cb463-19" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb463-20"><a href="#cb463-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb463-21"><a href="#cb463-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(</span>
-<span id="cb463-22"><a href="#cb463-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
-<span id="cb463-23"><a href="#cb463-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb463-24"><a href="#cb463-24" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
-<span id="cb463-25"><a href="#cb463-25" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"dotted"</span></span>
-<span id="cb463-26"><a href="#cb463-26" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb463-27"><a href="#cb463-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb463-28"><a href="#cb463-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Krippendorff's α (ordinal)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
-<span id="cb463-29"><a href="#cb463-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb463-30"><a href="#cb463-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb463-31"><a href="#cb463-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb463-32"><a href="#cb463-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
-<span id="cb463-33"><a href="#cb463-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb463-34"><a href="#cb463-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
-<span id="cb463-35"><a href="#cb463-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"bottom"</span></span>
-<span id="cb463-36"><a href="#cb463-36" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb463-37"><a href="#cb463-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb464"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb464-1"><a href="#cb464-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.1.3</span></span>
+<span id="cb464-2"><a href="#cb464-2" aria-hidden="true" tabindex="-1"></a>boot_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">alpha =</span> alpha_raw_boot)</span>
+<span id="cb464-3"><a href="#cb464-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb464-4"><a href="#cb464-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(boot_df, <span class="fu">aes</span>(<span class="at">x =</span> alpha)) <span class="sc">+</span></span>
+<span id="cb464-5"><a href="#cb464-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.005</span>, <span class="at">fill =</span> <span class="st">"cornflowerblue"</span>, <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
+<span id="cb464-6"><a href="#cb464-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
+<span id="cb464-7"><a href="#cb464-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fu">mean</span>(alpha_raw_boot), <span class="at">color =</span> <span class="st">"Bootstrap mean"</span>,</span>
+<span id="cb464-8"><a href="#cb464-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"Bootstrap mean"</span></span>
+<span id="cb464-9"><a href="#cb464-9" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb464-10"><a href="#cb464-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
+<span id="cb464-11"><a href="#cb464-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"α = 0.8 reliability threshold"</span>,</span>
+<span id="cb464-12"><a href="#cb464-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"α = 0.8 reliability threshold"</span></span>
+<span id="cb464-13"><a href="#cb464-13" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb464-14"><a href="#cb464-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb464-15"><a href="#cb464-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
+<span id="cb464-16"><a href="#cb464-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb464-17"><a href="#cb464-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>,</span>
+<span id="cb464-18"><a href="#cb464-18" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"black"</span></span>
+<span id="cb464-19"><a href="#cb464-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb464-20"><a href="#cb464-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb464-21"><a href="#cb464-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(</span>
+<span id="cb464-22"><a href="#cb464-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
+<span id="cb464-23"><a href="#cb464-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb464-24"><a href="#cb464-24" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
+<span id="cb464-25"><a href="#cb464-25" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"dotted"</span></span>
+<span id="cb464-26"><a href="#cb464-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb464-27"><a href="#cb464-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb464-28"><a href="#cb464-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Krippendorff's α (ordinal)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb464-29"><a href="#cb464-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb464-30"><a href="#cb464-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb464-31"><a href="#cb464-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb464-32"><a href="#cb464-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
+<span id="cb464-33"><a href="#cb464-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb464-34"><a href="#cb464-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
+<span id="cb464-35"><a href="#cb464-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"bottom"</span></span>
+<span id="cb464-36"><a href="#cb464-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb464-37"><a href="#cb464-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid" width="672"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb464"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb464-1"><a href="#cb464-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"krippendorff_alpha_raw.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb465"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb465-1"><a href="#cb465-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"krippendorff_alpha_raw.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
@@ -2227,12 +2237,12 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb465"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb465-1"><a href="#cb465-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.1</span></span>
-<span id="cb465-2"><a href="#cb465-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Same rater x CDA matrix as 7.1, but with method = "interval" instead of</span></span>
-<span id="cb465-3"><a href="#cb465-3" aria-hidden="true" tabindex="-1"></a><span class="co"># "ordinal" - no residuals or medians involved, just a different distance</span></span>
-<span id="cb465-4"><a href="#cb465-4" aria-hidden="true" tabindex="-1"></a><span class="co"># metric applied to the same raw scores.</span></span>
-<span id="cb465-5"><a href="#cb465-5" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval <span class="ot">&lt;-</span> <span class="fu">kripp.alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"interval"</span>)</span>
-<span id="cb465-6"><a href="#cb465-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Krippendorff's alpha (interval, raw scores):"</span>, <span class="fu">round</span>(alpha_raw_interval<span class="sc">$</span>value, <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb466"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb466-1"><a href="#cb466-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.1</span></span>
+<span id="cb466-2"><a href="#cb466-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Same rater x CDA matrix as 7.1, but with method = "interval" instead of</span></span>
+<span id="cb466-3"><a href="#cb466-3" aria-hidden="true" tabindex="-1"></a><span class="co"># "ordinal" - no residuals or medians involved, just a different distance</span></span>
+<span id="cb466-4"><a href="#cb466-4" aria-hidden="true" tabindex="-1"></a><span class="co"># metric applied to the same raw scores.</span></span>
+<span id="cb466-5"><a href="#cb466-5" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval <span class="ot">&lt;-</span> <span class="fu">kripp.alpha</span>(scorer_matrix, <span class="at">method =</span> <span class="st">"interval"</span>)</span>
+<span id="cb466-6"><a href="#cb466-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Krippendorff's alpha (interval, raw scores):"</span>, <span class="fu">round</span>(alpha_raw_interval<span class="sc">$</span>value, <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Krippendorff's alpha (interval, raw scores): 0.9336 </code></pre>
@@ -2241,25 +2251,25 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb467"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb467-1"><a href="#cb467-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.2</span></span>
-<span id="cb467-2"><a href="#cb467-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.</span></span>
-<span id="cb467-3"><a href="#cb467-3" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
-<span id="cb467-4"><a href="#cb467-4" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
-<span id="cb467-5"><a href="#cb467-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
-<span id="cb467-6"><a href="#cb467-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_interval.rds"</span>)</span>
-<span id="cb467-7"><a href="#cb467-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb467-8"><a href="#cb467-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb467-9"><a href="#cb467-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_interval_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb468"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb468-1"><a href="#cb468-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.2</span></span>
+<span id="cb468-2"><a href="#cb468-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.</span></span>
+<span id="cb468-3"><a href="#cb468-3" aria-hidden="true" tabindex="-1"></a>alpha_raw_interval_boot <span class="ot">&lt;-</span> <span class="fu">bootstrap_kripp_alpha</span>(</span>
+<span id="cb468-4"><a href="#cb468-4" aria-hidden="true" tabindex="-1"></a>  scorer_matrix,</span>
+<span id="cb468-5"><a href="#cb468-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"interval"</span>, <span class="at">sample_size =</span> <span class="dv">500</span>,</span>
+<span id="cb468-6"><a href="#cb468-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_path =</span> <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"05_inter_rater_agreement"</span>, <span class="st">"bootstrap_cache"</span>, <span class="st">"alpha_raw_interval.rds"</span>)</span>
+<span id="cb468-7"><a href="#cb468-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb468-8"><a href="#cb468-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb468-9"><a href="#cb468-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Bootstrap mean α:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(alpha_raw_interval_boot), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Bootstrap mean α: 0.9334 </code></pre>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb469"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb469-1"><a href="#cb469-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
-<span id="cb469-2"><a href="#cb469-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"95% CI: ["</span>, <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_interval_boot, <span class="fl">0.025</span>), <span class="dv">4</span>), <span class="st">","</span>,</span>
-<span id="cb469-3"><a href="#cb469-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_interval_boot, <span class="fl">0.975</span>), <span class="dv">4</span>), <span class="st">"]</span><span class="sc">\n</span><span class="st">"</span></span>
-<span id="cb469-4"><a href="#cb469-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb470"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb470-1"><a href="#cb470-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(</span>
+<span id="cb470-2"><a href="#cb470-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"95% CI: ["</span>, <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_interval_boot, <span class="fl">0.025</span>), <span class="dv">4</span>), <span class="st">","</span>,</span>
+<span id="cb470-3"><a href="#cb470-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="fu">quantile</span>(alpha_raw_interval_boot, <span class="fl">0.975</span>), <span class="dv">4</span>), <span class="st">"]</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb470-4"><a href="#cb470-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>95% CI: [ 0.9203 , 0.9443 ]</code></pre>
@@ -2268,50 +2278,50 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb471"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb471-1"><a href="#cb471-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.3</span></span>
-<span id="cb471-2"><a href="#cb471-2" aria-hidden="true" tabindex="-1"></a>boot_interval_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">alpha =</span> alpha_raw_interval_boot)</span>
-<span id="cb471-3"><a href="#cb471-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb471-4"><a href="#cb471-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(boot_interval_df, <span class="fu">aes</span>(<span class="at">x =</span> alpha)) <span class="sc">+</span></span>
-<span id="cb471-5"><a href="#cb471-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.005</span>, <span class="at">fill =</span> <span class="st">"cornflowerblue"</span>, <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
-<span id="cb471-6"><a href="#cb471-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
-<span id="cb471-7"><a href="#cb471-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fu">mean</span>(alpha_raw_interval_boot), <span class="at">color =</span> <span class="st">"Bootstrap mean"</span>,</span>
-<span id="cb471-8"><a href="#cb471-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"Bootstrap mean"</span></span>
-<span id="cb471-9"><a href="#cb471-9" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb471-10"><a href="#cb471-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
-<span id="cb471-11"><a href="#cb471-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"α = 0.8 reliability threshold"</span>,</span>
-<span id="cb471-12"><a href="#cb471-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"α = 0.8 reliability threshold"</span></span>
-<span id="cb471-13"><a href="#cb471-13" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
-<span id="cb471-14"><a href="#cb471-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
-<span id="cb471-15"><a href="#cb471-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
-<span id="cb471-16"><a href="#cb471-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb471-17"><a href="#cb471-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>,</span>
-<span id="cb471-18"><a href="#cb471-18" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"black"</span></span>
-<span id="cb471-19"><a href="#cb471-19" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb471-20"><a href="#cb471-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb471-21"><a href="#cb471-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(</span>
-<span id="cb471-22"><a href="#cb471-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
-<span id="cb471-23"><a href="#cb471-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb471-24"><a href="#cb471-24" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
-<span id="cb471-25"><a href="#cb471-25" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"dotted"</span></span>
-<span id="cb471-26"><a href="#cb471-26" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb471-27"><a href="#cb471-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb471-28"><a href="#cb471-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Krippendorff's α (interval)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
-<span id="cb471-29"><a href="#cb471-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb471-30"><a href="#cb471-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb471-31"><a href="#cb471-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb471-32"><a href="#cb471-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
-<span id="cb471-33"><a href="#cb471-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb471-34"><a href="#cb471-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
-<span id="cb471-35"><a href="#cb471-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"bottom"</span></span>
-<span id="cb471-36"><a href="#cb471-36" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb471-37"><a href="#cb471-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb472"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb472-1"><a href="#cb472-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 7.2.3</span></span>
+<span id="cb472-2"><a href="#cb472-2" aria-hidden="true" tabindex="-1"></a>boot_interval_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">alpha =</span> alpha_raw_interval_boot)</span>
+<span id="cb472-3"><a href="#cb472-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb472-4"><a href="#cb472-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(boot_interval_df, <span class="fu">aes</span>(<span class="at">x =</span> alpha)) <span class="sc">+</span></span>
+<span id="cb472-5"><a href="#cb472-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.005</span>, <span class="at">fill =</span> <span class="st">"cornflowerblue"</span>, <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
+<span id="cb472-6"><a href="#cb472-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
+<span id="cb472-7"><a href="#cb472-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fu">mean</span>(alpha_raw_interval_boot), <span class="at">color =</span> <span class="st">"Bootstrap mean"</span>,</span>
+<span id="cb472-8"><a href="#cb472-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"Bootstrap mean"</span></span>
+<span id="cb472-9"><a href="#cb472-9" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb472-10"><a href="#cb472-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="fu">aes</span>(</span>
+<span id="cb472-11"><a href="#cb472-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"α = 0.8 reliability threshold"</span>,</span>
+<span id="cb472-12"><a href="#cb472-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"α = 0.8 reliability threshold"</span></span>
+<span id="cb472-13"><a href="#cb472-13" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb472-14"><a href="#cb472-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb472-15"><a href="#cb472-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
+<span id="cb472-16"><a href="#cb472-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb472-17"><a href="#cb472-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>,</span>
+<span id="cb472-18"><a href="#cb472-18" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"black"</span></span>
+<span id="cb472-19"><a href="#cb472-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb472-20"><a href="#cb472-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb472-21"><a href="#cb472-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(</span>
+<span id="cb472-22"><a href="#cb472-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
+<span id="cb472-23"><a href="#cb472-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb472-24"><a href="#cb472-24" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Bootstrap mean"</span> <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
+<span id="cb472-25"><a href="#cb472-25" aria-hidden="true" tabindex="-1"></a>      <span class="st">"α = 0.8 reliability threshold"</span> <span class="ot">=</span> <span class="st">"dotted"</span></span>
+<span id="cb472-26"><a href="#cb472-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb472-27"><a href="#cb472-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb472-28"><a href="#cb472-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Krippendorff's α (interval)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb472-29"><a href="#cb472-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb472-30"><a href="#cb472-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb472-31"><a href="#cb472-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb472-32"><a href="#cb472-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
+<span id="cb472-33"><a href="#cb472-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb472-34"><a href="#cb472-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>),</span>
+<span id="cb472-35"><a href="#cb472-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"bottom"</span></span>
+<span id="cb472-36"><a href="#cb472-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb472-37"><a href="#cb472-37" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid" width="672"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb472"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb472-1"><a href="#cb472-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"krippendorff_alpha_raw_interval.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb473"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb473-1"><a href="#cb473-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"krippendorff_alpha_raw_interval.png"</span>, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>, <span class="at">dir =</span> <span class="st">"thesis_plots"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <hr>
@@ -2329,28 +2339,28 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb473"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb473-1"><a href="#cb473-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 9.1</span></span>
-<span id="cb473-2"><a href="#cb473-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(</span>
-<span id="cb473-3"><a href="#cb473-3" aria-hidden="true" tabindex="-1"></a>  merged_df,</span>
-<span id="cb473-4"><a href="#cb473-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">aes</span>(</span>
-<span id="cb473-5"><a href="#cb473-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> Scorer.x,</span>
-<span id="cb473-6"><a href="#cb473-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="fu">factor</span>(Scorer.y, <span class="at">levels =</span> <span class="fu">as.character</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">as.integer</span>(Scorer.y))))),</span>
-<span id="cb473-7"><a href="#cb473-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> Total</span>
-<span id="cb473-8"><a href="#cb473-8" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb473-9"><a href="#cb473-9" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span></span>
-<span id="cb473-10"><a href="#cb473-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb473-11"><a href="#cb473-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(Total), <span class="st">""</span>, Total)), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">size =</span> <span class="dv">5</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb473-12"><a href="#cb473-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>, <span class="at">name =</span> <span class="st">"Shared CDAs"</span>, <span class="at">na.value =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
-<span id="cb473-13"><a href="#cb473-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
-<span id="cb473-14"><a href="#cb473-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_ira</span>()</span>
-<span id="cb473-15"><a href="#cb473-15" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb474"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb474-1"><a href="#cb474-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 9.1</span></span>
+<span id="cb474-2"><a href="#cb474-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(</span>
+<span id="cb474-3"><a href="#cb474-3" aria-hidden="true" tabindex="-1"></a>  merged_df,</span>
+<span id="cb474-4"><a href="#cb474-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">aes</span>(</span>
+<span id="cb474-5"><a href="#cb474-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> Scorer.x,</span>
+<span id="cb474-6"><a href="#cb474-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="fu">factor</span>(Scorer.y, <span class="at">levels =</span> <span class="fu">as.character</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(<span class="fu">as.integer</span>(Scorer.y))))),</span>
+<span id="cb474-7"><a href="#cb474-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> Total</span>
+<span id="cb474-8"><a href="#cb474-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb474-9"><a href="#cb474-9" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span></span>
+<span id="cb474-10"><a href="#cb474-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb474-11"><a href="#cb474-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(Total), <span class="st">""</span>, Total)), <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">size =</span> <span class="dv">5</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb474-12"><a href="#cb474-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"firebrick"</span>, <span class="at">name =</span> <span class="st">"Shared CDAs"</span>, <span class="at">na.value =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
+<span id="cb474-13"><a href="#cb474-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater X"</span>, <span class="at">y =</span> <span class="st">"Rater Y"</span>) <span class="sc">+</span></span>
+<span id="cb474-14"><a href="#cb474-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_ira</span>()</span>
+<span id="cb474-15"><a href="#cb474-15" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <p><img src="05_inter_rater_agreement_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid" width="1056"></p>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb474"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb474-1"><a href="#cb474-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"shared_cda_count.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb475"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb475-1"><a href="#cb475-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p, <span class="st">"shared_cda_count.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>

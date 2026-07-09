@@ -231,9 +231,13 @@ p_median <- ggplot(median_counts, aes(x = Median_Score, y = Count, fill = Median
     legend.text = element_text(size = 11)
   )
 
-p <- p_all + p_median
-p
-save_plot(p, "score_counts.png", width = 12, height = 6, dir = "thesis_plots")
+# Saved as two separate images (rather than one patchwork-combined image) so
+# the thesis figure can compose them itself.
+p_all
+save_plot(p_all, "score_counts_all.png", width = 6, height = 6, dir = "thesis_plots")
+
+p_median
+save_plot(p_median, "score_counts_median.png", width = 6, height = 6, dir = "thesis_plots")
 ```
 
 ### 2.3 Dotplot of all scores, faceted by median score
