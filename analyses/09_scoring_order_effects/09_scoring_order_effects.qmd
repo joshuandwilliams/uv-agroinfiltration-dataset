@@ -1,0 +1,412 @@
+---
+title: "Scoring Order Effects"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 08/7/2026
+
+## GOHREP
+
+**Goal:**
+
+Test whether scoring shows order-dependent effects — image-blocking (shared visual context from consecutive same-image CDAs), genuine sequential drift over a session, or relative anchoring to the immediately-preceding CDA — as opposed to each CDA being scored independently of its neighbours.
+
+**Hypothesis:**
+
+Any residual autocorrelation in the original (image-ordered) scoring is explained by shared image context, not by rater fatigue/drift or by anchoring to the previous CDA's score. If so, it should vanish once CDAs cross an image boundary, and should also be absent from the rescore session (randomised order).
+
+**Rationale:**
+
+This was previously split across two analyses (`05_inter_rater_agreement/05_inter_rater_agreement.qmd` and `06_intra_rater_reliability/intra_rater_reliability.qmd`) as side-sections, but all of it answers one underlying question, so it has been consolidated here.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+#| output: false
+# 1.1
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(here)
+```
+
+### 1.2 Load helper functions
+
+```{r}
+# 1.2
+source(here("src", "plotting_helpers.R"))
+
+save_plot <- make_save_plot("09_scoring_order_effects")
+
+# Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros
+# dropped). Shared by the two autocorrelation tests below (§2 and §7).
+runs_p <- function(x) {
+  s <- sign(x[x != 0])
+  n <- length(s)
+  n1 <- sum(s > 0)
+  n2 <- sum(s < 0)
+  if (n1 == 0 || n2 == 0 || n < 3) {
+    return(NA_real_)
+  }
+  runs <- 1 + sum(s[-1] != s[-n])
+  mu <- 1 + 2 * n1 * n2 / n
+  v <- 2 * n1 * n2 * (2 * n1 * n2 - n) / (n^2 * (n - 1))
+  2 * pnorm(-abs((runs - mu) / sqrt(v)))
+}
+```
+
+---
+
+## 2. Temporal test — original scoring (image-ordered)
+
+```{r}
+# 2
+# The original scoring was done in image order, with thousands of scores per
+# rater - far more power, but consecutive CDAs usually share an image. Each
+# score is compared to the leave-one-out consensus (the median, i.e. mean, of
+# the other two raters on that CDA), giving a residual score - consensus.
+# Scores are matched to the canonical panel by image and CDA position; the
+# leave-one-out reference removes the self-inclusion that would otherwise
+# force a score to match its own median.
+# Canonical three-rater panel (one row per CDA).
+canon <- read_csv(
+  here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv"),
+  show_col_types = FALSE
+) %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(
+    across(c(Scorer1, Scorer2, Scorer3), as.integer),
+    across(c(Score1, Score2, Score3, Median_Score), as.numeric)
+  )
+
+# data/cdascorer_anon/ holds one file per rater, named Scorer<ID>.csv - see
+# the anonymisation script under scripts/.
+read_raw_set <- function(set) {
+  files <- list.files(here("data", "cdascorer_anon", set), pattern = "[.]csv$", full.names = TRUE)
+  bind_rows(lapply(files, function(f) {
+    scorer_id <- as.integer(sub("^Scorer", "", tools::file_path_sans_ext(basename(f))))
+    read_csv(f, show_col_types = FALSE) %>%
+      transmute(
+        Set = set, Scorer = scorer_id, seq = row_number(),
+        Basename = basename(img), Row = row, Col = col, Pos = pos, score = as.numeric(score)
+      )
+  }))
+}
+
+raw_resid <- bind_rows(read_raw_set("set1"), read_raw_set("set2")) %>%
+  inner_join(canon %>% select(Basename, Row, Col, Pos, Score1, Score2, Score3),
+    by = c("Basename", "Row", "Col", "Pos")
+  ) %>%
+  filter(!is.na(Score1), !is.na(Score2), !is.na(Score3)) %>%
+  # keep only rows where the raw score is genuinely one of the three panel scores,
+  # so (sum - score)/2 is exactly the median of the other two.
+  filter(abs(score - Score1) < 1e-9 | abs(score - Score2) < 1e-9 | abs(score - Score3) < 1e-9) %>%
+  mutate(
+    loo_ref = (Score1 + Score2 + Score3 - score) / 2,
+    resid = score - loo_ref
+  )
+
+cat(
+  "Matched raw scores:", nrow(raw_resid), "across",
+  n_distinct(paste(raw_resid$Scorer, raw_resid$Set)), "rater-sessions\n"
+)
+
+session_stats <- raw_resid %>%
+  group_by(Scorer, Set) %>%
+  arrange(seq, .by_group = TRUE) %>%
+  summarise(
+    n = n(), lag1_acf = cor(head(resid, -1), tail(resid, -1)),
+    runs_p = runs_p(resid), .groups = "drop"
+  )
+print(as.data.frame(session_stats))
+```
+
+---
+
+## 3. Within-image vs across-image autocorrelation
+
+```{r}
+# 3.1
+# If the autocorrelation is genuine temporal momentum it should persist when
+# consecutive scores come from different images; if it is image-blocking it
+# should vanish at image boundaries.
+raw_lag <- raw_resid %>%
+  group_by(Scorer, Set) %>%
+  arrange(seq, .by_group = TRUE) %>%
+  mutate(lag_resid = lag(resid), lag_base = lag(Basename)) %>%
+  ungroup() %>%
+  filter(!is.na(lag_resid)) %>%
+  mutate(boundary = if_else(lag_base == Basename, "Same image", "Different image"))
+
+cat(
+  "Consecutive pairs from the same image:",
+  percent(mean(raw_lag$boundary == "Same image"), accuracy = 0.1), "\n\n"
+)
+
+boundary_fit <- bind_rows(lapply(c("Same image", "Different image"), function(g) {
+  sub <- raw_lag %>% filter(boundary == g)
+  f <- lm(resid ~ lag_resid + interaction(Scorer, Set), data = sub)
+  ci <- confint(f, "lag_resid")
+  tibble(
+    boundary = g, coef = unname(coef(f)["lag_resid"]),
+    lo = ci[1], hi = ci[2],
+    p = summary(f)$coefficients["lag_resid", 4], n = nrow(sub)
+  )
+}))
+boundary_fit$boundary <- factor(boundary_fit$boundary, levels = c("Same image", "Different image"))
+print(boundary_fit)
+```
+
+```{r fig.width=6, fig.height=4.5}
+#| fig-width: 6
+#| fig-height: 4.5
+# 3.2
+p <- ggplot(boundary_fit, aes(boundary, coef)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(aes(ymin = lo, ymax = hi), color = "steelblue", linewidth = 0.9, size = 0.9) +
+  labs(x = NULL, y = "Lag-1 residual autocorrelation") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 13), axis.title = element_text(size = 14))
+p
+save_plot(p, "raw_image_boundary_autocorrelation.png", width = 6, height = 4.5)
+```
+
+---
+
+## 4. Image-level structure of disagreement (confound-free)
+
+```{r}
+# 4
+# The temporal tests show disagreement is organised at the image level, but
+# the raw-score autocorrelation conflates several things (the experimental
+# layout, the abundance of agreed 0s, per-image bias). A cleaner test, free of
+# temporal order and of the self-vs-median issue, looks at the difference
+# between two raters on the same CDA: the true severity cancels, leaving only
+# their relative disagreement. If that difference is consistent within an
+# image but shifts between images, disagreement has an image-level component.
+# This is the intraclass correlation (ICC) of the pairwise difference with
+# image as the grouping factor: the fraction of disagreement variance
+# attributable to which image a CDA is on.
+# All within-CDA rater pairs, oriented lower-ID minus higher-ID, with image label.
+mk_pair <- function(d, a, b) {
+  d %>%
+    transmute(Basename, Median_Score,
+      sa = .data[[paste0("Scorer", a)]], sb = .data[[paste0("Scorer", b)]],
+      ya = .data[[paste0("Score", a)]], yb = .data[[paste0("Score", b)]]
+    ) %>%
+    filter(!is.na(sa), !is.na(sb), !is.na(ya), !is.na(yb)) %>%
+    mutate(
+      pair = paste(pmin(sa, sb), pmax(sa, sb), sep = "-"),
+      diff = if_else(sa < sb, ya - yb, yb - ya)
+    )
+}
+pairs <- bind_rows(mk_pair(canon, 1, 2), mk_pair(canon, 1, 3), mk_pair(canon, 2, 3)) %>%
+  select(pair, Basename, Median_Score, diff)
+
+# Random-effects (one-way ANOVA) ICC of the difference by image, for one rater-pair.
+icc_by_pair <- function(df) {
+  g <- df %>%
+    group_by(Basename) %>%
+    summarise(ni = n(), mi = mean(diff), .groups = "drop") %>%
+    filter(ni >= 2)
+  df <- df %>% semi_join(g, by = "Basename")
+  k <- nrow(g)
+  N <- nrow(df)
+  if (k < 3 || N < 10) {
+    return(tibble(k = k, N = N, icc = NA_real_, btw_sd = NA, wth_sd = NA))
+  }
+  grand <- mean(df$diff)
+  ss_b <- sum(g$ni * (g$mi - grand)^2)
+  g_mi <- g %>% select(Basename, mi)
+  ss_w <- df %>%
+    left_join(g_mi, by = "Basename") %>%
+    summarise(s = sum((diff - mi)^2)) %>%
+    pull(s)
+  ms_b <- ss_b / (k - 1)
+  ms_w <- ss_w / (N - k)
+  n0 <- (N - sum(g$ni^2) / N) / (k - 1)
+  var_b <- max(0, (ms_b - ms_w) / n0)
+  var_w <- ms_w
+  tibble(k = k, N = N, icc = var_b / (var_b + var_w), btw_sd = sqrt(var_b), wth_sd = sqrt(var_w))
+}
+
+run_icc <- function(dat, label) {
+  res <- dat %>%
+    group_by(pair) %>%
+    group_modify(~ icc_by_pair(.x)) %>%
+    ungroup() %>%
+    filter(!is.na(icc)) %>%
+    mutate(subset = label)
+  cat(sprintf(
+    "[%s] %d pairs | median ICC = %.3f | within-image SD = %.2f | between-image SD = %.2f\n",
+    label, nrow(res), median(res$icc), median(res$wth_sd), median(res$btw_sd)
+  ))
+  res
+}
+icc_all <- run_icc(pairs, "All CDAs (incl. 0s)")
+icc_nz <- run_icc(pairs %>% filter(Median_Score > 0), "Non-zero median only")
+icc_res <- bind_rows(icc_all, icc_nz) %>%
+  mutate(subset = factor(subset, levels = c("All CDAs (incl. 0s)", "Non-zero median only")))
+```
+
+---
+
+## 5. ICC of pairwise disagreement by image
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 5
+p <- ggplot(icc_res, aes(subset, icc, fill = subset)) +
+  geom_boxplot(width = 0.5, outlier.shape = NA, alpha = 0.5) +
+  geom_jitter(width = 0.12, height = 0, size = 1.6, alpha = 0.7) +
+  scale_fill_manual(values = c(
+    "All CDAs (incl. 0s)" = "grey65",
+    "Non-zero median only" = "#3182bd"
+  ), guide = "none") +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(x = NULL, y = "ICC of pairwise difference by image\n(per rater-pair)") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
+p
+save_plot(p, "pairwise_image_icc.png", width = 7, height = 5)
+```
+
+---
+
+## 6. Illustration: per-image mean difference for the best-sampled pairs
+
+```{r fig.width=12, fig.height=4.5}
+#| fig-width: 12
+#| fig-height: 4.5
+# 6
+top_pairs <- pairs %>%
+  count(pair, Basename) %>%
+  count(pair, name = "n_images") %>%
+  slice_max(n_images, n = 3) %>%
+  pull(pair)
+
+img_means <- pairs %>%
+  filter(pair %in% top_pairs) %>%
+  group_by(pair, Basename) %>%
+  summarise(
+    ni = n(), mean_diff = mean(diff),
+    se = ifelse(n() > 1, sd(diff) / sqrt(n()), NA), .groups = "drop"
+  ) %>%
+  filter(ni >= 5) %>%
+  group_by(pair) %>%
+  arrange(mean_diff, .by_group = TRUE) %>%
+  mutate(img_rank = row_number()) %>%
+  ungroup()
+
+p <- ggplot(img_means, aes(img_rank, mean_diff)) +
+  geom_hline(yintercept = 0, color = "grey60") +
+  geom_pointrange(aes(ymin = mean_diff - 1.96 * se, ymax = mean_diff + 1.96 * se),
+    color = "steelblue", size = 0.3
+  ) +
+  facet_wrap(~pair, scales = "free_x", labeller = label_both) +
+  labs(
+    x = "Image (ranked by mean difference)",
+    y = "Mean score difference\n(rater A − rater B)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.6, "lines"),
+    axis.text = element_text(size = 11), axis.title = element_text(size = 13),
+    strip.text = element_text(size = 11)
+  )
+p
+save_plot(p, "pairwise_per_image_mean_diff.png", width = 12, height = 4.5)
+```
+
+---
+
+## 7. Rescore drift autocorrelation (randomised order)
+
+```{r}
+# 7.1
+# The rescore originals were presented in a randomised order, so consecutive
+# trials are unrelated images. Any autocorrelation in the drift (new - old)
+# is therefore a pure sequential effect. The cost is power: only ~100 trials
+# per rater.
+rescore_files <- list.files(
+  here("analyses", "06_intra_rater_reliability", "rescore_anon"),
+  pattern = "[.]csv$", full.names = TRUE
+)
+# Rows are kept in file order = presentation order.
+rescore <- bind_rows(lapply(rescore_files, function(f) {
+  read_csv(f, show_col_types = FALSE) %>%
+    mutate(
+      Scorer = factor(scorer), seq = row_number(),
+      old_score = as.integer(old_score), new_score = as.integer(new_score),
+      drift = new_score - old_score
+    )
+})) %>%
+  filter(!is.na(drift)) %>%
+  group_by(Scorer) %>%
+  mutate(cum = cumsum(drift - mean(drift))) %>%
+  ungroup()
+
+rescore_stats <- rescore %>%
+  group_by(Scorer) %>%
+  summarise(
+    n = n(),
+    lag1_acf = cor(head(drift, -1), tail(drift, -1)),
+    runs_p = runs_p(drift),
+    mean_drift = mean(drift), .groups = "drop"
+  )
+print(rescore_stats)
+
+rescore_lag <- rescore %>%
+  group_by(Scorer) %>%
+  mutate(lag_drift = lag(drift)) %>%
+  ungroup()
+m_rescore <- lm(drift ~ lag_drift + Scorer, data = rescore_lag)
+cat(sprintf(
+  "\nPooled lag-1 drift autocorrelation: coef = %.3f, p = %.3f\n",
+  coef(m_rescore)["lag_drift"], summary(m_rescore)$coefficients["lag_drift", 4]
+))
+```
+
+```{r fig.width=14, fig.height=3.5}
+#| fig-width: 14
+#| fig-height: 3.5
+# 7.2
+p <- ggplot(rescore, aes(seq, cum)) +
+  geom_hline(yintercept = 0, color = "grey60") +
+  geom_line(color = "steelblue") +
+  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
+  labs(x = "Rescoring order", y = "Cumulative\nmean-centred drift") +
+  theme_minimal() +
+  theme(
+    panel.spacing = unit(0.5, "lines"),
+    axis.text = element_text(size = 11), axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12)
+  )
+p
+save_plot(p, "rescore_drift_sequence.png", width = 14, height = 3.5)
+```
+
+---
+
+## 8. Relative anchoring test (not yet implemented)
+
+The hypothesis: raters may score a CDA relative to the immediately-preceding CDA's score (comparative anchoring), rather than the apparent image-blocking in §3/§5 being purely about shared visual content (lighting, leaf, background).
+
+None of §2–§7 cleanly separate this from image-blocking, since almost all consecutive CDAs sharing an image (§3) also share a preceding score. A dedicated test would need to isolate the effect of the *previous score* from the effect of the *previous image*, e.g. by comparing residual autocorrelation for same-image pairs against a null model that only knows the image, not the specific preceding CDA.
+
+_Not yet built — to come back to later._
+
+---
+
+## 9. Interpretation and Discussion
+
+_Add notes here._
