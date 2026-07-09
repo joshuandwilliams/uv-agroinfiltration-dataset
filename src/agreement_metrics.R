@@ -157,3 +157,40 @@ average_pairwise_agreement <- function(data) {
   valid_data <- data[!is.na(data$Total) & !is.na(data$Percent_Agree), ]
   sum(valid_data$Percent_Agree * valid_data$Total) / sum(valid_data$Total)
 }
+
+#' Correct agreement-with-median for the median-of-3 tautology.
+#'
+#' For an odd number of raters, the median is always exactly equal to one
+#' rater's own score, so that rater trivially "agrees" with it even when no
+#' real 2+ rater consensus exists. This zeroes out that specific tautological
+#' match (both exact and within-one) wherever a CDA's 3 raters give mutually
+#' distinct scores, leaving genuine agreement (2+ raters sharing a value)
+#' untouched. Mirrors corrected_median_agreement() in src/human_performance.py.
+#'
+#' @param long_data A data frame with one row per (CDA, rater): Basename,
+#'   Row, Col, Pos, Score, Median_Score.
+#' @return `long_data` with added columns Raw_Exact_Match (logical, the
+#'   uncorrected match), Exact_Match and NearMiss_Match (logical, corrected),
+#'   and Agreement_Pattern ("All agree", "2 agree, 1 different", "All
+#'   different", or "Fewer than 3 raters").
+corrected_median_agreement <- function(long_data) {
+  long_data |>
+    dplyr::group_by(Basename, Row, Col, Pos) |>
+    dplyr::mutate(
+      Raw_Exact_Match = Score == Median_Score,
+      NearMiss_Match = abs(Score - Median_Score) <= 1,
+      n_valid = dplyr::n(),
+      n_unique = dplyr::n_distinct(Score),
+      Agreement_Pattern = dplyr::case_when(
+        n_valid != 3 ~ "Fewer than 3 raters",
+        n_unique == 1 ~ "All agree",
+        n_unique == 2 ~ "2 agree, 1 different",
+        n_unique == 3 ~ "All different"
+      ),
+      tautological_match = (n_valid == 3 & n_unique == 3) & Raw_Exact_Match,
+      Exact_Match = Raw_Exact_Match & !tautological_match,
+      NearMiss_Match = dplyr::if_else(tautological_match, FALSE, NearMiss_Match)
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select(-n_valid, -n_unique, -tautological_match)
+}
