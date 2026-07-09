@@ -134,11 +134,11 @@ undersampled_images = norm_pixels(undersampled_images)
 
 ```{python}
 # 1.3
-def implement_pca(images):
+def implement_pca(images, n_components=10):
     images_array = np.array(images)
     images_array = images_array.reshape(len(images_array), -1)
 
-    pca = PCA(n_components=10)
+    pca = PCA(n_components=n_components)
     pca.fit(images_array)
     images_pca = pca.transform(images_array)
 
@@ -155,12 +155,21 @@ undersampled_pca, undersampled_images_pca = implement_pca(undersampled_images)
 ```{python}
 # 2.1
 def plot_eigenvalues(pca, name):
+    # Both "original" and "undersampled" cover all 7 score classes (0-6) -
+    # the difference is class balance, not which scores are included:
+    # "original" keeps the natural (0-heavy) class distribution, while
+    # "undersampled" downsamples every class to the smallest class's size
+    # (see 1.2's rationale) so no one class dominates the variance PCA
+    # captures. The title makes this explicit rather than relying on the
+    # filename/variable name alone.
+    title = "All Scores (Original, Class-Imbalanced)" if name == "original" else "All Scores (Class-Balanced / Undersampled)"
     variance_explained = pca.explained_variance_ratio_
     print(f"Sum of first 10 eigenvalues: {np.sum(variance_explained)}")
     plt.figure(figsize=(8, 6))
     plt.bar(range(1, len(variance_explained) + 1), variance_explained)
     plt.xlabel('Principal Component')
     plt.ylabel('Variance Explained')
+    plt.title(title)
     plt.savefig(str(plots_dir / f"PC_Variances_{name}.png"))
     plt.show()
     return variance_explained
@@ -189,8 +198,8 @@ def plot_pca(labels, images_pca, variance_explained, name):
     plt.xlabel(f'PC1 ({variance_explained[0]*100:.2f}%)')
     plt.ylabel(f'PC2 ({variance_explained[1]*100:.2f}%)')
     plt.legend(title='Severity Score', loc='upper left', bbox_to_anchor=(1, 1))
-    suffix = "" if name == "original" else f"_{name}"
-    plt.savefig(str(plots_dir / f"pca_scatter{suffix}.png"), bbox_inches="tight")
+    label = "all" if name == "original" else name
+    plt.savefig(str(plots_dir / f"pca_scatter_{label}.png"), bbox_inches="tight")
     plt.show()
 
 plot_pca(labels, images_pca, variance_explained, "original")
@@ -391,14 +400,21 @@ plt.show()
 
 ```{python}
 # 5.1
-from sklearn.metrics import silhouette_score, adjusted_rand_score, normalized_mutual_info_score, fowlkes_mallows_score
+from sklearn.metrics import silhouette_score, adjusted_rand_score, normalized_mutual_info_score, fowlkes_mallows_score, confusion_matrix
 from sklearn.neighbors import NearestNeighbors
+from matplotlib.patches import Patch
 
 
-def nearest_neighbour_clustering(true_labels, images_pca, name):
+def nearest_neighbour_clustering(true_labels, images_pca, name, select_by='silhouette'):
+    # select_by picks which criterion chooses best_k out of k=1..10:
+    #  - 'silhouette': unsupervised - how well-separated the resulting
+    #    majority-vote groups are in PCA space; never looks at true_labels.
+    #  - 'accuracy': supervised - the leave-one-out exact accuracy of the
+    #    majority-vote prediction against true_labels directly.
     best_k = None
     best_silhouette_score = -1  # Initialize with a low value
     best_ari = -1  # Initialize with a low value
+    best_loo_exact_acc = -1  # Initialize with a low value
 
     for k in range(1, 11):
         # Initialize the k-nearest neighbors model
@@ -423,15 +439,32 @@ def nearest_neighbour_clustering(true_labels, images_pca, name):
         # Calculate ARI
         ari = adjusted_rand_score(true_labels, knn_labels)
 
-        # Update best k and best silhouette score
-        if silhouette > best_silhouette_score:
+        # Leave-one-out exact accuracy at this k, used only when select_by='accuracy'.
+        loo_exact_acc = np.mean(knn_labels == true_labels)
+
+        criterion = silhouette if select_by == 'silhouette' else loo_exact_acc
+        best_criterion_so_far = best_silhouette_score if select_by == 'silhouette' else best_loo_exact_acc
+        if criterion > best_criterion_so_far:
             best_k = k
             best_silhouette_score = silhouette
             best_ari = ari
+            best_loo_exact_acc = loo_exact_acc
 
+    print(f"Selecting k by: {select_by}")
     print(f"Best k value: {best_k}")
     print(f"Best silhouette score: {best_silhouette_score}")
     print(f"Adjusted Rand Index (ARI) for best k: {best_ari}")
+
+    # Refit at best_k specifically. The search loop above overwrites
+    # distances/indices every iteration, so without this refit they would
+    # silently hold k=10's (the last value the loop tried) neighbours below,
+    # regardless of which k was actually selected as best - a bug in the
+    # original version of this function, where every downstream result
+    # (predicted_labels, accuracy, confusion matrix, distance heatmap) used
+    # k=10 even when best_k was reported as something else.
+    nbrs = NearestNeighbors(n_neighbors=best_k, metric='euclidean')
+    nbrs.fit(images_pca)
+    distances, indices = nbrs.kneighbors()
 
     # Predicted labels using majority voting among the k nearest neighbors
     predicted_labels = np.zeros_like(true_labels)
@@ -440,13 +473,20 @@ def nearest_neighbour_clustering(true_labels, images_pca, name):
         neighbor_labels = true_labels[indices[i]]
         predicted_labels[i] = np.bincount(neighbor_labels).argmax()
 
-    overall_acc = np.mean(predicted_labels == true_labels)
-    print(f"Overall accuracy: {overall_acc:.3f}")
+    exact_acc = np.mean(predicted_labels == true_labels)
+    print(f"Exact accuracy: {exact_acc:.3f}")
+
+    near_miss_acc = np.mean(np.abs(predicted_labels - true_labels) <= 1)
+    print(f"Near-miss accuracy (within +/-1): {near_miss_acc:.3f}")
 
     unique_labels = np.unique(true_labels)
-    per_class_acc = {label: np.mean(predicted_labels[true_labels == label] == label)
+    per_class_exact_acc = {label: np.mean(predicted_labels[true_labels == label] == label)
                      for label in unique_labels}
-    print(f"Per-class accuracy: { {k: round(v, 3) for k, v in per_class_acc.items()} }")
+    print(f"Per-class exact accuracy: { {k: round(v, 3) for k, v in per_class_exact_acc.items()} }")
+
+    per_class_near_miss_acc = {label: np.mean(np.abs(predicted_labels[true_labels == label] - label) <= 1)
+                     for label in unique_labels}
+    print(f"Per-class near-miss accuracy: { {k: round(v, 3) for k, v in per_class_near_miss_acc.items()} }")
 
     unique_labels = np.unique(true_labels)
 
@@ -477,36 +517,76 @@ def nearest_neighbour_clustering(true_labels, images_pca, name):
                 mean_distance = np.mean(distances)
                 class_distances[(label1, label2)] = mean_distance
 
+    # Within-class distances, on the diagonal: same methodology as the
+    # between-class distances above (mean nearest-neighbour distance per
+    # point), just fit and queried on a class's own data. kneighbors() with
+    # no argument excludes each point from being its own neighbour (same
+    # trick used earlier in this function), so this is each point's distance
+    # to the nearest OTHER point of its own class, not to itself.
+    class_within_distances = {}
+    for label, data in class_data.items():
+        if len(data) < 2:
+            continue
+        within_nbrs = NearestNeighbors(n_neighbors=1, metric='euclidean')
+        within_nbrs.fit(data)
+        distances, _ = within_nbrs.kneighbors()
+        class_within_distances[label] = np.mean(distances)
 
-    def plot_class_distances(class_distances):
+    def plot_class_distances(class_distances, class_within_distances):
         unique_labels = np.unique([label for labels in class_distances.keys() for label in labels])
+        n = len(unique_labels)
 
-        # Create a matrix to store distances between each class
-        distance_matrix = np.zeros((len(unique_labels), len(unique_labels)))
-
-        # Fill the distance matrix
+        # Between- and within-class distances share one colour scale (same
+        # vmin/vmax across both matrices) so equal distances read as equal
+        # colour intensity, despite being drawn with two different
+        # colourmaps (green = between, blue = within) on the same axes.
+        between_matrix = np.full((n, n), np.nan)
+        within_matrix = np.full((n, n), np.nan)
         for (label1, label2), distance in class_distances.items():
-            distance_matrix[label1, label2] = distance
+            between_matrix[label1, label2] = distance
+        for label, distance in class_within_distances.items():
+            within_matrix[label, label] = distance
 
-        # Create a heatmap
-        plt.figure(figsize=(8, 6))
-        plt.imshow(distance_matrix, cmap='Greens', interpolation='nearest')
-        plt.colorbar(label='Distance')
+        vmin = np.nanmin([np.nanmin(between_matrix), np.nanmin(within_matrix)])
+        vmax = np.nanmax([np.nanmax(between_matrix), np.nanmax(within_matrix)])
+
+        plt.figure(figsize=(9, 6))
+        im_between = plt.imshow(between_matrix, cmap='Greens', vmin=vmin, vmax=vmax, interpolation='nearest')
+        im_within = plt.imshow(within_matrix, cmap='Blues', vmin=vmin, vmax=vmax, interpolation='nearest')
 
         # Add annotations
-        for i in range(len(unique_labels)):
-            for j in range(len(unique_labels)):
-                plt.text(j, i, f"{distance_matrix[i, j]:.2f}", ha='center', va='center', color='black')
+        for i in range(n):
+            for j in range(n):
+                value = within_matrix[i, j] if i == j else between_matrix[i, j]
+                if not np.isnan(value):
+                    plt.text(j, i, f"{value:.2f}", ha='center', va='center', color='black')
 
-        plt.xticks(np.arange(len(unique_labels)), unique_labels)
-        plt.yticks(np.arange(len(unique_labels)), unique_labels)
+        plt.xticks(np.arange(n), unique_labels)
+        plt.yticks(np.arange(n), unique_labels)
         plt.xlabel('Class')
         plt.ylabel('Class')
-        plt.title('Distances between Classes')
+        plt.title('Mean Nearest-Neighbour Distance: Between- vs Within-Class')
+
+        # Two colourbars, slotted side by side, sharing one vmin/vmax (set
+        # above). Only the labels are hidden on the within-class one (not
+        # its ticks - calling set_ticks() with the between-class bar's tick
+        # values breaks the Blues gradient into discrete blocks) since both
+        # bars already show the same scale.
+        cbar_between = plt.colorbar(im_between, label='Mean distance to nearest neighbour', fraction=0.046, pad=0.04)
+        cbar_within = plt.colorbar(im_within, fraction=0.046, pad=0.08)
+        cbar_within.ax.set_yticklabels([])
+
+        plt.legend(
+            handles=[
+                Patch(facecolor=plt.cm.Greens(0.7), edgecolor='black', label='Between-class'),
+                Patch(facecolor=plt.cm.Blues(0.7), edgecolor='black', label='Within-class'),
+            ],
+            loc='upper left', bbox_to_anchor=(1.6, 0.3)
+        )
         plt.savefig(str(plots_dir / f"knn_class_distances_{name}.png"), dpi=300, bbox_inches='tight')
         plt.show()
 
-    plot_class_distances(class_distances)
+    plot_class_distances(class_distances, class_within_distances)
 
     # Scatter plot of predicted cluster assignments
     plt.figure(figsize=(8, 6))
@@ -521,26 +601,81 @@ def nearest_neighbour_clustering(true_labels, images_pca, name):
     plt.savefig(str(plots_dir / f"knn_predictions_{name}.png"), dpi=300, bbox_inches='tight')
     plt.show()
 
-    return best_ari, best_k
+    # Confusion matrix: true score vs kNN-predicted (majority vote) score.
+    cm = confusion_matrix(true_labels, predicted_labels, labels=unique_labels)
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, cmap='Greens', interpolation='nearest')
+    plt.colorbar(label='Count')
+    for i in range(len(unique_labels)):
+        for j in range(len(unique_labels)):
+            plt.text(j, i, f"{cm[i, j]}", ha='center', va='center', color='black')
+    plt.xticks(np.arange(len(unique_labels)), unique_labels)
+    plt.yticks(np.arange(len(unique_labels)), unique_labels)
+    plt.xlabel('Predicted Score (kNN majority vote)')
+    plt.ylabel('True Score')
+    title_map = {
+        'original': 'Original',
+        'undersampled': 'Class-Balanced / Undersampled',
+        'undersampled_100pc': 'Class-Balanced, 100 PCs',
+        'undersampled_bestacc': 'Class-Balanced, k Chosen by Accuracy',
+    }
+    plt.title(f"kNN Confusion Matrix ({title_map.get(name, name)})")
+    plt.savefig(str(plots_dir / f"knn_confusion_matrix_{name}.png"), dpi=300, bbox_inches='tight')
+    plt.show()
 
-best_ari, best_k = nearest_neighbour_clustering(labels, images_pca, "original")
-
-undersampled_best_ari, undersampled_best_k = nearest_neighbour_clustering(undersampled_labels, undersampled_images_pca, "undersampled")
+    return best_ari, best_k, exact_acc
 ```
 
-### 5.2 kNN results (focusing on undersampled dataset)
+### 5.2 kNN results (original and class-balanced/undersampled)
+
+```{python}
+# 5.2
+best_ari, best_k, best_exact_acc = nearest_neighbour_clustering(labels, images_pca, "original")
+
+undersampled_best_ari, undersampled_best_k, undersampled_best_exact_acc = nearest_neighbour_clustering(
+    undersampled_labels, undersampled_images_pca, "undersampled"
+)
+```
+
+### 5.3 Does kNN improve with more principal components? (class-balanced dataset)
+
+```{python}
+# 5.3
+# §5.2 above used only the first 10 PCs (43.18% of variance, per §2.1). Refit
+# PCA with 100 components on the class-balanced dataset to see whether kNN
+# clustering/classification improves when given more of the image's variance
+# to work with.
+_, undersampled_images_pca_100pc = implement_pca(undersampled_images, n_components=100)
+
+pc100_best_ari, pc100_best_k, pc100_best_exact_acc = nearest_neighbour_clustering(
+    undersampled_labels, undersampled_images_pca_100pc, "undersampled_100pc"
+)
+
+print(f"10 PCs  - undersampled ARI: {undersampled_best_ari:.3f} (best k={undersampled_best_k})")
+print(f"100 PCs - undersampled ARI: {pc100_best_ari:.3f} (best k={pc100_best_k})")
+```
+
+### 5.4 kNN with k chosen by classification accuracy (class-balanced dataset)
+
+```{python}
+# 5.4
+# §5.1-5.3 all pick best_k by silhouette score, an unsupervised criterion
+# that only measures how geometrically separated the resulting groups are
+# in PCA space - it never looks at true_labels, so the k it picks is not
+# necessarily the k that classifies best. This reruns the same class-balanced,
+# 10-PC setup as §5.2's undersampled run, but selects k by leave-one-out
+# exact accuracy against the true labels directly instead.
+bestacc_best_ari, bestacc_best_k, bestacc_best_exact_acc = nearest_neighbour_clustering(
+    undersampled_labels, undersampled_images_pca, "undersampled_bestacc", select_by='accuracy'
+)
+
+print(f"Selected by silhouette - undersampled: k={undersampled_best_k}, exact accuracy={undersampled_best_exact_acc:.3f}")
+print(f"Selected by accuracy   - undersampled: k={bestacc_best_k}, exact accuracy={bestacc_best_exact_acc:.3f}")
+```
 
 ---
 
 ## 6. Interpretation and Discussion
-
-- What are the magnitudes of the eigenvalues of the first two PCs, and what do they tell us? The first two eigenvalues have magnitudes of 34.46% and 8.72%. They tell us the percentage of variation in the images explained by that eigenvector. Despite the large number of input variables, the first two PCs capture 43.18% of the data.
-- Do PCs 1 and 2 coloured by score show any trends/patterns? There is a visible trend of increasing score as PC1 increases and PC2 decreases. However, there are large overlaps between images of different scores, particularly in the middle scores.
-- Do PCs 1 and 2 coloured by project show any clustering by project (i.e. is image source a confound in the PCA)?
-- Looking at the images which are both most distant from others of their class, and whose nearest neighbouring datapoint is of another class, are there any trends that stand out? Whilst a high distance from others of their class may be indicative of mislabelling, it could equally as likely just be an unusual type of image. For example, the shapes of the CDAs in rank 2, 3, 4, and 6 are not the typical circular shape, and also all contain large dark areas of non-leaf. 2, 3, 4, and 6 all cluster fairly closely on the PCA plot also, so it may just be that that type of image is infrequent in the dataset.
-- What do the silhouette scores tell us about how the images are clustering? Silhouette scores lie between -1 and 1, and denote how close each image is to others of its own cluster vs adjacent clusters. The best average silhouette score was -0.012 for a k value of 9. This is roughly zero, and indicates on average each image is close to the decision boundary between two clusters. This value indicates that the average distance between the points in one cluster are roughly equal to the average distance between them and the adjacent cluster.
-- Do adjacent scores cluster more closely than distant ones? The heatmap shows that the average distance between clusters increases in all cases when the distance between scores increases.
-- The ARI is 0.319. This means roughly 32% of the variability in the clustering assignments can be explained by the true class labels. This means there is some agreement between the clusters assigned based on k-NN and the true labels.
 
 _Add notes here._
 
