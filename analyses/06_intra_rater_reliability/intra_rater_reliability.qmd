@@ -211,7 +211,6 @@ p <- ggplot(class_prop, aes(x = factor(Median_Score), y = prop, fill = fillkey, 
   )
 p
 save_plot(p, "rescore_class_distribution.png", width = 12, height = 5)
-save_plot(p, "rescore_class_distribution.png", width = 12, height = 5, dir = "thesis_plots")
 ```
 
 ---
@@ -255,7 +254,7 @@ p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
     legend.text = element_text(size = 11)
   )
 p
-save_plot(p, "intra_rater_agreement.png", width = 7, height = 5)
+save_plot(p, "intra_rater_agreement.png", width = 7, height = 5, dir = "thesis_plots")
 ```
 
 ### 4.2 Intra-rater self-agreement by original score
@@ -373,7 +372,6 @@ p <- ggplot(
     legend.text = element_text(size = 11)
   )
 p
-save_plot(p, "score_change_distribution.png", width = 12, height = 5)
 save_plot(p, "score_change_distribution.png", width = 12, height = 5, dir = "thesis_plots")
 ```
 
@@ -450,7 +448,6 @@ p <- ggplot(change_summary, aes(x = Scorer, y = pct_changed / 100)) +
     axis.title = element_text(size = 15)
   )
 p
-save_plot(p, "median_label_changes.png", width = 7, height = 5)
 save_plot(p, "median_label_changes.png", width = 7, height = 5, dir = "thesis_plots")
 ```
 
@@ -538,7 +535,7 @@ p <- ggplot(dist_abs, aes(x = factor(adiff), y = prop, fill = source)) +
     legend.position = "top"
   )
 p
-save_plot(p, "within_vs_between_abs.png", width = 8, height = 5)
+save_plot(p, "within_vs_between_abs.png", width = 8, height = 5, dir = "thesis_plots")
 ```
 
 ### 7.2 Disagreement by score class
@@ -587,21 +584,32 @@ p <- ggplot(class_cmp, aes(
     legend.text = element_text(size = 12)
   )
 p
-save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5)
+save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5, dir = "thesis_plots")
 ```
 
 ### 7.3 Reliability coefficient: intra- vs inter-rater Krippendorff's α
 
 ```{r}
 # 7.3.1
-# The same ordinal Krippendorff's alpha used for the inter-rater panel in
-# analysis 04, applied here to each rater's two occasions (treating old_score
-# and new_score as two raters). Using one coefficient for both keeps intra-
-# and inter-rater reliability on a single comparable scale, and the ordinal
-# metric respects that a 1<->6 disagreement is worse than 1<->2 (the reason
-# alpha was chosen over % agreement). It also handles the missing values
-# natively. Per-rater 95% CIs are bootstrapped over CDAs; the dashed line
-# plotted below is the panel inter-rater alpha on the same non-zero-median CDAs.
+# Ordinal Krippendorff's alpha - the same statistic used for the full
+# inter-rater panel in 05_inter_rater_agreement.qmd - applied here to each
+# rater's two occasions (treating old_score and new_score as two raters).
+# Using one coefficient for both keeps intra- and inter-rater reliability on
+# a single comparable scale, and the ordinal metric respects that a 1<->6
+# disagreement is worse than 1<->2 (the reason alpha was chosen over %
+# agreement). It also handles missing values natively. Per-rater 95% CIs are
+# bootstrapped over CDAs.
+#
+# `inter_alpha` below is NOT reused from 05_inter_rater_agreement.qmd - it is
+# recomputed independently, from the original combined_cda_data_median.csv
+# panel, restricted to non-zero-median CDAs only (to match what was
+# available for rescoring; only non-zero-median CDAs were rescored - see
+# GOHREP). That restriction is why it legitimately differs from 05's
+# headline ordinal alpha, which is computed over all CDAs (0.805 here vs.
+# 0.935 there - the abundant, near-unanimous median-0 CDAs inflate 05's
+# figure). It is unrelated to the rescore data itself, which is far too
+# small (~100 trials/rater, almost no shared images across raters) to
+# support an inter-rater alpha of its own.
 set.seed(42)
 
 # Per-rater intra-rater alpha (old vs new as two raters) with bootstrap CIs.
@@ -667,7 +675,7 @@ p <- ggplot(intra_alpha, aes(x = Scorer, y = alpha)) +
   geom_hline(yintercept = inter_alpha, linetype = "dashed", color = "grey40") +
   annotate("text",
     x = Inf, y = inter_alpha, vjust = -0.6, hjust = 1.05,
-    label = sprintf("Inter-rater α = %.2f", inter_alpha),
+    label = sprintf("Inter-rater α = %.3f", inter_alpha),
     size = 4, color = "grey30"
   ) +
   geom_pointrange(aes(ymin = lo, ymax = hi), color = "firebrick", linewidth = 0.7) +
@@ -716,34 +724,41 @@ cat(
 # 7.4.2
 boot_df <- data.frame(alpha = alpha_intra_raw_boot)
 
+# inter_alpha (0.805) sits almost exactly on top of the fixed 0.8 reliability
+# convention (a coincidence of this dataset, not a relationship between the
+# two - see §7.3.1), so their vlines would otherwise be indistinguishable.
+# Embedding each line's actual value in its own legend label, rather than a
+# fixed string, makes them unambiguous even when visually overlapping.
+boot_mean_lab <- sprintf("Bootstrap mean = %.3f", mean(alpha_intra_raw_boot))
+inter_lab <- sprintf("Inter-rater α (panel) = %.3f", inter_alpha)
+threshold_lab <- "α = 0.8 reliability threshold (fixed convention)"
+
 p <- ggplot(boot_df, aes(x = alpha)) +
   geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
   geom_vline(aes(
-    xintercept = mean(alpha_intra_raw_boot), color = "Bootstrap mean",
-    linetype = "Bootstrap mean"
+    xintercept = mean(alpha_intra_raw_boot), color = boot_mean_lab,
+    linetype = boot_mean_lab
   ), linewidth = 1) +
   geom_vline(aes(
-    xintercept = inter_alpha, color = "Inter-rater α (panel)",
-    linetype = "Inter-rater α (panel)"
+    xintercept = inter_alpha, color = inter_lab,
+    linetype = inter_lab
   ), linewidth = 0.8) +
   geom_vline(aes(
-    xintercept = 0.8, color = "α = 0.8 reliability threshold",
-    linetype = "α = 0.8 reliability threshold"
+    xintercept = 0.8, color = threshold_lab,
+    linetype = threshold_lab
   ), linewidth = 0.8) +
   scale_color_manual(
     name = NULL,
-    values = c(
-      "Bootstrap mean" = "firebrick",
-      "Inter-rater α (panel)" = "darkgreen",
-      "α = 0.8 reliability threshold" = "black"
+    values = setNames(
+      c("firebrick", "darkgreen", "black"),
+      c(boot_mean_lab, inter_lab, threshold_lab)
     )
   ) +
   scale_linetype_manual(
     name = NULL,
-    values = c(
-      "Bootstrap mean" = "dashed",
-      "Inter-rater α (panel)" = "solid",
-      "α = 0.8 reliability threshold" = "dotted"
+    values = setNames(
+      c("dashed", "solid", "dotted"),
+      c(boot_mean_lab, inter_lab, threshold_lab)
     )
   ) +
   labs(x = "Krippendorff's α (ordinal)", y = "Count") +
@@ -755,7 +770,7 @@ p <- ggplot(boot_df, aes(x = alpha)) +
     legend.position = "bottom"
   )
 p
-save_plot(p, "intra_krippendorff_alpha_raw.png", width = 7, height = 5)
+save_plot(p, "intra_krippendorff_alpha_raw.png", width = 7, height = 5, dir = "thesis_plots")
 ```
 
 ### 7.5 Intra- vs inter-rater α distributions
@@ -813,140 +828,6 @@ save_plot(p, "intra_vs_inter_alpha_distributions.png", width = 7, height = 5)
 
 ---
 
-## 8. Rescore drift autocorrelation (sequential order)
-
-```{r}
-# 8.1
-# The rescore originals were presented in a randomised order, so consecutive
-# trials are unrelated images. Any autocorrelation in the drift (new - old)
-# is therefore a pure sequential effect. The cost is power: only ~100 trials
-# per rater.
-# Wald-Wolfowitz runs test on the sign of a series (p-value only; zeros dropped).
-runs_p <- function(x) {
-  s <- sign(x[x != 0])
-  n <- length(s)
-  n1 <- sum(s > 0)
-  n2 <- sum(s < 0)
-  if (n1 == 0 || n2 == 0 || n < 3) {
-    return(NA_real_)
-  }
-  runs <- 1 + sum(s[-1] != s[-n])
-  mu <- 1 + 2 * n1 * n2 / n
-  v <- 2 * n1 * n2 * (2 * n1 * n2 - n) / (n^2 * (n - 1))
-  2 * pnorm(-abs((runs - mu) / sqrt(v)))
-}
-
-# rescore_anon/ holds one file per rater, already anonymised (filename and
-# `scorer` column both give the same ID).
-rescore_files <- list.files(
-  here("analyses", "06_intra_rater_reliability", "rescore_anon"),
-  pattern = "[.]csv$", full.names = TRUE
-)
-# Rows are kept in file order = presentation order.
-rescore <- bind_rows(lapply(rescore_files, function(f) {
-  read_csv(f, show_col_types = FALSE) %>%
-    mutate(
-      Scorer = factor(scorer), seq = row_number(),
-      old_score = as.integer(old_score), new_score = as.integer(new_score),
-      drift = new_score - old_score
-    )
-})) %>%
-  filter(!is.na(drift)) %>%
-  group_by(Scorer) %>%
-  mutate(cum = cumsum(drift - mean(drift))) %>%
-  ungroup()
-
-rescore_stats <- rescore %>%
-  group_by(Scorer) %>%
-  summarise(
-    n = n(),
-    lag1_acf = cor(head(drift, -1), tail(drift, -1)),
-    runs_p = runs_p(drift),
-    mean_drift = mean(drift), .groups = "drop"
-  )
-print(rescore_stats)
-
-rescore_lag <- rescore %>%
-  group_by(Scorer) %>%
-  mutate(lag_drift = lag(drift)) %>%
-  ungroup()
-m_rescore <- lm(drift ~ lag_drift + Scorer, data = rescore_lag)
-cat(sprintf(
-  "\nPooled lag-1 drift autocorrelation: coef = %.3f, p = %.3f\n",
-  coef(m_rescore)["lag_drift"], summary(m_rescore)$coefficients["lag_drift", 4]
-))
-```
-
-```{r fig.width=14, fig.height=3.5}
-#| fig-width: 14
-#| fig-height: 3.5
-# 8.2
-p <- ggplot(rescore, aes(seq, cum)) +
-  geom_hline(yintercept = 0, color = "grey60") +
-  geom_line(color = "steelblue") +
-  facet_wrap(~Scorer, nrow = 1, labeller = as_labeller(function(x) paste("Rater:", x))) +
-  labs(x = "Rescoring order", y = "Cumulative\nmean-centred drift") +
-  theme_minimal() +
-  theme(
-    panel.spacing = unit(0.5, "lines"),
-    axis.text = element_text(size = 11), axis.title = element_text(size = 13),
-    strip.text = element_text(size = 12)
-  )
-p
-save_plot(p, "rescore_drift_sequence.png", width = 14, height = 3.5)
-```
-
----
-
-## 9. Interpretation and Discussion
-
-- All raters rescored 100 CDAs. Some raters skipped CDAs in the original scoring, which is why three raters only have 99 collected scores in the original scores.
-- On these non-zero-median CDAs, raters' exact agreement with their own previous scores ranged from 30-62.6%, and near-miss agreement from 63-93.9%. The results from Rater 9 stand out as significantly lower than the other four Raters, achieving an exact self-agreement rate of just 30%.
-- Agreement with the original median score (ground truth) was consistently lower amongst the rescores than the original scores, but the original score agreement is inflated because the median was derived from those scores.
-- This plot visualises whether each rater's rescore distribution matches their original score distribution. The coloured bars show the proportions of severity scores collected during rescoring. The grey bar to the left of each coloured bar shows the original severity score proportion.
-- Scores collected during rescoring were not uniformally distributed. Some scores were collected more often during rescoring than others.
-- The distribution of scores collected during rescoring closely resembles that of the all scores originally collected by that rater.
-- The rescoring class imbalances are inherited from the original allocation rather than being introduced by the rescoring selection.
-- This plot shows the self agreement rates of each rater split by the original score class.
-- The per-class self agreement patterns differed between raters. Rater 6 had a similar achievement rate across score classes, whilst Rater 9 varied between 100% self agreement (score 6) and 5% agreement (score 2).
-- Rater 4 was the only rater to score more consistently on non-6-original CDAs, but this was because they had high self-agreement on score 3 and score 4 CDAs rather than having low self-agreement on score 6 CDAs.
-- I'm not going to investigate this further. Some reasons that different raters may show different per-class rescoring patterns are internal calibration against previous annotations or randomness on ambiguous scores or scoring scales.
-- Each bar (and its label) is the proportion of CDAs a rater re-scored identically to their original score, for that original score class.
-- Classes a rater rarely used contain few CDAs and are therefore noisier — read low bars in those classes with caution.
-- Extreme scores (1, 6) are expected to be reproduced more consistently than mid-scale scores (3–4).
-- Classes with few rescores are noisier because single disagreements change cause a greater change in overall self-agreement percentage.
-- This plot shows one confusion matrix per rater. The diagonal represents the identical scores. Cells above the diagonal were scored higher on rescoring, and cells below were scored lower on rescoring.
-- The highest counts for most raters lie on the diagonal.
-- Rater 9 consistently rescored higher than their original score.
-- No median-zero CDAs were rescored, but some raters still scored 0s, even when they had previously given a non-zero score.
-- This plot shows the distribution of scores compared to their original. The red bars show where the rescore was higher than the original. The blue bars show where the rescore was lower than the original.
-- For four of the five raters, self-agreement (the grey column) was by far the most common outcome, and disagreements were distributed fairly evenly above and below that original score.
-- For Rater 9, almost all disagreements were above the original score, most commonly 2 above the original.
-- Rater 9 clearly changed the way they score significantly over the last two years. They were provided with the same key and the same images they scored previously, but their scores were consistently higher.
-- If we substituted each rater's new score for their old score in the original three-rater panel and recomputed the median, how many CDAs would receive a different label?
-- Between 13% and 27% of scores (non-0) would change if the rescores replaced the original scores.
-- Scaled up to the 3,653 non-median-zero CDAs, this could mean between 475-986 CDAs would receive a different ground truth label on a different day.
-- The ground truth is a noisy estimation for the boundaries between CDAs, almost all by one score up or down.
-- There is a ceiling on model accuracy. A classifier predicting hard median labels cannot beat the label's own lack of stability.
-- This plot shows the proportion of CDAs receiving two scores with a given distance from the same rater (red) or between different raters (blue).
-- Raters agree with themselves more often than pairs of raters agree with each other.
-- This balances out at the near-miss level - within and between-rater pairs are equally as unlikely to disagree by more than one score.
-- The majority of disagreement between raters can be explained by task ambiguity that occurs even within the same rater. Individual scoring biases may still influence some scoring differences at adjacent score boundaries.
-- The greatest uncertainty is at adjacent score boundaries. Near-miss agreement is indistinguishable between the two.
-- The ground truth generated by three raters is not meaningfully noisier than an individual judgement.
-- For each median score class, how often did scores disagree with each other within and between raters (+- standard error).
-- The trends of within- vs between-raters seem to match well. Median-score-1 CDAs receive the greatest disagreements in both sets, and median-score-6 CDAs receive a far lower size of disagreement (although they cannot be scored any higher).
-- This shows again that the intermediate-median-score images are the most challenging to score and are more likely to receive larger disagreeing scores than extreme scores.
-- Running Krippendorf's alpha (measure of agreement between two raters) treating the original and new scores as different raters.
-- Each red point is a rater's within-rater krippendorf alpha value with its 95% confidence interval. The dashed line is the inter-rater krippendorff alpha.
-- Points above the line mean raters are more consistent with themselves than with others.
-- Most raters are on or above the line, meaning they agree with themselves more than the average rater pair agrees with each other.
-- Rater 9 agrees with themself less consistently.
-- The bootstrap distribution of the pooled intra-rater (test–retest) ordinal α.
-- The green line is the panel inter-rater α (analysis 04): when the intra-rater distribution sits near it, raters agree with themselves about as well as the panel agrees with each other.
-- The dotted line marks the α = 0.8 reliability threshold.
-- The cumulative drift wanders in long excursions — but a cumulative sum of independent noise is a random walk that wanders identically, so the eye is unreliable here; the formal tests are what count.
-- Every rater's runs test is non-significant and the pooled lag-1 autocorrelation is small and only marginal (≈0.08, p≈0.07). With ~100 trials this is underpowered, but there is no clear sequential clustering when the stimulus order is randomised.
-- The intra- and inter-rater α bootstrap distributions overlap substantially, with intra-rater reliability sitting only marginally higher — raters agree with themselves about as well as the panel agrees with each other, so an individual's day-to-day inconsistency is roughly the same magnitude as the disagreement between different raters.
+## 8. Interpretation and Discussion
 
 _Add notes here._
