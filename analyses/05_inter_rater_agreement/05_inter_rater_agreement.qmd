@@ -1,0 +1,720 @@
+---
+title: "Inter-Rater Agreement"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 15/5/2024 – 10/6/2024
+
+## GOHREP
+
+**Goal:**
+
+Investigate changes to average pairwise agreement when each rater is removed. Investigate differences in agreement across source agroinfiltration images. Quantify the overall inter-rater reliability of the human rater panel using Krippendorff's alpha.
+
+**Hypothesis:**
+
+Excluding scores from raters with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity. Krippendorff's alpha on raw scores will be high (>0.8), reflecting that raters broadly agree on severity ordering even when they differ by ±1.
+
+**Rationale:**
+
+Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which raters most reduce overall agreement informs future data collection decisions. Krippendorff's alpha is the standard metric for ordinal inter-rater reliability and handles missing data (not all raters rated all CDAs), giving a single overall reliability estimate that pairwise % agreement alone does not.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+#| output: false
+# 1.1
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(forcats)
+library(patchwork)
+library(scales)
+library(here)
+library(irr)
+```
+
+### 1.2 Load data
+
+```{r}
+# 1.2
+path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+
+raw_data <- read_csv(path_data, show_col_types = FALSE)
+
+score_data <- raw_data %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(
+    across(c(Scorer1, Scorer2, Scorer3), as.character),
+    across(c(Score1, Score2, Score3), as.character)
+  )
+
+score_data_no_0 <- score_data %>%
+  filter(Median_Score != 0)
+
+n_cdas <- nrow(score_data)
+```
+
+### 1.3 Helper functions
+
+```{r}
+# 1.3.1
+source(here("src", "data_helpers.R"))
+source(here("src", "agreement_metrics.R"))
+source(here("src", "plotting_helpers.R"))
+
+save_plot <- make_save_plot("05_inter_rater_agreement")
+
+theme_ira <- function() {
+  theme_minimal() +
+    theme(
+      axis.text = element_text(size = 13),
+      axis.title = element_text(size = 15),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 11),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      legend.key.size = unit(1.5, "lines")
+    )
+}
+```
+
+```{r}
+# 1.3.2
+score_data_long <- long_score_table(score_data)
+score_data_long_no_0 <- long_score_table(score_data_no_0)
+```
+
+### 1.4 Build rater × CDA matrix (for Krippendorff's alpha)
+
+```{r}
+# 1.4
+# kripp.alpha() needs a rater x item matrix rather than the long format used
+# above, so scores are kept numeric here (missing scores, stored as "[]",
+# become NA via as.numeric() rather than being filtered out as a string).
+score_data_numeric <- raw_data %>%
+  select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
+  mutate(across(c(Scorer1, Scorer2, Scorer3), as.character),
+    across(c(Score1, Score2, Score3), as.numeric),
+    Median_Score = as.numeric(Median_Score)
+  )
+
+scorer_matrix <- build_scorer_matrix(score_data_numeric)
+cat("Rater matrix dimensions:", nrow(scorer_matrix), "raters ×", ncol(scorer_matrix), "CDAs\n")
+cat("Non-NA cells:", sum(!is.na(scorer_matrix)), "/", prod(dim(scorer_matrix)), "\n")
+```
+
+---
+
+## 2. Agreement by median score
+
+```{r}
+# 2
+# One row per CDA. Missing scores are stored as "[]"; treat them as NA.
+# Agreement is defined by how many of the three scorers match the median score:
+#   3 -> all three agreed, 2 -> two of three agreed, 1 -> all three differed.
+conf_cda <- raw_data %>%
+  select(Basename, Row, Col, Pos, Score1, Score2, Score3, Median_Score) %>%
+  mutate(across(c(Score1, Score2, Score3), ~ na_if(as.character(.), "[]")),
+    med = as.character(as.integer(Median_Score)),
+    n_agree_median = (!is.na(Score1) & Score1 == med) +
+      (!is.na(Score2) & Score2 == med) +
+      (!is.na(Score3) & Score3 == med),
+    Agreement = factor(
+      case_when(
+        n_agree_median == 3 ~ "All 3 agreed",
+        n_agree_median == 2 ~ "2 of 3 agreed",
+        TRUE ~ "All 3 differed"
+      ),
+      levels = c("All 3 agreed", "2 of 3 agreed", "All 3 differed")
+    )
+  )
+```
+
+### 2.1 Summary table
+
+```{r}
+# 2.1
+confidence_table <- conf_cda %>%
+  group_by(`Median Score` = as.integer(Median_Score)) %>%
+  summarise(
+    Frequency = n(),
+    `All-3-Agree` = sum(Agreement == "All 3 agreed"),
+    `All-3-Agree %` = round(mean(Agreement == "All 3 agreed") * 100, 1),
+    `2-of-3-Agree` = sum(Agreement == "2 of 3 agreed"),
+    `2-of-3-Agree %` = round(mean(Agreement == "2 of 3 agreed") * 100, 1),
+    `All-3-Disagree` = sum(Agreement == "All 3 differed"),
+    `All-3-Disagree %` = round(mean(Agreement == "All 3 differed") * 100, 1),
+    .groups = "drop"
+  )
+# 148 CDAs were scored by only two raters; in every case the two present
+# scores match the median, so they fall in the 2-of-3-Agree group.
+
+knitr::kable(confidence_table, align = "c")
+```
+
+### 2.2 Stacked bar
+
+```{r fig.width=8, fig.height=6}
+#| fig-width: 8
+#| fig-height: 6
+# 2.2
+conf_counts <- conf_cda %>%
+  count(`Median Score` = as.integer(Median_Score), Agreement)
+
+agree_pal <- c(
+  "All 3 agreed" = "#1a9850",
+  "2 of 3 agreed" = "#fdae61",
+  "All 3 differed" = "#d73027"
+)
+
+p <- ggplot(conf_counts, aes(x = factor(`Median Score`), y = n, fill = Agreement)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = agree_pal, name = "Rater Agreement",
+    guide = guide_legend(reverse = TRUE)
+  ) +
+  labs(x = "Median Severity Score", y = "Frequency") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "stackedbar.png", width = 8, height = 6, dir = "thesis_plots")
+```
+
+---
+
+## 3. Per-Rater Agreement with Median
+
+```{r fig.width=8, fig.height=6}
+#| fig-width: 8
+#| fig-height: 6
+# 3
+# Stacked bar chart showing each rater's exact agreement and within-+/-1
+# agreement with the CDA median score, computed across all CDAs scored by
+# that individual. Adapted from
+# AutoCDAScorer_Models/analyses/0014_Scoring_Consistency/scoring_consistency.qmd
+# (human-only, no model results).
+#
+# Corrected for the median-of-3 tautology: for an odd number of raters, the
+# median is always exactly equal to one rater's own score, so that rater
+# trivially "agrees" by construction whenever all 3 raters actually
+# disagree - not genuine consensus. corrected_median_agreement() (see
+# src/agreement_metrics.R) zeroes out that specific case, leaving real 2+
+# agreement untouched, so a rater's own score is never just compared
+# against itself.
+scorer_accuracy <- score_data_long %>%
+  filter(!is.na(Score), Score != "[]") %>%
+  mutate(Score = as.integer(Score)) %>%
+  corrected_median_agreement() %>%
+  group_by(Scorer) %>%
+  summarise(
+    exact = mean(Exact_Match),
+    within_one = mean(NearMiss_Match),
+    .groups = "drop"
+  ) %>%
+  mutate(extra_within_one = within_one - exact)
+
+avg_row <- scorer_accuracy %>%
+  summarise(
+    Scorer = factor("Avg"),
+    exact = mean(exact),
+    within_one = mean(within_one),
+    extra_within_one = mean(extra_within_one)
+  )
+
+plot_acc <- bind_rows(scorer_accuracy, avg_row) %>%
+  mutate(Scorer = factor(Scorer,
+    levels = c(as.character(sort(as.numeric(
+      unique(as.character(scorer_accuracy$Scorer))
+    ))), "Avg")
+  )) %>%
+  pivot_longer(
+    cols = c(exact, extra_within_one),
+    names_to = "metric", values_to = "value"
+  ) %>%
+  mutate(metric = factor(metric,
+    levels = c("extra_within_one", "exact"),
+    labels = c("Additional within ±1", "Exact agreement")
+  ))
+
+p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = c(
+      "Exact agreement" = "steelblue",
+      "Additional within ±1" = "cornflowerblue"
+    ),
+    name = NULL,
+    breaks = c("Exact agreement", "Additional within ±1")
+  ) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(x = "Rater", y = "Corrected Agreement with Median Severity Score") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+p
+save_plot(p, "scorer_accuracy.png", width = 8, height = 6, dir = "thesis_plots")
+```
+
+---
+
+## 4. Pairwise % Agreement Between Raters
+
+```{r}
+# 4
+merged_df <- pairwise_score_data(score_data_long)
+merged_df_no_0 <- pairwise_score_data(score_data_long_no_0)
+average_agreement <- average_pairwise_agreement(merged_df)
+average_agreement_no_0 <- average_pairwise_agreement(merged_df_no_0)
+```
+
+```{r fig.width=12, fig.height=20}
+#| fig-width: 12
+#| fig-height: 20
+# 4
+agree_lims <- range(c(merged_df$Percent_Agree, merged_df_no_0$Percent_Agree), na.rm = TRUE)
+
+plot_agree <- function(df, title) {
+  ggplot(df, aes(
+    x = Scorer.x,
+    y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))),
+    fill = Percent_Agree
+  )) +
+    geom_tile(color = "black", linewidth = 1, na.rm = TRUE) +
+    geom_text(aes(label = ifelse(is.na(Percent_Agree), "", sprintf("%.1f%%", Percent_Agree))),
+      color = "white", size = 6, vjust = 0.5, fontface = "bold", na.rm = TRUE
+    ) +
+    scale_fill_gradient(
+      low = "#3182bd", high = "firebrick", name = "% Agreement",
+      na.value = "white", limits = agree_lims
+    ) +
+    scale_x_discrete(limits = as.character(1:10)) +
+    scale_y_discrete(limits = as.character(1:10)) +
+    coord_cartesian(xlim = c(1, 10), ylim = c(1, 10)) +
+    labs(x = "Rater X", y = "Rater Y", title = title) +
+    theme_ira() +
+    theme(plot.title = element_text(size = 15, face = "bold"))
+}
+
+p_agree <- plot_agree(merged_df, "All CDAs") /
+  plot_agree(merged_df_no_0, "Excluding median = 0") +
+  plot_layout(guides = "collect")
+p_agree
+save_plot(p_agree, "pairwise_agreement.png", width = 12, height = 20, dir = "thesis_plots")
+```
+
+---
+
+## 5. Effect of Removing Each Rater on Metric 3 Agreement
+
+```{r}
+# 5.1
+# For each rater, drop their own scores and recompute Metric 3 (see
+# 03_human_performance/04_project_level_analysis) over the rest - no
+# "kept vs cleaned" ambiguity here (unlike the pairwise version below):
+# Exact_Match is a per-CDA-rater indicator against a median already fixed
+# from the full original panel, so removing one rater's rows never changes
+# what any remaining row's Exact_Match value is.
+median_corrected_long <- score_data_long %>%
+  filter(!is.na(Score), Score != "[]") %>%
+  mutate(Score = as.integer(Score)) %>%
+  corrected_median_agreement()
+
+baseline_metric3 <- mean(median_corrected_long$Exact_Match) * 100
+
+unique_scorers_m3 <- as.character(sort(as.numeric(unique(median_corrected_long$Scorer))))
+
+metric3_removal <- lapply(unique_scorers_m3, function(scorer) {
+  remaining <- median_corrected_long %>% filter(Scorer != scorer)
+  data.frame(
+    Rater_Removed = scorer,
+    Metric_3_Agreement = mean(remaining$Exact_Match) * 100
+  )
+})
+
+metric3_result_df <- bind_rows(metric3_removal) %>%
+  mutate(Delta = Metric_3_Agreement - baseline_metric3)
+
+metric3_result_df %>% arrange(desc(Metric_3_Agreement))
+```
+
+```{r fig.width=10, fig.height=6}
+#| fig-width: 10
+#| fig-height: 6
+# 5.2
+bar_df3 <- metric3_result_df %>%
+  mutate(Rater_Removed = reorder(Rater_Removed, -Delta))
+bar_df3$xpos <- as.numeric(bar_df3$Rater_Removed)
+
+p <- ggplot(bar_df3) +
+  geom_rect(aes(
+    xmin = xpos - 0.4, xmax = xpos + 0.4,
+    ymin = baseline_metric3, ymax = Metric_3_Agreement,
+    fill = Delta > 0
+  )) +
+  geom_hline(yintercept = baseline_metric3, linewidth = 0.6) +
+  geom_text(aes(
+    x = xpos, y = Metric_3_Agreement, label = sprintf("%+.2f", Delta),
+    vjust = ifelse(Delta > 0, -0.4, 1.3)
+  ), size = 4) +
+  scale_x_continuous(breaks = sort(bar_df3$xpos), labels = levels(bar_df3$Rater_Removed)) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.1, 0.1)),
+    sec.axis = sec_axis(~.,
+      breaks = baseline_metric3,
+      labels = sprintf("Original (%.1f%%)", baseline_metric3)
+    )
+  ) +
+  scale_fill_manual(values = c("TRUE" = "firebrick", "FALSE" = "steelblue"), guide = "none") +
+  labs(x = "Rater removed", y = "Metric 3 agreement (%)") +
+  coord_cartesian(clip = "off") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    axis.text.y.right = element_text(face = "italic", colour = "grey35"),
+    axis.ticks.y.right = element_line(colour = "grey35"),
+    plot.margin = margin(12, 12, 5.5, 12)
+  )
+p
+save_plot(p, "rater_removal_metric3_sensitivity.png", width = 10, height = 6, dir = "thesis_plots")
+```
+
+---
+
+## 6. Agreement Patterns Between Rater Pairs
+
+```{r fig.width=16, fig.height=16}
+#| fig-width: 16
+#| fig-height: 16
+# 6
+gen_pairwise_counts <- function(score_data_long) {
+  data <- score_data_long %>%
+    mutate(Score = as.numeric(Score)) %>%
+    group_by(Basename, Row, Col, Pos) %>%
+    mutate(id = row_number()) %>%
+    ungroup()
+
+  pairwise <- data %>%
+    full_join(data, by = c("Basename", "Row", "Col", "Pos"), relationship = "many-to-many") %>%
+    filter(id.x < id.y) %>%
+    select(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    group_by(Scorer.x, Score.x, Scorer.y, Score.y) %>%
+    summarise(Count = n(), .groups = "drop") %>%
+    filter(!is.na(Score.x) & !is.na(Score.y))
+
+  # id.x < id.y reflects column position (Scorer1/2/3), not rater ID value,
+  # so a given rater pair can appear with either rater in the Scorer.x slot
+  # depending on which column they happened to occupy for a given CDA.
+  # Folding in the mirrored copy and then keeping only Scorer.x < Scorer.y
+  # (by value) consolidates both into one consistent, value-ordered
+  # direction per pair - shown once, not twice.
+  sym_copy <- pairwise
+  names(sym_copy)[names(sym_copy) %in% c("Scorer.x", "Scorer.y")] <- c("Scorer.y", "Scorer.x")
+  names(sym_copy)[names(sym_copy) %in% c("Score.x", "Score.y")] <- c("Score.y", "Score.x")
+  rbind(pairwise, sym_copy) %>%
+    filter(as.integer(Scorer.x) < as.integer(Scorer.y))
+}
+
+# facet_grid always draws the full cross product of its two faceting
+# variables' declared factor levels, regardless of whether a given
+# combination has any data - so even with only the 45 upper-triangle rater
+# pairs above, it would still draw all 100 panels (self-pairs + the
+# now-empty lower-triangle mirror). This blanks those 55 non-pairs out
+# entirely (rather than leaving them as visible empty bordered boxes), by
+# replacing their panel grobs with nullGrob() after the plot is built.
+hide_non_pairs <- function(p) {
+  panel_info <- ggplot_build(p)$layout$layout
+  hide_panels <- panel_info$PANEL[
+    as.integer(as.character(panel_info$Scorer.x)) >= as.integer(as.character(panel_info$Scorer.y))
+  ]
+
+  g <- ggplotGrob(p)
+  panel_idx <- grep("^panel", g$layout$name)
+  stopifnot(length(panel_idx) == nrow(panel_info))
+  for (pnum in as.integer(as.character(hide_panels))) {
+    g$grobs[[panel_idx[pnum]]] <- grid::nullGrob()
+  }
+  g
+}
+
+make_patterns_plot <- function(sdl) {
+  levels_xy <- as.character(1:10)
+  score_levels <- as.character(0:6)
+
+  # Self-pairs (a rater against themselves) carry no data and are excluded
+  # outright by gen_pairwise_counts's Scorer.x < Scorer.y filter above.
+  counts <- gen_pairwise_counts(sdl) %>%
+    mutate(
+      Scorer.x = factor(Scorer.x, levels = levels_xy),
+      Scorer.y = factor(Scorer.y, levels = levels_xy),
+      Score.x = factor(Score.x, levels = score_levels),
+      Score.y = factor(Score.y, levels = score_levels)
+    )
+
+  # Complete the severity-score grid (0-6 x 0-6) *within* each rater pair
+  # that actually shares data (nesting), rather than crossing all 10x10
+  # rater combinations. The latter used to fabricate entirely-empty panels
+  # (self-pairs, or raters who never scored together) whose Score.x/Score.y
+  # were then all NA, which made ggplot's per-panel range() warn "no
+  # non-missing arguments to min/max" for every such panel.
+  complete_counts <- counts %>%
+    complete(
+      nesting(Scorer.x, Scorer.y),
+      Score.x = factor(score_levels, levels = score_levels),
+      Score.y = factor(score_levels, levels = score_levels),
+      fill = list(Count = 0)
+    ) %>%
+    mutate(
+      Count_Binned = cut(Count,
+        breaks = c(0, 1, 10, 100, 250, Inf),
+        labels = c("1", "2-10", "11-100", "101-250", "251-1000"),
+        include.lowest = TRUE
+      ),
+      Scorer.y = fct_rev(Scorer.y)
+    )
+
+  p <- ggplot(complete_counts, aes(x = Score.x, y = Score.y)) +
+    geom_tile(aes(fill = Count_Binned), color = "black", linewidth = 0.5) +
+    # Score.x/Score.y are discrete factors (see above), so the exact-agreement
+    # diagonal is drawn as a segment between the first and last factor
+    # positions rather than geom_abline (which needs a continuous scale).
+    geom_segment(
+      x = 1, xend = length(score_levels), y = 1, yend = length(score_levels),
+      linetype = "dashed", color = "grey40", inherit.aes = FALSE
+    ) +
+    scale_fill_manual(
+      values = c(
+        "1" = "#eff3ff",
+        "2-10" = "#9ecae1",
+        "11-100" = "#3182bd",
+        "101-250" = "#fdae61",
+        "251-1000" = "#d73027"
+      ),
+      name = "Frequency", na.value = "white", drop = FALSE
+    ) +
+    facet_grid(Scorer.y ~ Scorer.x, switch = "both") +
+    theme_bw() +
+    labs(x = "Rater X", y = "Rater Y") +
+    theme(
+      panel.spacing = unit(0.25, "lines"),
+      strip.placement = "outside",
+      panel.grid = element_blank(),
+      strip.text = element_text(size = 11),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 13),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 11)
+    )
+
+  hide_non_pairs(p)
+}
+
+p_patterns <- make_patterns_plot(score_data_long)
+grid::grid.newpage()
+grid::grid.draw(p_patterns)
+# Matches the chunk's fig.width/fig.height (16 x 16) - see
+# 06_intra_rater_reliability's equivalent plots for the repo's convention of
+# always matching the two.
+save_plot(p_patterns, "agreement_patterns.png", width = 16, height = 16)
+```
+
+---
+
+## 7. Krippendorff's Alpha — Raw Scores
+
+### 7.1 Ordinal metric
+
+```{r}
+# 7.1.1
+# Computed on the full rater x CDA matrix directly (no median involved).
+# Two distance metrics are compared here and in 7.2 as a robustness check on
+# the assumed measurement level: ordinal (treats 0-6 as ordered categories)
+# and interval (treats 0-6 as equally spaced). If the two estimates agree,
+# the reliability conclusion doesn't hinge on which scale assumption is
+# correct. Missing values are handled automatically: expected agreement is
+# estimated from all rated pairs.
+alpha_raw <- kripp.alpha(scorer_matrix, method = "ordinal")
+cat("Krippendorff's alpha (ordinal, raw scores):", round(alpha_raw$value, 4), "\n")
+```
+
+```{r}
+# 7.1.2
+# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
+alpha_raw_boot <- bootstrap_kripp_alpha(
+  scorer_matrix,
+  method = "ordinal", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal.rds")
+)
+
+cat("Bootstrap mean α:", round(mean(alpha_raw_boot), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_boot, 0.025), 4), ",",
+  round(quantile(alpha_raw_boot, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.1.3
+boot_df <- data.frame(alpha = alpha_raw_boot)
+
+p <- ggplot(boot_df, aes(x = alpha)) +
+  geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
+  geom_vline(aes(
+    xintercept = mean(alpha_raw_boot), color = "Bootstrap mean",
+    linetype = "Bootstrap mean"
+  ), linewidth = 1) +
+  geom_vline(aes(
+    xintercept = 0.8, color = "α = 0.8 reliability threshold",
+    linetype = "α = 0.8 reliability threshold"
+  ), linewidth = 0.8) +
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "firebrick",
+      "α = 0.8 reliability threshold" = "black"
+    )
+  ) +
+  scale_linetype_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "dashed",
+      "α = 0.8 reliability threshold" = "dotted"
+    )
+  ) +
+  labs(x = "Krippendorff's α (ordinal)", y = "Count") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+p
+save_plot(p, "krippendorff_alpha_raw.png", width = 7, height = 5, dir = "thesis_plots")
+```
+
+### 7.2 Interval metric
+
+```{r}
+# 7.2.1
+# Same rater x CDA matrix as 7.1, but with method = "interval" instead of
+# "ordinal" - no residuals or medians involved, just a different distance
+# metric applied to the same raw scores.
+alpha_raw_interval <- kripp.alpha(scorer_matrix, method = "interval")
+cat("Krippendorff's alpha (interval, raw scores):", round(alpha_raw_interval$value, 4), "\n")
+```
+
+```{r}
+# 7.2.2
+# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
+alpha_raw_interval_boot <- bootstrap_kripp_alpha(
+  scorer_matrix,
+  method = "interval", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval.rds")
+)
+
+cat("Bootstrap mean α:", round(mean(alpha_raw_interval_boot), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_interval_boot, 0.025), 4), ",",
+  round(quantile(alpha_raw_interval_boot, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.2.3
+boot_interval_df <- data.frame(alpha = alpha_raw_interval_boot)
+
+p <- ggplot(boot_interval_df, aes(x = alpha)) +
+  geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
+  geom_vline(aes(
+    xintercept = mean(alpha_raw_interval_boot), color = "Bootstrap mean",
+    linetype = "Bootstrap mean"
+  ), linewidth = 1) +
+  geom_vline(aes(
+    xintercept = 0.8, color = "α = 0.8 reliability threshold",
+    linetype = "α = 0.8 reliability threshold"
+  ), linewidth = 0.8) +
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "firebrick",
+      "α = 0.8 reliability threshold" = "black"
+    )
+  ) +
+  scale_linetype_manual(
+    name = NULL,
+    values = c(
+      "Bootstrap mean" = "dashed",
+      "α = 0.8 reliability threshold" = "dotted"
+    )
+  ) +
+  labs(x = "Krippendorff's α (interval)", y = "Count") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+p
+save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 5, dir = "thesis_plots")
+```
+
+---
+
+## 8. Interpretation and Discussion
+
+_Add notes here._
+
+---
+
+## 9. Additional Visualisation
+
+### 9.1 Shared CDA Count per Rater Pair
+
+```{r fig.width=11, fig.height=10}
+#| fig-width: 11
+#| fig-height: 10
+# 9.1
+p <- ggplot(
+  merged_df,
+  aes(
+    x = Scorer.x,
+    y = factor(Scorer.y, levels = as.character(sort(unique(as.integer(Scorer.y))))),
+    fill = Total
+  )
+) +
+  geom_tile(color = "black", linewidth = 1) +
+  geom_text(aes(label = ifelse(is.na(Total), "", Total)), color = "black", size = 5, vjust = 0.5) +
+  scale_fill_gradient(low = "white", high = "firebrick", name = "Shared CDAs", na.value = "white") +
+  labs(x = "Rater X", y = "Rater Y") +
+  theme_ira()
+p
+save_plot(p, "shared_cda_count.png", width = 11, height = 10)
+```
