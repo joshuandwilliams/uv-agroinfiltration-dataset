@@ -162,3 +162,53 @@ test_that("average_pairwise_agreement ignores NA pairs", {
 
   expect_equal(average_pairwise_agreement(data), 100)
 })
+
+test_that("corrected_median_agreement labels agreement patterns correctly", {
+  # CDA "a": all agree. CDA "b": 2 agree, 1 different. CDA "c": all different
+  # (the only case with a tautological match). CDA "d": fewer than 3 raters.
+  long <- data.frame(
+    Basename = c("a", "a", "a", "b", "b", "b", "c", "c", "c", "d", "d"),
+    Row = 1, Col = 1, Pos = 1,
+    Score = c(2, 2, 2, 1, 1, 3, 1, 2, 3, 1, 3),
+    Median_Score = c(2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2)
+  )
+
+  result <- corrected_median_agreement(long)
+  pattern_by_cda <- unique(result[c("Basename", "Agreement_Pattern")])
+
+  expect_equal(pattern_by_cda$Agreement_Pattern[pattern_by_cda$Basename == "a"], "All agree")
+  expect_equal(pattern_by_cda$Agreement_Pattern[pattern_by_cda$Basename == "b"], "2 agree, 1 different")
+  expect_equal(pattern_by_cda$Agreement_Pattern[pattern_by_cda$Basename == "c"], "All different")
+  expect_equal(pattern_by_cda$Agreement_Pattern[pattern_by_cda$Basename == "d"], "Fewer than 3 raters")
+})
+
+test_that("corrected_median_agreement leaves genuine agreement untouched", {
+  long <- data.frame(
+    Basename = c("a", "a", "a", "b", "b", "b"),
+    Row = 1, Col = 1, Pos = 1,
+    Score = c(2, 2, 2, 1, 1, 3),
+    Median_Score = c(2, 2, 2, 1, 1, 1)
+  )
+
+  result <- corrected_median_agreement(long)
+
+  expect_true(all(result$Exact_Match[result$Basename == "a"]))
+  expect_true(all(result$NearMiss_Match[result$Basename == "a"]))
+  expect_equal(result$Exact_Match[result$Basename == "b"], c(TRUE, TRUE, FALSE))
+})
+
+test_that("corrected_median_agreement zeroes out only the tautological match", {
+  # Scores 1, 2, 3: median is 2, so the rater who scored 2 trivially "agrees"
+  # even though all 3 raters disagree - that credit should be removed, but
+  # the other two raters' genuine (1-away) near-miss status should not.
+  long <- data.frame(
+    Basename = "c", Row = 1, Col = 1, Pos = 1,
+    Score = c(1, 2, 3), Median_Score = 2
+  )
+
+  result <- corrected_median_agreement(long)
+
+  expect_equal(result$Raw_Exact_Match, c(FALSE, TRUE, FALSE))
+  expect_equal(result$Exact_Match, c(FALSE, FALSE, FALSE))
+  expect_equal(result$NearMiss_Match, c(TRUE, FALSE, TRUE))
+})
