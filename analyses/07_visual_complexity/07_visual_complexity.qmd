@@ -48,6 +48,7 @@ from scipy.spatial.distance import cdist
 
 repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
 plots_dir = repo_root / "analyses" / "07_visual_complexity" / "supp_plots"
+thesis_plots_dir = repo_root / "analyses" / "07_visual_complexity" / "thesis_plots"
 ```
 
 ### 1.2 Load images and labels
@@ -170,7 +171,9 @@ def plot_eigenvalues(pca, name):
     plt.xlabel('Principal Component')
     plt.ylabel('Variance Explained')
     plt.title(title)
-    plt.savefig(str(plots_dir / f"PC_Variances_{name}.png"))
+    # Only the undersampled/class-balanced variant is used in the thesis.
+    out_dir = thesis_plots_dir if name == "undersampled" else plots_dir
+    plt.savefig(str(out_dir / f"PC_Variances_{name}.png"))
     plt.show()
     return variance_explained
 
@@ -198,8 +201,10 @@ def plot_pca(labels, images_pca, variance_explained, name):
     plt.xlabel(f'PC1 ({variance_explained[0]*100:.2f}%)')
     plt.ylabel(f'PC2 ({variance_explained[1]*100:.2f}%)')
     plt.legend(title='Severity Score', loc='upper left', bbox_to_anchor=(1, 1))
-    label = "all" if name == "original" else name
-    plt.savefig(str(plots_dir / f"pca_scatter_{label}.png"), bbox_inches="tight")
+    out_name = "all" if name == "original" else name
+    # Only the undersampled/class-balanced variant is used in the thesis.
+    out_dir = thesis_plots_dir if name == "undersampled" else plots_dir
+    plt.savefig(str(out_dir / f"pca_scatter_{out_name}.png"), bbox_inches="tight")
     plt.show()
 
 plot_pca(labels, images_pca, variance_explained, "original")
