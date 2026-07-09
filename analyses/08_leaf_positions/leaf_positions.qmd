@@ -139,9 +139,4 @@ save_plot(p_leaf, "leaf_positions.png", width = 18, height = 6, dir = "thesis_pl
 
 ## 3. Interpretation and Discussion
 
-- The stem end of the leaf is consistently scored lower than the tip of the leaf.
-- The difference may be due to developmental age gradient (dicot leaves mature basipetally, such that the tip is the oldest). Older, more mature tissue tends to be closer to senescence and has a lower threshold for stress-induced HR cell death.
-- The Buyel and Fischer paper, which measures transient expression, shows higher DsRed yield at the stem / base than the tip, which is an opposite pattern to the cell death scores I'm seeing. DsRed is non-cytotoxic reporter, so the leaves aren't dying. Their gradient is purely expression-capacity measurement, so they're measuring different things.
-- Differences between leaf infiltration patterns (5, 6, and 8 positions) are more likely to reflect differences in project.
-
 _Add notes here._

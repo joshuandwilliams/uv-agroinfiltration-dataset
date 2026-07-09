@@ -285,6 +285,43 @@ def find_pairwise_agreement(row: pd.Series, precision: int = 0) -> pd.Series:
     return (agreements / len(valid_pairs)) if valid_pairs else pd.NA
 
 
+def pairwise_agreement_rate(data_wide: pd.DataFrame, precision: int = 0) -> pd.Series:
+    """
+    Vectorised equivalent of applying `find_pairwise_agreement` row-by-row:
+    for each row, the proportion of valid Score1/Score2/Score3 pairs whose
+    absolute difference is within `precision`, or NaN for rows with fewer
+    than 2 valid scores. Used in place of `.apply(axis=1, ...)`, which is a
+    well-known pandas performance bottleneck over large frames (it re-runs a
+    Python-level function call per row).
+
+    Parameters:
+    ----------
+    data_wide : pd.DataFrame
+            A DataFrame containing columns 'Score1', 'Score2', 'Score3'.
+    precision : int, optional
+            The tolerance level for agreement. Default is 0 for exact
+            agreement, higher values allow for agreement within the
+            specified difference.
+
+    Returns:
+    -------
+    pd.Series
+            Per-row pairwise agreement rate, aligned to data_wide's index.
+    """
+    diffs = pd.DataFrame(
+        {
+            "d12": (data_wide["Score1"] - data_wide["Score2"]).abs(),
+            "d13": (data_wide["Score1"] - data_wide["Score3"]).abs(),
+            "d23": (data_wide["Score2"] - data_wide["Score3"]).abs(),
+        },
+        index=data_wide.index,
+    )
+    denom = diffs.notna().sum(axis=1)
+    agreeing = (diffs <= precision).sum(axis=1)
+
+    return agreeing / denom.replace(0, np.nan)
+
+
 def extract_score_pairs(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extracts all valid score pairs (ScoreA, ScoreB) from each row in the DataFrame
@@ -308,3 +345,52 @@ def extract_score_pairs(df: pd.DataFrame) -> pd.DataFrame:
         pairs.extend(row_pairs)
 
     return pd.DataFrame(pairs, columns=["ScoreA", "ScoreB"])
+
+
+def corrected_median_agreement(data_long: pd.DataFrame) -> pd.DataFrame:
+    """
+    Corrects Metric 1 (agreement with the median) for the mechanical inflation
+    that occurs whenever a CDA's 3 raters give mutually distinct scores: for an
+    odd number of raters, the median is always exactly equal to one rater's own
+    score, so that rater trivially "agrees" with it even though no real 2+
+    rater consensus exists. This zeroes out that specific tautological match
+    (both exact and near-miss) wherever a CDA's 3 raters' scores are mutually
+    distinct, leaving genuine agreement (2+ raters sharing a value) untouched.
+    Each row is also labelled with its CDA's rater-agreement pattern, so the
+    raw vs. corrected figures can be audited pattern-by-pattern.
+
+    Parameters:
+    ----------
+    data_long : pd.DataFrame
+            Long-format data with one row per (CDA, rater), containing
+            'Basename', 'Row', 'Col', 'Pos', 'Score', and 'Median_Score'.
+
+    Returns:
+    -------
+    pd.DataFrame
+            A copy of data_long with added columns 'Raw_Exact_Match' (Metric 1,
+            uncorrected), 'Exact_Match' and 'NearMiss_Match' (Metric 3,
+            corrected), all boolean, and 'Agreement_Pattern' (one of
+            'All agree', '2 agree, 1 different', 'All different', or 'Fewer
+            than 3 raters').
+    """
+    df = data_long.copy()
+    df["Raw_Exact_Match"] = df["Score"] == df["Median_Score"]
+    df["NearMiss_Match"] = (df["Score"] - df["Median_Score"]).abs() <= 1
+
+    cda_id = ["Basename", "Row", "Col", "Pos"]
+    n_valid = df.groupby(cda_id)["Score"].transform("count")
+    n_unique = df.groupby(cda_id)["Score"].transform("nunique")
+
+    df["Agreement_Pattern"] = "Fewer than 3 raters"
+    df.loc[(n_valid == 3) & (n_unique == 1), "Agreement_Pattern"] = "All agree"
+    df.loc[(n_valid == 3) & (n_unique == 2), "Agreement_Pattern"] = "2 agree, 1 different"
+    df.loc[(n_valid == 3) & (n_unique == 3), "Agreement_Pattern"] = "All different"
+
+    all_distinct = (n_valid == 3) & (n_unique == 3)
+    tautological_match = all_distinct & df["Raw_Exact_Match"]
+
+    df["Exact_Match"] = df["Raw_Exact_Match"] & ~tautological_match
+    df.loc[tautological_match, "NearMiss_Match"] = False
+
+    return df

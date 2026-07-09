@@ -28,6 +28,7 @@ analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv
 
 # Claude
 .claude/
+claude_discussion.md
 
 # Scratch / preview images (not part of the analysis)
 tmp/

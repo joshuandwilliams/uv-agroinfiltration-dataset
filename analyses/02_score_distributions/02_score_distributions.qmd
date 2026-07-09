@@ -1,17 +1,17 @@
 ---
-title: "Visualising the collected cell death area scores"
+title: "Raw annotation data visualisation"
 format:
   html:
     code-fold: true
 ---
 
-Date: 8/5/26
+Date: 08/07/26
 
 ## GOHREP
 
 **Goal:**
 
-Conduct exploratory data analysis of the cell death area score dataset by visualising scoring patterns with ggplot2 in R.
+This analysis visualises the annotation data collected using CDAScorer.
 
 ---
 
@@ -82,11 +82,14 @@ score_data_valid <- score_data_long %>%
 ### 2.1 Example CDAs and scoring key
 
 ```{r}
+#| fig-cap: >
+#|   Visual inspection of randomly selected CDAs shows variation within and
+#|   between severity scores. The scoring key at the bottom, ranging from 0
+#|   (no cell death) to 6 (strong cell death) was provided as a reference
+#|   during annotation.
 # 2.1
-# Scoring key (scores 0-6, left to right). The original key is a CMYK JPEG, so an
-# sRGB copy (converted via its ICC profile) is read here to keep colours faithful.
-# The number strip is cropped off (rows 189-554 keep just the 7 panels). The example
-# columns carry the score labels and are boxed to the same width as the key panels.
+# The original scoring key is a CMYK JPEG, so an sRGB copy (converted via its
+# ICC profile) is read here to keep colours faithful.
 key <- readPNG(here("analyses", "02_score_distributions", "assets", "lesion_score_key_rgb.png"))
 key_raster <- as.raster(key[189:554, , 1:3])
 W <- dim(key)[2] # key width (px)
@@ -158,6 +161,10 @@ knitr::include_graphics(here("analyses", "02_score_distributions", "thesis_plots
 ```{r fig.width=12, fig.height=6}
 #| fig-width: 12
 #| fig-height: 6
+#| fig-cap: >
+#|   The median severity score classes are imbalanced. Class 0 makes up
+#|   42.6% of median severity scores, whilst Class 2 only makes up 6.8% of
+#|   median severity scores.
 # 2.2
 all_counts <- score_data_valid %>%
   count(Score, name = "Count") %>%
@@ -234,6 +241,11 @@ save_plot(p, "score_counts.png", width = 12, height = 6, dir = "thesis_plots")
 ```{r fig.width=10, fig.height=14}
 #| fig-width: 10
 #| fig-height: 14
+#| fig-caption: >
+#|   Visualising all annotations faceted by median score shows rater
+#|   variation. The most common disagreements with the median lie one
+#|   severity score above or below it. Some annotations disagree by as much
+#|   as 6 scores.
 # 2.3
 score_data_raw <- score_data %>%
   mutate(across(c(Score1, Score2, Score3), ~ replace(., . == "[]", NA_character_)))
@@ -273,6 +285,13 @@ save_plot(p, "all_scores.png", 10, 14)
 ```{r fig.width=10, fig.height=7}
 #| fig-width: 10
 #| fig-height: 7
+#| fig-caption: >
+#|   Raters recorded different distributions of severity scores. All raters
+#|   recorded 0 more than any other score. Rater 1 recorded scores of 1 and 2
+#|   less than half as often as any other scorer. Scorer 10 recorded a score
+#|   of 1 more than double any other scorer, and a score of 5 or 6 less than
+#|   any other scorer. This plot doesn't tell us if these differences are due
+#|   to rater bias or source image distribution.
 # 3.1
 score_freq <- score_data_valid %>%
   group_by(Scorer, Score) %>%
@@ -314,69 +333,105 @@ save_plot(p, "score_pct.png", width = 10, height = 7)
 
 ## 4. Missing scores
 
-### 4.1 Missing score frequency by rater and median score (bubble)
+### 4.1 Skips per rater, and how many raters skipped each CDA (pre-median data)
 
-```{r fig.width=10, fig.height=12}
-#| fig-width: 10
-#| fig-height: 12
+```{r fig.width=12, fig.height=6}
+#| fig-width: 12
+#| fig-height: 6
+#| fig-cap: >
+#|   Raters intentionally skipped annotations that were unclear (e.g. leaf
+#|   folding), damaged, or overlapping with adjacent cell death areas. 585
+#|   cell death areas were skipped by at least one rater (8.59% of the
+#|   total).
 # 4.1
-score_data_nas <- score_data_long %>%
-  filter(Score == "[]" | is.na(Score))
+checked_1 <- read_csv(
+  here("analyses", "01_generate_raw_data", "03_checking_collected_coords", "combined_cda_data_checked_1.csv"),
+  show_col_types = FALSE
+)
+checked_2 <- read_csv(
+  here("analyses", "01_generate_raw_data", "03_checking_collected_coords", "combined_cda_data_checked_2.csv"),
+  show_col_types = FALSE
+)
+checked_combined <- bind_rows(checked_1, checked_2)
 
-if (nrow(score_data_nas) > 0) {
-  nas_freq <- score_data_nas %>%
-    group_by(Scorer, Median_Score) %>%
-    summarise(Count = n(), .groups = "drop")
+# Raters were instructed to skip cell death areas belonging to the
+# non-target infiltration in dual-infiltration images (Projects C and H),
+# which is the primary reason for skipped scores - so skip counts are only
+# interpretable once split by whether the image was a dual-infiltration one.
+project_key <- load_project_key()
+dual_infiltration_projects <- project_key$Project[project_key$Dual_Infiltration == 1]
 
-  p <- ggplot(nas_freq, aes(x = Scorer, y = Median_Score)) +
-    geom_point(aes(size = Count, color = factor(Median_Score)), stat = "identity") +
-    geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
-    scale_size_continuous(name = "Frequency", range = c(1.19, 25)) +
-    scale_color_manual(name = "Median Severity\nScore", values = sev_pal) +
-    scale_y_continuous(breaks = 0:6) +
-    labs(x = "Rater", y = "Median Severity Score") +
-    theme_minimal() +
-    theme(
-      axis.text = element_text(size = 13),
-      axis.title = element_text(size = 15),
-      legend.title = element_text(size = 13),
-      legend.text = element_text(size = 11)
-    ) +
-    coord_cartesian(ylim = c(-0.6, 6.2))
-  print(p)
-  save_plot(p, "missing_scores.png", width = 10, height = 12)
-} else {
-  message("No missing scores in canonical data.")
-}
+image_dual_infiltration <- read_csv(
+  here("analyses", "01_generate_raw_data", "01_allocation_info", "image_info.csv"),
+  show_col_types = FALSE
+) %>%
+  fill(Path, .direction = "down") %>%
+  transmute(
+    Basename = Image,
+    Dual_Infiltration_Image = factor(
+      sub("/.*", "", Path) %in% dual_infiltration_projects,
+      levels = c(FALSE, TRUE), labels = c("No", "Yes")
+    )
+  )
+
+checked_long <- long_score_table(checked_combined, include_median_score = FALSE, drop_missing_scores = FALSE) %>%
+  left_join(image_dual_infiltration, by = "Basename")
+
+skips_by_scorer <- checked_long %>%
+  filter(is.na(Score)) %>%
+  count(Scorer, Dual_Infiltration_Image, name = "Count", .drop = FALSE)
+
+n_skipped_per_cda <- checked_combined %>%
+  left_join(image_dual_infiltration, by = "Basename") %>%
+  mutate(N_Skipped = factor(is.na(Score1) + is.na(Score2) + is.na(Score3), levels = 0:3)) %>%
+  count(N_Skipped, Dual_Infiltration_Image, name = "Count", .drop = FALSE)
+
+dual_infiltration_pal <- c("No" = "steelblue", "Yes" = "darkorange")
+
+p_scorer <- ggplot(skips_by_scorer, aes(x = Scorer, y = Count, fill = Dual_Infiltration_Image)) +
+  geom_col(color = "black", linewidth = 0.3) +
+  geom_text(
+    data = subset(skips_by_scorer, Count > 0), aes(label = Count),
+    position = position_stack(vjust = 0.5), size = 4
+  ) +
+  scale_fill_manual(name = "Dual-Infiltration\nImage", values = dual_infiltration_pal) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Rater", y = "Number of Skipped Annotations") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+
+p_n_skipped <- ggplot(n_skipped_per_cda, aes(x = N_Skipped, y = Count, fill = Dual_Infiltration_Image)) +
+  geom_col(color = "black", linewidth = 0.3) +
+  geom_text(
+    data = subset(n_skipped_per_cda, Count > 0), aes(label = Count),
+    position = position_stack(vjust = 0.5), size = 4
+  ) +
+  scale_fill_manual(name = "Dual-Infiltration\nImage", values = dual_infiltration_pal) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Number of Raters who Skipped", y = "Number of CDAs") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 11)
+  )
+
+p <- p_scorer + p_n_skipped
+p
+save_plot(p, "skip_counts.png", width = 12, height = 6)
 ```
 
 ---
 
 ## 5. Interpretation and Discussion
 
-- Four randomly selected example CDAs for each median score (0-6, upper panel), aligned above the published scoring key (lower panel).
-- Within a score class there is substantial variation (lighting, veins, damage, black background regions), while distant classes are clearly distinguishable and adjacent classes can be hard to tell apart.
-- The left panel shows each individual score collected across all raters. The right panel counts the median score of each CDA, which will be used as the ground-truth label.
-- 0 is by far the most common score in both views.
-- Intermediate scores (3-4) are more numerous than higher (5-6) or lower (1-2)
-- The score distributions collected reflect experimental design and biological outcomes. Some experiments have quite binary outcomes (0 or 6) whilst others have more balanced phenotypes, showing a range of intermediate scores.
-- A score of 0 is common because of both experimental (intentional negative control included in all experiments) and biological (no expression or no immune response) outcomes.
-- This plot shows the spread of scores collected for each median score group in a slightly different format, allowing patterns of disagreement to be more clearly visualised for smaller, non-0 classes.
-- This plot shows the spread of scores collected for each cell death area. The X axis is grouped by median score.
-- Raters often provide disagreeing scores for the same image, and these disagreeing scores are most commonly adjacent to the median score, although a smaller number may be much further away.
-- The median score 0 group appears to have fewer disagreeing scores.
-- This plot shows distribution of scores collected by each rater as a percentage. It removes the replaces the count variable, making comparisons between raters easier.
-- It shows that the number of 0s collected by rater 5 is indeed lower than any other rater, and the number of 6s higher than any other rater.
-- It shows patterns that could be attributed to certain scoring behaviours. For example, rater 10 collected many more 1s than any other rater, but very few 0s. Rater 10 may have a different approach to differentiating between these scores than other raters. In contrast, rater 1 collected almost no 1s or 2s, but many 0s.
-- Some raters (1, 5, 7) scored far fewer cell death areas than others.
-- This plot shows the number of scores that were missed by each rater. A missed score means that a rater did not record an annotation for a cell death area which was scored by two other raters. The median score on this plot is the agreed score of the remaining two raters who did record an annotation.
-- The majority of missed scores were on class 0 cell death areas.
-- Rater 10 missed far more scores than others - 36 compared to the next nearest of 23.
-- Missed scores represent intentional choices, not accidental omissions.
-- The annotation tool includes a skip button which the annotators were instructed use for cell death areas that were highly unclear (e.g. leaf folding), damaged, or overlapping with adjacent cell death areas. Different interpretations of these descriptions may account for the variable skip counts.
-- Score 0 was the most common score collected, so it being the most commonly missed makes sense. Damaged leaves (often caused by the agroinfiltration syringe puncturing the leaf) also often appeared as score 0.
-
-_Add notes here._
+Cell death area source images from past Banfield lab projects were annotated with bounding boxes and severity scores, which ranged from 0 (no cell death) to 6 (strong cell death). Each cell death area was annotated by three raters, and the median of these three raters' scores are chosen as representative labels.
 
 ---
 
@@ -451,4 +506,40 @@ p <- ggplot(score_freq, aes(x = Scorer, y = Score)) +
   coord_cartesian(ylim = c(-0.6, 6.2))
 p
 save_plot(p, "score_freq.png", width = 10, height = 12)
+```
+
+### 6.3 Skipped score frequency by rater and median score (bubble)
+
+```{r fig.width=10, fig.height=12}
+#| fig-width: 10
+#| fig-height: 12
+# 6.3
+score_data_nas <- score_data_long %>%
+  filter(Score == "[]" | is.na(Score))
+
+if (nrow(score_data_nas) > 0) {
+  nas_freq <- score_data_nas %>%
+    group_by(Scorer, Median_Score) %>%
+    summarise(Count = n(), .groups = "drop")
+
+  p <- ggplot(nas_freq, aes(x = Scorer, y = Median_Score)) +
+    geom_point(aes(size = Count, color = factor(Median_Score)), stat = "identity") +
+    geom_text(aes(label = Count), vjust = 4, color = "black", size = 5) +
+    scale_size_continuous(name = "Frequency", range = c(1.19, 25)) +
+    scale_color_manual(name = "Median Severity\nScore", values = sev_pal) +
+    scale_y_continuous(breaks = 0:6) +
+    labs(x = "Rater", y = "Median Severity Score") +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 13),
+      axis.title = element_text(size = 15),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 11)
+    ) +
+    coord_cartesian(ylim = c(-0.6, 6.2))
+  print(p)
+  save_plot(p, "missing_scores.png", width = 10, height = 12)
+} else {
+  message("No missing scores in canonical data.")
+}
 ```

@@ -10,11 +10,13 @@ from sklearn.metrics import confusion_matrix
 from human_performance import (
     anonymise_scorers,
     cm_accuracies,
+    corrected_median_agreement,
     downsample_score_classes_csv,
     extract_score_pairs,
     find_pairwise_agreement,
     generate_scorer_cms,
     generate_scorer_key,
+    pairwise_agreement_rate,
     plot_confusion_matrix,
 )
 
@@ -651,3 +653,118 @@ class TestExtractScorePairs:
 
         result_df = extract_score_pairs(input_df)
         pd.testing.assert_frame_equal(result_df, expected_df, check_dtype=False)
+
+
+class TestPairwiseAgreementRate:
+
+    @pytest.fixture
+    def setup_data(self) -> pd.DataFrame:
+        """
+        Same rows as TestFindPairwiseAgreement's fixture, so the two
+        implementations can be checked against each other row-by-row.
+        """
+        return pd.DataFrame(
+            {
+                "Score1": [3, 3, 3, 3, 3, 3, pd.NA],
+                "Score2": [3, 2, 1, 3, 1, pd.NA, pd.NA],
+                "Score3": [3, 3, pd.NA, pd.NA, pd.NA, pd.NA, pd.NA],
+            }
+        ).astype("Float64")
+
+    def test_matches_find_pairwise_agreement_row_by_row(self, setup_data: pd.DataFrame) -> None:
+        for precision in (0, 1):
+            vectorised = pairwise_agreement_rate(setup_data, precision=precision)
+            for idx, row in setup_data.iterrows():
+                expected = find_pairwise_agreement(row, precision=precision)
+                if pd.isna(expected):
+                    assert pd.isna(vectorised[idx])
+                else:
+                    assert vectorised[idx] == pytest.approx(float(expected))
+
+    def test_all_agree(self, setup_data: pd.DataFrame) -> None:
+        result = pairwise_agreement_rate(setup_data, precision=0)
+        assert result.iloc[0] == 1.0
+
+    def test_some_agree(self, setup_data: pd.DataFrame) -> None:
+        result = pairwise_agreement_rate(setup_data, precision=0)
+        assert result.iloc[1] == pytest.approx(1 / 3)
+
+    def test_none_agree(self, setup_data: pd.DataFrame) -> None:
+        result = pairwise_agreement_rate(setup_data, precision=0)
+        assert result.iloc[2] == 0.0
+
+    def test_near_miss(self, setup_data: pd.DataFrame) -> None:
+        result = pairwise_agreement_rate(setup_data, precision=1)
+        assert result.iloc[1] == 1.0
+
+    def test_fewer_than_two_valid_scores_is_nan(self, setup_data: pd.DataFrame) -> None:
+        result = pairwise_agreement_rate(setup_data, precision=0)
+        assert pd.isna(result.iloc[6])
+
+
+class TestCorrectedMedianAgreement:
+
+    @pytest.fixture
+    def setup_data(self) -> pd.DataFrame:
+        """
+        Long-format data covering all 4 agreement patterns: all 3 raters agree
+        (CDA "a"), 2 agree/1 different (CDA "b"), all 3 different (CDA "c",
+        the only case where the median-matching rater's agreement is
+        tautological), and fewer than 3 raters (CDA "d").
+        """
+        return pd.DataFrame(
+            {
+                "Basename": ["a", "a", "a", "b", "b", "b", "c", "c", "c", "d", "d"],
+                "Row": [1] * 11,
+                "Col": [1] * 11,
+                "Pos": [1] * 11,
+                "Score": [2, 2, 2, 1, 1, 3, 1, 2, 3, 1, 3],
+                "Median_Score": [2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2],
+            }
+        )
+
+    def test_agreement_pattern_labels(self, setup_data: pd.DataFrame) -> None:
+        result = corrected_median_agreement(setup_data)
+        patterns = result.groupby("Basename")["Agreement_Pattern"].first()
+
+        assert patterns["a"] == "All agree"
+        assert patterns["b"] == "2 agree, 1 different"
+        assert patterns["c"] == "All different"
+        assert patterns["d"] == "Fewer than 3 raters"
+
+    def test_all_agree_is_unaffected(self, setup_data: pd.DataFrame) -> None:
+        result = corrected_median_agreement(setup_data)
+        cda_a = result[result["Basename"] == "a"]
+
+        assert cda_a["Raw_Exact_Match"].all()
+        assert cda_a["Exact_Match"].all()
+        assert cda_a["NearMiss_Match"].all()
+
+    def test_two_one_split_is_unaffected(self, setup_data: pd.DataFrame) -> None:
+        result = corrected_median_agreement(setup_data)
+        cda_b = result[result["Basename"] == "b"]
+
+        # The 2 raters sharing the majority value genuinely match the median.
+        assert cda_b["Raw_Exact_Match"].tolist() == [True, True, False]
+        assert cda_b["Exact_Match"].tolist() == [True, True, False]
+        assert cda_b["NearMiss_Match"].tolist() == [True, True, False]
+
+    def test_all_different_zeroes_out_tautological_match(self, setup_data: pd.DataFrame) -> None:
+        result = corrected_median_agreement(setup_data)
+        cda_c = result[result["Basename"] == "c"]
+
+        # Raw Metric 1 credits the rater whose score (2) equals the median.
+        assert cda_c["Raw_Exact_Match"].tolist() == [False, True, False]
+        # Metric 3 corrects that single tautological match to a miss.
+        assert cda_c["Exact_Match"].tolist() == [False, False, False]
+        # Near-miss for the other two raters (genuinely 1 away) is untouched;
+        # only the tautological rater's near-miss credit is removed.
+        assert cda_c["NearMiss_Match"].tolist() == [True, False, True]
+
+    def test_fewer_than_three_raters_is_unaffected(self, setup_data: pd.DataFrame) -> None:
+        result = corrected_median_agreement(setup_data)
+        cda_d = result[result["Basename"] == "d"]
+
+        assert cda_d["Raw_Exact_Match"].tolist() == [False, False]
+        assert cda_d["Exact_Match"].tolist() == [False, False]
+        assert cda_d["NearMiss_Match"].tolist() == [True, True]
