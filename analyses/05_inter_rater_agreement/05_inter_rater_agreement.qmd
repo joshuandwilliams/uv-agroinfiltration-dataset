@@ -245,19 +245,13 @@ rater_axis_labels <- scorer_accuracy %>%
   transmute(Scorer = as.character(Scorer), label = paste0(Scorer, "\n(n=", n, ")"))
 x_labels <- setNames(rater_axis_labels$label, rater_axis_labels$Scorer)
 
-# Panel-wide averages, drawn as dashed reference lines (they replace the old
-# stacked "Avg" bar): the lower line is mean exact agreement, the upper line is
-# mean total within-+/-1 agreement (exact + near-miss), averaged across raters.
-# They carry their own colour legend (with the mean values) so no on-plot text
-# overlaps the bars.
+# Panel-wide averages, drawn as neutral dashed reference lines (they replace the
+# old stacked "Avg" bar): the lower line is mean exact agreement, the upper line
+# is mean near-miss agreement (within +/-1). They are labelled on a secondary
+# right-hand y-axis, so they add no extra legend entries and their colour stays
+# distinct from the bars.
 mean_exact <- mean(scorer_accuracy$exact)
 mean_within_one <- mean(scorer_accuracy$within_one)
-lab_mean_exact <- sprintf("Mean exact = %.1f%%", 100 * mean_exact)
-lab_mean_within <- sprintf("Mean within ±1 = %.1f%%", 100 * mean_within_one)
-mean_lines <- data.frame(
-  yintercept = c(mean_exact, mean_within_one),
-  Average = factor(c(lab_mean_exact, lab_mean_within), levels = c(lab_mean_exact, lab_mean_within))
-)
 
 plot_acc <- scorer_accuracy %>%
   mutate(Scorer = factor(Scorer,
@@ -271,35 +265,38 @@ plot_acc <- scorer_accuracy %>%
   ) %>%
   mutate(metric = factor(metric,
     levels = c("extra_within_one", "exact"),
-    labels = c("Near-miss agreement", "Exact agreement")
+    labels = c("Near-miss agreement (±1)", "Exact agreement")
   ))
 
 p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
   geom_bar(stat = "identity") +
-  geom_hline(
-    data = mean_lines,
-    aes(yintercept = yintercept, colour = Average),
-    linetype = "dashed", linewidth = 0.8, inherit.aes = FALSE
-  ) +
+  geom_hline(yintercept = mean_exact, linetype = "dashed", colour = "grey20", linewidth = 0.6) +
+  geom_hline(yintercept = mean_within_one, linetype = "dashed", colour = "grey20", linewidth = 0.6) +
   scale_fill_manual(
     values = c(
       "Exact agreement" = "steelblue",
-      "Near-miss agreement" = "#E69F00"
+      "Near-miss agreement (±1)" = "#E69F00"
     ),
     name = NULL,
-    breaks = c("Exact agreement", "Near-miss agreement")
-  ) +
-  scale_colour_manual(
-    values = setNames(c("steelblue", "#E69F00"), c(lab_mean_exact, lab_mean_within)),
-    name = NULL
+    breaks = c("Exact agreement", "Near-miss agreement (±1)")
   ) +
   scale_x_discrete(labels = x_labels) +
-  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_y_continuous(
+    labels = scales::percent, limits = c(0, 1),
+    sec.axis = sec_axis(~.,
+      breaks = c(mean_exact, mean_within_one),
+      labels = c(
+        sprintf("Mean exact\n(%.1f%%)", 100 * mean_exact),
+        sprintf("Mean near-miss\n(%.1f%%)", 100 * mean_within_one)
+      )
+    )
+  ) +
   labs(x = "Rater", y = "Corrected Agreement with Median Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
     axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y.right = element_text(size = 11),
     axis.title = element_text(size = 15),
     legend.title = element_text(size = 13),
     legend.text = element_text(size = 11)
