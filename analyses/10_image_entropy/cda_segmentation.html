@@ -626,48 +626,75 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>  }))</span>
 <span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>wrap_lab <span class="ot">&lt;-</span> <span class="fu">vapply</span>(</span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>  feat_labels, <span class="cf">function</span>(s) <span class="fu">paste</span>(<span class="fu">strwrap</span>(s, <span class="at">width =</span> <span class="dv">15</span>), <span class="at">collapse =</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>), <span class="fu">character</span>(<span class="dv">1</span>)</span>
-<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>draw_feat_examples <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
-<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>  nf <span class="ot">&lt;-</span> <span class="fu">length</span>(feat_order)</span>
-<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(nf, <span class="dv">3</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="fl">0.15</span>, <span class="fl">0.15</span>, <span class="fl">1.05</span>, <span class="fl">0.15</span>), <span class="at">oma =</span> <span class="fu">c</span>(<span class="fl">0.4</span>, <span class="fl">8.5</span>, <span class="fl">3.4</span>, <span class="fl">0.3</span>))</span>
-<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (r <span class="cf">in</span> <span class="fu">seq_along</span>(feat_order)) {</span>
-<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>    ex <span class="ot">&lt;-</span> <span class="fu">pick_examples</span>(feat_order[r])</span>
-<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Blue CDA outline only on rows where the feature is measured over the CDA,</span></span>
-<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># so the reader can see the leaf-vs-CDA distinction where it matters.</span></span>
-<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a>    draw_outline <span class="ot">&lt;-</span> feat_order[r] <span class="sc">%in%</span> cda_feats</span>
-<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) {</span>
-<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a>      img <span class="ot">&lt;-</span> <span class="fu">load_img</span>(<span class="fu">file.path</span>(data_dir, ex<span class="sc">$</span>score[j], <span class="fu">paste0</span>(ex<span class="sc">$</span>image_id[j], <span class="st">".tif"</span>)))</span>
-<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (draw_outline) img <span class="ot">&lt;-</span> <span class="fu">outline</span>(img, <span class="fu">segment_cda</span>(img)<span class="sc">$</span>mask)</span>
-<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a>      <span class="fu">plot</span>(<span class="fu">as.raster</span>(img))</span>
-<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mtext</span>(<span class="fu">format</span>(<span class="fu">signif</span>(ex<span class="sc">$</span>value[j], <span class="dv">3</span>), <span class="at">scientific =</span> <span class="cn">FALSE</span>, <span class="at">drop0trailing =</span> <span class="cn">TRUE</span>, <span class="at">trim =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>        <span class="at">side =</span> <span class="dv">3</span>, <span class="at">line =</span> <span class="fl">0.05</span>, <span class="at">cex =</span> <span class="fl">0.55</span></span>
-<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(wrap_lab[r],</span>
-<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a>      <span class="at">side =</span> <span class="dv">2</span>, <span class="at">outer =</span> <span class="cn">TRUE</span>, <span class="at">las =</span> <span class="dv">1</span>, <span class="at">line =</span> <span class="fl">0.5</span>, <span class="at">cex =</span> <span class="fl">0.62</span>,</span>
-<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>      <span class="at">at =</span> <span class="dv">1</span> <span class="sc">-</span> (r <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> nf</span>
-<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (cc <span class="cf">in</span> <span class="fu">seq_along</span>(qs)) {</span>
-<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a>    at <span class="ot">&lt;-</span> (cc <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="dv">3</span></span>
-<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(<span class="fu">names</span>(qs)[cc], <span class="at">side =</span> <span class="dv">3</span>, <span class="at">outer =</span> <span class="cn">TRUE</span>, <span class="at">line =</span> <span class="fl">1.5</span>, <span class="at">at =</span> at, <span class="at">font =</span> <span class="dv">2</span>, <span class="at">cex =</span> <span class="fl">0.95</span>)</span>
-<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(<span class="fu">paste0</span>(<span class="st">"("</span>, pct_lab[cc], <span class="st">")"</span>), <span class="at">side =</span> <span class="dv">3</span>, <span class="at">outer =</span> <span class="cn">TRUE</span>, <span class="at">line =</span> <span class="fl">0.5</span>, <span class="at">at =</span> at, <span class="at">cex =</span> <span class="fl">0.6</span>)</span>
-<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb15-63"><a href="#cb15-63" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-64"><a href="#cb15-64" aria-hidden="true" tabindex="-1"></a><span class="fu">png</span>(<span class="fu">plot_output_path</span>(<span class="st">"10_image_entropy"</span>, <span class="st">"thesis_plots"</span>, <span class="st">"seg_feature_exemplars.png"</span>),</span>
-<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a>  <span class="at">width =</span> <span class="dv">900</span>, <span class="at">height =</span> <span class="dv">3050</span>, <span class="at">res =</span> <span class="dv">150</span></span>
-<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-67"><a href="#cb15-67" aria-hidden="true" tabindex="-1"></a><span class="fu">draw_feat_examples</span>()</span>
-<span id="cb15-68"><a href="#cb15-68" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">dev.off</span>())</span>
-<span id="cb15-69"><a href="#cb15-69" aria-hidden="true" tabindex="-1"></a><span class="fu">draw_feat_examples</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>draw_feat_examples <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>  half <span class="ot">&lt;-</span> <span class="fu">length</span>(feat_order) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Two side-by-side groups of 6 features: each a label column + Low/Med/High</span></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>  <span class="co"># crops, with a header row on top. Fully cellular layout so the middle label</span></span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>  <span class="co"># column sits between the two groups.</span></span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="fu">matrix</span>(<span class="fu">seq_len</span>((half <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="dv">8</span>), <span class="at">nrow =</span> half <span class="sc">+</span> <span class="dv">1</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">widths =</span> <span class="fu">c</span>(<span class="fl">1.2</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="fl">1.2</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">heights =</span> <span class="fu">c</span>(<span class="fl">0.75</span>, <span class="fu">rep</span>(<span class="dv">1</span>, half))</span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>  header <span class="ot">&lt;-</span> <span class="cf">function</span>(cc) {</span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>    <span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot.new</span>()</span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fu">names</span>(qs)[cc], <span class="at">font =</span> <span class="dv">2</span>, <span class="at">cex =</span> <span class="fl">2.4</span>)</span>
+<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="fl">0.5</span>, <span class="fl">0.28</span>, <span class="fu">paste0</span>(<span class="st">"("</span>, pct_lab[cc], <span class="st">")"</span>), <span class="at">cex =</span> <span class="fl">1.85</span>)</span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a>  blank <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a>    <span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot.new</span>()</span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Feature name right-aligned so it sits against its crops, trimming the gap.</span></span>
+<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a>  lab_cell <span class="ot">&lt;-</span> <span class="cf">function</span>(idx) {</span>
+<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a>    <span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot.new</span>()</span>
+<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="fl">0.97</span>, <span class="fl">0.5</span>, <span class="fu">paste</span>(<span class="fu">strwrap</span>(feat_labels[idx], <span class="at">width =</span> <span class="dv">12</span>), <span class="at">collapse =</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>),</span>
+<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a>      <span class="at">adj =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.5</span>), <span class="at">cex =</span> <span class="fl">1.95</span></span>
+<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a>  <span class="co"># xaxs/yaxs = "i" + rasterImage fills the plot region exactly (no axis</span></span>
+<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>  <span class="co"># padding); the region is square, so the crop is not stretched. The value at</span></span>
+<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a>  <span class="co"># line 0.3 sits just above its own image, while the large top margin (4.2)</span></span>
+<span id="cb15-63"><a href="#cb15-63" aria-hidden="true" tabindex="-1"></a>  <span class="co"># keeps the separating gap above the value, tying it to the image below.</span></span>
+<span id="cb15-64"><a href="#cb15-64" aria-hidden="true" tabindex="-1"></a>  crop_cell <span class="ot">&lt;-</span> <span class="cf">function</span>(idx) {</span>
+<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a>    ex <span class="ot">&lt;-</span> <span class="fu">pick_examples</span>(feat_order[idx])</span>
+<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a>    do_outline <span class="ot">&lt;-</span> feat_order[idx] <span class="sc">%in%</span> cda_feats</span>
+<span id="cb15-67"><a href="#cb15-67" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) {</span>
+<span id="cb15-68"><a href="#cb15-68" aria-hidden="true" tabindex="-1"></a>      <span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.15</span>, <span class="fl">4.2</span>, <span class="fl">0.15</span>))</span>
+<span id="cb15-69"><a href="#cb15-69" aria-hidden="true" tabindex="-1"></a>      img <span class="ot">&lt;-</span> <span class="fu">load_img</span>(<span class="fu">file.path</span>(data_dir, ex<span class="sc">$</span>score[j], <span class="fu">paste0</span>(ex<span class="sc">$</span>image_id[j], <span class="st">".tif"</span>)))</span>
+<span id="cb15-70"><a href="#cb15-70" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (do_outline) img <span class="ot">&lt;-</span> <span class="fu">outline</span>(img, <span class="fu">segment_cda</span>(img)<span class="sc">$</span>mask)</span>
+<span id="cb15-71"><a href="#cb15-71" aria-hidden="true" tabindex="-1"></a>      <span class="fu">plot</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">type =</span> <span class="st">"n"</span>, <span class="at">axes =</span> <span class="cn">FALSE</span>, <span class="at">xlab =</span> <span class="st">""</span>, <span class="at">ylab =</span> <span class="st">""</span>, <span class="at">xaxs =</span> <span class="st">"i"</span>, <span class="at">yaxs =</span> <span class="st">"i"</span>)</span>
+<span id="cb15-72"><a href="#cb15-72" aria-hidden="true" tabindex="-1"></a>      <span class="fu">rasterImage</span>(<span class="fu">as.raster</span>(img), <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb15-73"><a href="#cb15-73" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mtext</span>(<span class="fu">format</span>(<span class="fu">signif</span>(ex<span class="sc">$</span>value[j], <span class="dv">3</span>), <span class="at">scientific =</span> <span class="cn">FALSE</span>, <span class="at">drop0trailing =</span> <span class="cn">TRUE</span>, <span class="at">trim =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-74"><a href="#cb15-74" aria-hidden="true" tabindex="-1"></a>        <span class="at">side =</span> <span class="dv">3</span>, <span class="at">line =</span> <span class="fl">0.3</span>, <span class="at">cex =</span> <span class="fl">1.5</span></span>
+<span id="cb15-75"><a href="#cb15-75" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb15-76"><a href="#cb15-76" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb15-77"><a href="#cb15-77" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-78"><a href="#cb15-78" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Header row: blank | Low Med High | blank | Low Med High</span></span>
+<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">blank</span>()</span>
+<span id="cb15-80"><a href="#cb15-80" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (cc <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) <span class="fu">header</span>(cc)</span>
+<span id="cb15-81"><a href="#cb15-81" aria-hidden="true" tabindex="-1"></a>  <span class="fu">blank</span>()</span>
+<span id="cb15-82"><a href="#cb15-82" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (cc <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) <span class="fu">header</span>(cc)</span>
+<span id="cb15-83"><a href="#cb15-83" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Feature rows: left group (1..half) beside right group (half+1..2*half)</span></span>
+<span id="cb15-84"><a href="#cb15-84" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (r <span class="cf">in</span> <span class="fu">seq_len</span>(half)) {</span>
+<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a>    <span class="fu">lab_cell</span>(r)</span>
+<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a>    <span class="fu">crop_cell</span>(r)</span>
+<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a>    <span class="fu">lab_cell</span>(r <span class="sc">+</span> half)</span>
+<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a>    <span class="fu">crop_cell</span>(r <span class="sc">+</span> half)</span>
+<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a><span class="fu">png</span>(<span class="fu">plot_output_path</span>(<span class="st">"10_image_entropy"</span>, <span class="st">"thesis_plots"</span>, <span class="st">"seg_feature_exemplars.png"</span>),</span>
+<span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a>  <span class="at">width =</span> <span class="dv">2100</span>, <span class="at">height =</span> <span class="dv">2200</span>, <span class="at">res =</span> <span class="dv">150</span></span>
+<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a><span class="fu">draw_feat_examples</span>()</span>
+<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">dev.off</span>())</span>
+<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a><span class="fu">draw_feat_examples</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="cda_segmentation_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="576"></p>
+<p><img src="cda_segmentation_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="768"></p>
 </figure>
 </div>
 </div>
