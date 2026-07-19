@@ -338,9 +338,9 @@ consensus, positive means they scored higher than it, negative lower. Each cell 
 the proportion of that rater's scores at that distance (columns sum to 100%), so
 it shows the *direction* in which a rater tends to disagree, not just how often.
 
-```{r fig.width=10, fig.height=8}
+```{r fig.width=10, fig.height=10.4}
 #| fig-width: 10
-#| fig-height: 8
+#| fig-height: 10.4
 # 3.1
 score_distance <- score_data_long %>%
   mutate(
@@ -354,8 +354,12 @@ score_distance <- score_data_long %>%
 
 p <- ggplot(score_distance, aes(x = Scorer, y = Distance, fill = Proportion * 100)) +
   geom_tile(colour = "grey40") +
-  geom_text(aes(label = sprintf("%.1f%%", Proportion * 100)), size = 3.2) +
+  geom_text(
+    aes(label = sprintf("%.1f%%", Proportion * 100), colour = Proportion * 100 > 70),
+    size = 4
+  ) +
   scale_fill_gradient(name = "% of\nrater's\nscores", low = "white", high = "firebrick") +
+  scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = "black"), guide = "none") +
   scale_y_continuous(breaks = sort(unique(score_distance$Distance))) +
   labs(x = "Rater", y = "Score − median severity") +
   theme_minimal() +
@@ -367,7 +371,7 @@ p <- ggplot(score_distance, aes(x = Scorer, y = Distance, fill = Proportion * 10
     panel.grid.minor = element_blank()
   )
 p
-save_plot(p, "score_distance_by_rater_heatmap.png", width = 10, height = 8, dir = "thesis_plots")
+save_plot(p, "score_distance_by_rater_heatmap.png", width = 10, height = 10.4, dir = "thesis_plots")
 ```
 
 ---
