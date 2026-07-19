@@ -606,8 +606,13 @@ p_bottom <- ggplot(image_stats_nonzero, aes(x = Folder, y = Nonzero_Agreement, f
   )
 
 # Stack the panels; patchwork aligns the plotting regions so the shared x-axis
-# lines up even though only panel A has the right-hand secondary axis.
-p <- p_top / p_bottom + plot_annotation(tag_levels = "A")
+# lines up even though only panel A has the right-hand secondary axis. The A/B
+# tags are styled to match the thesis's other multi-panel figures (Arial Bold,
+# 16 pt on the page): this 10in-wide plot is shown at the 155mm content width, a
+# ~0.61x scale, so 26 pt here renders at ~16 pt once placed.
+p <- p_top / p_bottom +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 26, face = "bold", family = "Arial"))
 p
 save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 11, dir = "thesis_plots")
 ```
