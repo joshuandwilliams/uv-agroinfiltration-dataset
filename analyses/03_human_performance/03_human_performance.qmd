@@ -246,7 +246,7 @@ print(metric1_table.round(1).to_string(index=False))
 
 ```{python}
 # 2.2
-human_performance.plot_confusion_matrix(metric2_cm, unique_labels, ["Severity Score A", "Severity Score B"], str(repo_root / "analyses" / "03_human_performance" / "supp_plots" / "metric2_cm.png"))
+human_performance.plot_confusion_matrix(metric2_cm, unique_labels, ["Severity Score A", "Severity Score B"], str(repo_root / "analyses" / "03_human_performance" / "thesis_plots" / "metric2_cm.png"))
 
 metric2_table = pairwise_scorer_accuracy_table(example_normclass)
 print(metric2_table.round(1).to_string(index=False))
