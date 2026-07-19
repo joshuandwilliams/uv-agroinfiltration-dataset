@@ -1,0 +1,862 @@
+---
+title: "Image information and input size selection"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 13/7/2026
+
+## GOHREP
+
+**Goal:**
+
+1. Measure how much image information (Shannon entropy) each cropped CDA image
+   retains as it is downsampled to progressively smaller side lengths, in order
+   to justify a standardised input size for model training.
+2. Characterise how Shannon entropy, the green/red colour balance, and the mean
+   green level of a CDA relate to its severity score.
+
+**Hypothesis:**
+
+1. Shannon entropy stays roughly constant from the raw crop down to a moderate
+   side length, then falls once the image becomes too small to hold the same
+   range of pixel intensities. A side length just above that drop-off preserves
+   almost all of the information while minimising the number of pixels (and
+   therefore the training compute).
+2. Under the UV-fluorescence imaging used here, healthy tissue autofluoresces
+   red and cell death shifts the balance towards green, so the green/red ratio
+   and the mean green level should both increase with severity score. Shannon
+   entropy alone is expected to overlap heavily between scores.
+
+**Rationale:**
+
+Downsampling reduces the number of pixels and therefore the number of distinct
+intensity values an image can represent, which caps its Shannon entropy. If
+entropy is preserved down to a given side length, that size still carries the
+information a model could use; shrinking further discards information. Locating
+the side length at which entropy begins to fall gives a principled, information-
+theoretic basis for choosing the input resolution (64 × 64 px) used elsewhere in
+this project (see `07_visual_complexity`).
+
+This analysis reproduces, for the full multi-set dataset, figures first made on
+Set 1 alone during the Year 1 probationary review.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+#| output: false
+# 1.1
+library(tiff)
+suppressMessages(library(EBImage)) # image resizing
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
+library(stringr)
+library(patchwork)
+library(here)
+library(RColorBrewer)
+```
+
+### 1.2 Helper functions and colour palettes
+
+```{r}
+# 1.2
+source(here("src", "plotting_helpers.R"))
+
+save_plot <- make_save_plot("10_image_entropy")
+```
+
+### 1.3 Configuration and metric functions
+
+```{r}
+# 1.3
+# Cropped CDA images are stored one folder per median severity score (0-6);
+# the folder name is the score. Each image is resized to a range of square
+# side lengths and its Shannon entropy computed at every size. "Raw" is the
+# original crop (variable native size, see 07_visual_complexity).
+data_dir <- here("data", "cropped_images")
+sizes <- c(128, 64, 32, 16, 8, 4)
+size_levels <- c("Raw", as.character(sizes)) # x-axis order: large -> small
+
+# Shannon entropy of an image, replicating the default behaviour of
+# skimage.measure.shannon_entropy used in the original Year 1 analysis:
+# histogram every value in the array (flattened across the RGB channels) as an
+# 8-bit intensity, then H = -sum(p_i * log2(p_i)). More distinct, evenly used
+# intensities -> higher entropy; the maximum is 8 bits.
+shannon_entropy <- function(arr) {
+  v <- as.integer(round(pmin(pmax(arr, 0), 1) * 255))
+  counts <- tabulate(v + 1L, nbins = 256L)
+  p <- counts[counts > 0] / length(v)
+  -sum(p * log2(p))
+}
+
+# Per-image metrics: entropy at every side length, plus two colour metrics
+# computed on the raw crop over non-dark pixels (max(R,G,B) >= 0.1, which
+# excludes the black background and holes in the leaf, as in the original).
+#   - log_gr: log of the green:red pixel-count ratio. Under this imaging
+#     healthy tissue is red and cell death shifts towards green, so this is
+#     expected to rise with score. A +1 pseudocount avoids log(0).
+#   - mean_green: mean green-channel intensity (0-255) of the non-dark pixels.
+image_metrics <- function(path) {
+  img <- readTIFF(path, info = FALSE)
+  if (length(dim(img)) == 2) img <- array(img, dim = c(dim(img), 3))
+  img <- img[, , 1:3, drop = FALSE]
+
+  ent <- c(Raw = shannon_entropy(img))
+  for (s in sizes) {
+    r <- pmin(pmax(EBImage::resize(img, w = s, h = s), 0), 1)
+    ent[as.character(s)] <- shannon_entropy(r)
+  }
+
+  R <- img[, , 1]
+  G <- img[, , 2]
+  B <- img[, , 3]
+
+  # Non-dark pixels (drops black background/holes) for the colour metrics.
+  nondark <- pmax(R, G, B) >= 0.1
+  n_red <- sum(R[nondark] > G[nondark])
+  n_green <- sum(G[nondark] >= R[nondark])
+
+  # Per-pixel brightness and two leaf-region definitions (see 5.5):
+  #  - otsu_*: an image-adaptive two-class threshold (Otsu, from the image's
+  #    own brightness histogram). It cleanly removes a dark background but, in
+  #    high-score CDAs, tends to select the bright lesion rather than the whole
+  #    leaf, so it is used only to illustrate that difficulty.
+  #  - leaf_*: a low fixed cut that removes only the near-black background,
+  #    keeping all tissue - a less score-dependent lighting proxy.
+  bright_px <- (R + G + B) / 3
+  thr <- EBImage::otsu(bright_px, range = c(0, 1))
+  otsu_mask <- bright_px > thr
+  if (sum(otsu_mask) < 0.02 * length(otsu_mask)) otsu_mask <- bright_px >= 0.1
+  leaf_mask <- bright_px >= 0.10
+
+  c(ent,
+    log_gr = log((n_green + 1) / (n_red + 1)),
+    mean_green = mean(G[nondark]) * 255,
+    otsu_frac = mean(otsu_mask),
+    otsu_bright = mean(bright_px[otsu_mask]) * 255,
+    leaf_frac = mean(leaf_mask),
+    leaf_bright = mean(bright_px[leaf_mask]) * 255
+  )
+}
+```
+
+---
+
+## 2. Compute per-image metrics
+
+The full dataset is a few thousand crops, each resized six times, so the
+per-image metrics are computed once and cached to `entropy_cache/`. Delete that
+file to force a recompute.
+
+```{r}
+# 2.1
+cache_path <- here("analyses", "10_image_entropy", "entropy_cache", "cda_metrics.rds")
+
+if (file.exists(cache_path)) {
+  metrics <- readRDS(cache_path)
+} else {
+  scores <- list.dirs(data_dir, recursive = FALSE, full.names = FALSE)
+  scores <- scores[grepl("^[0-9]+$", scores)]
+
+  rows <- list()
+  for (sc in scores) {
+    files <- list.files(file.path(data_dir, sc),
+      pattern = "\\.tif$",
+      full.names = TRUE
+    )
+    for (f in files) {
+      m <- image_metrics(f)
+      rows[[length(rows) + 1]] <- tibble::tibble(
+        image_id = tools::file_path_sans_ext(basename(f)),
+        score = as.integer(sc),
+        size = size_levels,
+        entropy = as.numeric(m[size_levels]),
+        log_gr = unname(m["log_gr"]),
+        mean_green = unname(m["mean_green"]),
+        otsu_frac = unname(m["otsu_frac"]),
+        otsu_bright = unname(m["otsu_bright"]),
+        leaf_frac = unname(m["leaf_frac"]),
+        leaf_bright = unname(m["leaf_bright"])
+      )
+    }
+    message(sprintf("score %s: %d images", sc, length(files)))
+  }
+  metrics <- dplyr::bind_rows(rows)
+  saveRDS(metrics, cache_path)
+}
+
+# Long form (one row per image x size) for the size plots, and a per-image
+# table (one row per image) for the score/colour plots.
+metrics <- metrics %>%
+  mutate(
+    size = factor(size, levels = size_levels),
+    score_f = factor(score, levels = 0:6)
+  )
+
+per_image <- metrics %>%
+  filter(size == "Raw") %>%
+  transmute(image_id, score, score_f,
+    entropy_raw = entropy, log_gr, mean_green,
+    otsu_frac, otsu_bright, leaf_frac, leaf_bright
+  )
+
+cat(sprintf(
+  "Loaded metrics for %d CDA images across %d scores.\n",
+  dplyr::n_distinct(metrics$image_id), dplyr::n_distinct(metrics$score)
+))
+per_image %>%
+  count(score, name = "n") %>%
+  as.data.frame()
+```
+
+---
+
+## 3. Image information versus input size
+
+Before comparing entropy across input sizes, the native sizes of the cropped CDA
+images are summarised. CDAScorer stores each CDA as a square crop, but the side
+length varies with the size of the annotated bounding box. The mean, variance and
+range of the native side length are printed below, and their distribution is
+shown as a histogram (dashed line: the 64 px training size).
+
+```{r}
+# 3.0.1  Native crop side lengths (square crops, so side = height = width). Cached.
+side_cache <- here("analyses", "10_image_entropy", "entropy_cache", "side_lengths.rds")
+if (file.exists(side_cache)) {
+  side_lengths <- readRDS(side_cache)
+} else {
+  side_files <- list.files(data_dir,
+    pattern = "\\.tif$", recursive = TRUE,
+    full.names = TRUE
+  )
+  side_lengths <- vapply(
+    side_files,
+    function(f) dim(readTIFF(f, info = FALSE))[1], integer(1)
+  )
+  saveRDS(side_lengths, side_cache)
+}
+cat(sprintf(
+  "Native crop side length (px): mean = %.1f, variance = %.1f, range = %d-%d (n = %d)\n",
+  mean(side_lengths), var(side_lengths),
+  min(side_lengths), max(side_lengths), length(side_lengths)
+))
+```
+
+```{r fig.width=8, fig.height=4.5}
+#| fig-width: 8
+#| fig-height: 4.5
+# 3.0.2  Histogram of native crop side lengths
+p_sides <- ggplot(data.frame(side = side_lengths), aes(x = side)) +
+  geom_histogram(binwidth = 20, fill = "grey60", colour = "white") +
+  geom_vline(xintercept = 64, linetype = "dashed", colour = "#2166AC") +
+  labs(x = "Native cropped-image side length (pixels)", y = "Number of CDAs") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 13), axis.title = element_text(size = 15))
+p_sides
+save_plot(p_sides, "crop_side_lengths.png", width = 8, height = 4.5, dir = "thesis_plots")
+```
+
+### 3.1 Entropy across image sizes (parallel coordinates)
+
+Each faint line is one CDA, tracing its Shannon entropy as it is downsampled
+from the raw crop to a 4 × 4 px thumbnail. The thick line is the per-size
+median. Entropy is essentially flat from Raw down to 32 px, dips slightly at
+16 px, then falls sharply at 8 and 4 px — the point at which images are too
+small to hold their intensity range. 64 × 64 px sits comfortably on the flat
+region.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 3.1
+size_median <- metrics %>%
+  group_by(size) %>%
+  summarise(entropy = median(entropy), .groups = "drop")
+
+p_parallel <- ggplot(metrics, aes(x = size, y = entropy)) +
+  geom_line(aes(group = image_id), alpha = 0.03, linewidth = 0.3) +
+  geom_line(
+    data = size_median, aes(group = 1), colour = "#2166AC",
+    linewidth = 1.2
+  ) +
+  geom_point(data = size_median, colour = "#2166AC", size = 2.5) +
+  labs(x = "CDA image side length in pixels", y = "Shannon entropy") +
+  theme_minimal() +
+  theme(
+    axis.text  = element_text(size = 13),
+    axis.title = element_text(size = 15)
+  )
+p_parallel
+save_plot(p_parallel, "parallel_coords.png",
+  width = 8, height = 5,
+  dir = "thesis_plots"
+)
+```
+
+### 3.2 Entropy distribution at each image size (ridge plot)
+
+The same information as a set of stacked densities, from the raw crop (top) to
+4 × 4 px (bottom). The distribution holds its shape and position down to 16 px,
+then shifts left and collapses at 8 and 4 px.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 3.2
+# Manual ridgeline (the ggridges package is not available in this environment):
+# a scaled kernel density per size, offset vertically by its row so the ridges
+# overlap slightly, with Raw drawn at the top.
+ridge_levels <- rev(size_levels) # 4 (bottom) ... Raw (top)
+x_grid <- seq(min(metrics$entropy) - 0.3, max(metrics$entropy) + 0.3,
+  length.out = 512
+)
+
+ridge_df <- metrics %>%
+  group_by(size) %>%
+  group_modify(~ {
+    d <- density(.x$entropy, from = min(x_grid), to = max(x_grid), n = 512)
+    tibble(x = d$x, dens = d$y)
+  }) %>%
+  ungroup() %>%
+  group_by(size) %>%
+  mutate(dens = dens / max(dens)) %>% # normalise each ridge to unit height
+  ungroup() %>%
+  mutate(
+    row = match(as.character(size), ridge_levels) - 1,
+    scale = 1.6, # overlap factor
+    ymin = row,
+    ymax = row + scale * dens
+  )
+
+# Mean entropy per size, placed on each ridge's baseline and joined into a line
+# so the leftward shift at small sizes is visible directly on the ridges.
+mean_df <- metrics %>%
+  group_by(size) %>%
+  summarise(mean_ent = mean(entropy), .groups = "drop") %>%
+  mutate(row = match(as.character(size), ridge_levels) - 1)
+
+p_ridge <- ggplot(ridge_df, aes(group = size)) +
+  geom_ribbon(aes(x = x, ymin = ymin, ymax = ymax),
+    fill = "grey75",
+    colour = NA
+  ) +
+  geom_line(aes(x = x, y = ymax), colour = "black", linewidth = 0.5) +
+  geom_line(
+    data = mean_df, aes(x = mean_ent, y = row, group = 1),
+    colour = "#2166AC", linewidth = 0.9
+  ) +
+  geom_point(
+    data = mean_df, aes(x = mean_ent, y = row),
+    colour = "#2166AC", size = 2.4
+  ) +
+  scale_y_continuous(
+    breaks = seq_along(ridge_levels) - 1,
+    labels = ridge_levels
+  ) +
+  labs(x = "Shannon entropy", y = "CDA image side length in pixels") +
+  theme_minimal() +
+  theme(
+    axis.text  = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+  )
+p_ridge
+save_plot(p_ridge, "ridge_plot.png", width = 8, height = 5, dir = "thesis_plots")
+```
+
+### 3.3 Fraction of raw entropy retained at each size
+
+A numeric summary of the two plots above: the median entropy at each size, and
+the fraction of the raw median it retains. 64 × 64 px keeps almost all of the
+raw information; the loss only becomes substantial below 16 px.
+
+```{r}
+# 3.3
+raw_median <- size_median$entropy[size_median$size == "Raw"]
+size_median %>%
+  mutate(fraction_of_raw = entropy / raw_median) %>%
+  arrange(factor(size, levels = size_levels)) %>%
+  mutate(
+    entropy = round(entropy, 3),
+    fraction_of_raw = round(fraction_of_raw, 3)
+  ) %>%
+  as.data.frame()
+```
+
+---
+
+## 4. Image information versus severity score
+
+### 4.1 Shannon entropy by score
+
+Raw-crop entropy against severity score. Entropy rises slightly with score but
+overlaps heavily between adjacent scores, so — as found in the Year 1 review —
+Shannon entropy alone does not cleanly separate the severity classes.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 4.1
+p_ent_score <- ggplot(per_image, aes(x = score_f, y = entropy_raw)) +
+  geom_boxplot(aes(fill = score_f), outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.18, height = 0, alpha = 0.15, size = 0.5) +
+  scale_fill_manual(name = "Severity Score", values = sev_pal) +
+  labs(x = "Severity score", y = "Shannon entropy") +
+  theme_minimal() +
+  theme(
+    axis.text    = element_text(size = 13),
+    axis.title   = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text  = element_text(size = 11)
+  )
+p_ent_score
+save_plot(p_ent_score, "entropy_score_boxplots.png", width = 8, height = 5)
+```
+
+---
+
+## 5. Colour versus severity score
+
+### 5.1 Green/red ratio by score
+
+The log green:red pixel-count ratio rises steadily with severity score,
+consistent with cell death shifting the fluorescence balance from red (healthy
+tissue) towards green.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 5.1
+p_ratio <- ggplot(per_image, aes(x = score_f, y = log_gr)) +
+  geom_boxplot(aes(fill = score_f), outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.18, height = 0, alpha = 0.15, size = 0.5) +
+  scale_fill_manual(name = "Severity Score", values = sev_pal) +
+  labs(x = "Severity score", y = "log(Green / Red ratio)") +
+  theme_minimal() +
+  theme(
+    axis.text    = element_text(size = 13),
+    axis.title   = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text  = element_text(size = 11)
+  )
+p_ratio
+save_plot(p_ratio, "ratio_score_boxplots.png", width = 8, height = 5)
+```
+
+### 5.2 Mean green level by score
+
+The mean green-channel intensity of the non-dark pixels also increases with
+severity score, giving a simpler, single-channel view of the same colour shift.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 5.2
+p_green <- ggplot(per_image, aes(x = score_f, y = mean_green)) +
+  geom_boxplot(aes(fill = score_f), outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.18, height = 0, alpha = 0.15, size = 0.5) +
+  scale_fill_manual(name = "Severity Score", values = sev_pal) +
+  labs(x = "Severity score", y = "Mean green intensity (0-255)") +
+  theme_minimal() +
+  theme(
+    axis.text    = element_text(size = 13),
+    axis.title   = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text  = element_text(size = 11)
+  )
+p_green
+save_plot(p_green, "green_score_boxplots.png", width = 8, height = 5)
+```
+
+### 5.3 Mean green level by project
+
+The green level of a CDA depends not only on its severity but on the lighting
+and exposure of the source image it was cropped from, which varies between
+imaging sessions and projects. Here each point is one CDA and boxes are grouped
+by project (projects ordered by median green): the between-project differences
+in green level are a source of lighting variation that is unrelated to score.
+
+```{r}
+# 5.3.1
+# Map each CDA to its source image and project. The cropped filenames are
+# formatted <Basename>_<Row>_<Col>_<Pos>.tif, so stripping the trailing
+# _Row_Col_Pos recovers the source-image basename (same approach as
+# 07_visual_complexity). image_info.csv records the source Path once per folder
+# (filled downwards); the top-level folder is the project, anonymised via the
+# shared key.
+image_info <- read_csv(
+  here("analyses", "01_generate_raw_data", "01_allocation_info", "image_info.csv"),
+  show_col_types = FALSE
+) %>%
+  fill(Path) %>%
+  mutate(
+    Project = str_split_fixed(Path, "/", 2)[, 1],
+    stem = str_remove(Image, "[.](tif|TIF)$")
+  )
+
+project_key <- read_csv(
+  here("anonymisation_keys", "project_anonymisation_key.csv"),
+  show_col_types = FALSE
+)
+project_lut <- setNames(project_key$Anon_Label, project_key$Project)
+stem_to_project <- setNames(project_lut[image_info$Project], image_info$stem)
+
+per_image <- per_image %>%
+  mutate(
+    source  = str_remove(image_id, "_[0-9]+_[0-9]+_[0-9]+$"),
+    project = unname(stem_to_project[source])
+  )
+
+n_unmapped <- sum(is.na(per_image$project))
+cat(sprintf(
+  "CDAs: %d | source images: %d | projects: %d | unmapped: %d\n",
+  nrow(per_image), n_distinct(per_image$source),
+  n_distinct(per_image$project), n_unmapped
+))
+```
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 5.3.2
+project_order <- per_image %>%
+  group_by(project) %>%
+  summarise(med = median(mean_green), .groups = "drop") %>%
+  arrange(med) %>%
+  pull(project)
+
+p_green_proj <- per_image %>%
+  mutate(project = factor(project, levels = project_order)) %>%
+  ggplot(aes(x = project, y = mean_green)) +
+  geom_boxplot(aes(fill = project), outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.18, height = 0, alpha = 0.12, size = 0.5) +
+  scale_fill_brewer(palette = "Set1", guide = "none") +
+  labs(x = "Project", y = "Mean green intensity (0-255)") +
+  theme_minimal() +
+  theme(
+    axis.text  = element_text(size = 13),
+    axis.title = element_text(size = 15)
+  )
+p_green_proj
+save_plot(p_green_proj, "green_project_boxplots.png", width = 8, height = 5)
+```
+
+### 5.4 Lighting-normalised green level by score
+
+To remove the between-project lighting offset seen in §5.3, each CDA's green
+level is centred on its project mean and shifted back to the global mean
+(`green_norm = green - project_mean + global_mean`). This corrects for
+per-project brightness without touching the score differences that exist
+*within* a project. The two panels below compare raw and project-normalised
+green by score.
+
+The correction is applied at project level rather than per source image on
+purpose: an individual source image holds only ~30 CDAs whose scores are
+correlated, so its own green mean partly encodes score, and normalising there
+removes real signal (η² below). A project spans many source images and the full
+score range, so its mean is a cleaner estimate of the lighting baseline.
+
+```{r fig.width=11, fig.height=5}
+#| fig-width: 11
+#| fig-height: 5
+# 5.4.1
+global_mean_green <- mean(per_image$mean_green)
+
+per_image <- per_image %>%
+  group_by(project) %>%
+  mutate(green_norm = mean_green - mean(mean_green) + global_mean_green) %>%
+  ungroup() %>%
+  group_by(source) %>%
+  mutate(green_norm_source = mean_green - mean(mean_green) + global_mean_green) %>%
+  ungroup()
+
+# eta^2: fraction of green variance explained by score. Higher = scores more
+# separable. Compared across raw green and the two normalisation levels.
+eta_sq <- function(y, g) {
+  grand <- mean(y)
+  ss_between <- sum(tapply(y, g, function(v) length(v) * (mean(v) - grand)^2))
+  ss_between / sum((y - grand)^2)
+}
+cat(sprintf(
+  "eta^2 (green ~ score):  raw = %.3f | project-normalised = %.3f | source-normalised = %.3f\n",
+  eta_sq(per_image$mean_green, per_image$score),
+  eta_sq(per_image$green_norm, per_image$score),
+  eta_sq(per_image$green_norm_source, per_image$score)
+))
+cat(sprintf(
+  "eta^2 (green ~ project): %.3f  (share of green variance that is between-project)\n",
+  eta_sq(per_image$mean_green, per_image$project)
+))
+
+green_panel <- function(yvar, title) {
+  ggplot(per_image, aes(x = score_f, y = .data[[yvar]])) +
+    geom_boxplot(aes(fill = score_f), outlier.shape = NA, alpha = 0.85) +
+    geom_jitter(width = 0.18, height = 0, alpha = 0.12, size = 0.4) +
+    scale_fill_manual(name = "Severity Score", values = sev_pal) +
+    coord_cartesian(ylim = range(c(per_image$mean_green, per_image$green_norm))) +
+    labs(title = title, x = "Severity score", y = "Mean green intensity (0-255)") +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12), axis.title = element_text(size = 14),
+      plot.title = element_text(size = 14)
+    )
+}
+
+green_norm_raw <- green_panel("mean_green", "Raw")
+green_norm_proj <- green_panel("green_norm", "Project-normalised")
+p_green_norm <- (green_norm_raw | green_norm_proj) + plot_layout(guides = "collect")
+p_green_norm
+save_plot(p_green_norm, "green_score_normalised_boxplots.png", width = 11, height = 5)
+```
+
+### 5.5 Isolating the leaf region to estimate lighting
+
+The green normalisation in §5.4 uses green to estimate lighting, which is
+circular. A cleaner lighting proxy is the **brightness** of the leaf itself
+(mean of the R, G, B channels), measured only over leaf pixels so that the
+black background — including holes and cell-death voids at the leaf edge — does
+not drag the estimate down.
+
+To decide which pixels are leaf, two thresholds on each CDA's own brightness
+histogram are compared:
+
+- **Otsu** — the image-adaptive threshold that maximises between-class variance,
+  i.e. the natural split in the brightness distribution.
+- **Leaf (background-only cut)** — a low fixed cut (brightness ≥ 0.1) that
+  removes only the near-black background and keeps *all* tissue.
+
+The panels below show, for one CDA per score, the original crop, the Otsu mask,
+and the background-only leaf mask.
+
+```{r fig.width=9, fig.height=11}
+#| fig-width: 9
+#| fig-height: 11
+# 5.5.1
+set.seed(7)
+seg_examples <- lapply(c(0, 2, 4, 6), function(sc) {
+  files <- list.files(file.path(data_dir, sc), pattern = "\\.tif$", full.names = TRUE)
+  f <- sample(files, 1)
+  img <- readTIFF(f, info = FALSE)
+  if (length(dim(img)) == 2) img <- array(img, dim = c(dim(img), 3))
+  img <- img[, , 1:3, drop = FALSE]
+  bright_px <- (img[, , 1] + img[, , 2] + img[, , 3]) / 3
+  thr <- EBImage::otsu(bright_px, range = c(0, 1))
+  otsu_mask <- bright_px > thr
+  if (sum(otsu_mask) < 0.02 * length(otsu_mask)) otsu_mask <- bright_px >= 0.1
+  leaf_mask <- bright_px >= 0.10
+  list(
+    sc = sc, img = img, otsu = otsu_mask, leaf = leaf_mask,
+    otsu_frac = mean(otsu_mask), leaf_frac = mean(leaf_mask)
+  )
+})
+
+mask_img <- function(img, mask) {
+  out <- img
+  for (k in 1:3) {
+    ch <- out[, , k]
+    ch[!mask] <- 0
+    out[, , k] <- ch
+  }
+  out
+}
+draw_seg <- function() {
+  par(mfrow = c(length(seg_examples), 3), mar = c(0.5, 2, 2.2, 0.5))
+  for (e in seg_examples) {
+    plot(as.raster(e$img))
+    title(sprintf("score %d: crop", e$sc))
+    plot(as.raster(mask_img(e$img, e$otsu)))
+    title(sprintf("Otsu region (%.0f%%)", 100 * e$otsu_frac))
+    plot(as.raster(mask_img(e$img, e$leaf)))
+    title(sprintf("leaf region (%.0f%%)", 100 * e$leaf_frac))
+  }
+}
+png(plot_output_path("10_image_entropy", "supp_plots", "leaf_segmentation_examples.png"),
+  width = 1500, height = 1800, res = 150
+)
+draw_seg()
+invisible(dev.off())
+draw_seg()
+```
+
+The Otsu mask cleanly removes the black background where there is one (scores 2,
+4), but because healthy tissue fluoresces red (darker) while lesions are bright
+yellow-green, in higher-score CDAs Otsu selects the **lesion** rather than the
+whole leaf. Its foreground brightness therefore tracks score, making it a poor
+lighting proxy; the background-only leaf brightness does not.
+
+```{r}
+# 5.5.2
+# eta^2 (~ score) quantifies how much each brightness measure is driven by score
+# rather than lighting. A good lighting proxy should be LOW.
+cat(sprintf(
+  "eta^2 (~ score):  Otsu brightness = %.3f  |  leaf brightness = %.3f\n",
+  eta_sq(per_image$otsu_bright, per_image$score),
+  eta_sq(per_image$leaf_bright, per_image$score)
+))
+cat(sprintf(
+  "eta^2 (~ project): leaf brightness = %.3f  (more between-project variation than green's %.3f)\n",
+  eta_sq(per_image$leaf_bright, per_image$project),
+  eta_sq(per_image$mean_green, per_image$project)
+))
+```
+
+Leaf brightness is far less score-driven than Otsu brightness and carries more
+between-project (lighting) variation than green, so it is used as the lighting
+baseline. Grouping it by project shows the same lighting differences seen for
+green in §5.3.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 5.5.3
+lb_order <- per_image %>%
+  group_by(project) %>%
+  summarise(med = median(leaf_bright), .groups = "drop") %>%
+  arrange(med) %>%
+  pull(project)
+
+p_leafbright_proj <- per_image %>%
+  mutate(project = factor(project, levels = lb_order)) %>%
+  ggplot(aes(x = project, y = leaf_bright)) +
+  geom_boxplot(aes(fill = project), outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.18, height = 0, alpha = 0.12, size = 0.5) +
+  scale_fill_brewer(palette = "Set1", guide = "none") +
+  labs(x = "Project", y = "Mean leaf brightness (0-255)") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 13), axis.title = element_text(size = 15))
+p_leafbright_proj
+save_plot(p_leafbright_proj, "leaf_brightness_project_boxplots.png", width = 8, height = 5)
+```
+
+### 5.6 Normalising green by leaf brightness
+
+Each CDA's green is now divided by the leaf-brightness baseline of its source
+image (or project), scaled to the global mean — a multiplicative correction for
+per-source/-project lighting gain that, unlike §5.4, does not use green to
+estimate the lighting. The panels compare raw green with the best correction
+(per source image).
+
+```{r fig.width=11, fig.height=5}
+#| fig-width: 11
+#| fig-height: 5
+# 5.6.1
+global_leaf <- mean(per_image$leaf_bright)
+
+per_image <- per_image %>%
+  group_by(source) %>%
+  mutate(green_lb_source = mean_green * global_leaf / mean(leaf_bright)) %>%
+  ungroup() %>%
+  group_by(project) %>%
+  mutate(green_lb_project = mean_green * global_leaf / mean(leaf_bright)) %>%
+  ungroup()
+
+cat("eta^2 (green ~ score), higher = more separable:\n")
+cat(sprintf("  raw green                          = %.3f\n", eta_sq(per_image$mean_green, per_image$score)))
+cat(sprintf("  green-mean normalised (project, 5.4) = %.3f\n", eta_sq(per_image$green_norm, per_image$score)))
+cat(sprintf("  leaf-brightness normalised (project) = %.3f\n", eta_sq(per_image$green_lb_project, per_image$score)))
+cat(sprintf("  leaf-brightness normalised (source)  = %.3f\n", eta_sq(per_image$green_lb_source, per_image$score)))
+
+green_panel2 <- function(yvar, title) {
+  ggplot(per_image, aes(x = score_f, y = .data[[yvar]])) +
+    geom_boxplot(aes(fill = score_f), outlier.shape = NA, alpha = 0.85) +
+    geom_jitter(width = 0.18, height = 0, alpha = 0.12, size = 0.4) +
+    scale_fill_manual(name = "Severity Score", values = sev_pal) +
+    coord_cartesian(ylim = range(c(per_image$mean_green, per_image$green_lb_source))) +
+    labs(title = title, x = "Severity score", y = "Mean green intensity (0-255)") +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12), axis.title = element_text(size = 14),
+      plot.title = element_text(size = 14)
+    )
+}
+
+green_lb_raw <- green_panel2("mean_green", "Raw")
+green_lb_norm <- green_panel2("green_lb_source", "Leaf-brightness normalised (per source)")
+p_green_lb <- (green_lb_raw | green_lb_norm) + plot_layout(guides = "collect")
+p_green_lb
+save_plot(p_green_lb, "green_score_leafnorm_boxplots.png", width = 11, height = 5)
+```
+
+Correcting green for leaf brightness gives the largest improvement of any
+normalisation tried (η² ≈ 0.52 → 0.58), confirming that between-source lighting
+does add real noise. But the gain is modest and the adjacent-score boxes still
+overlap heavily: even the best hand-crafted, lighting-corrected single feature
+cannot separate neighbouring severity classes. This is the motivation for a
+learned model (see `07_visual_complexity`) rather than hand-engineered features.
+
+### 5.7 Green/red ratio versus entropy
+
+The Year 1 review also asked whether entropy and colour carry the same
+information. They do not: the green:red ratio and Shannon entropy are only
+weakly related, so colour separates the scores (§5.1) where entropy alone does
+not (§4.1).
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 5.7
+r_gr_ent <- cor(per_image$log_gr, per_image$entropy_raw)
+
+p_scatter <- ggplot(per_image, aes(x = entropy_raw, y = log_gr)) +
+  geom_point(aes(colour = score_f), alpha = 0.3, size = 0.7) +
+  scale_colour_manual(name = "Severity Score", values = sev_pal) +
+  labs(
+    x = "Shannon entropy", y = "log(Green / Red ratio)",
+    subtitle = sprintf("Pearson r = %.2f", r_gr_ent)
+  ) +
+  guides(colour = guide_legend(override.aes = list(alpha = 1, size = 2))) +
+  theme_minimal() +
+  theme(
+    axis.text    = element_text(size = 13),
+    axis.title   = element_text(size = 15),
+    legend.title = element_text(size = 13),
+    legend.text  = element_text(size = 11)
+  )
+p_scatter
+save_plot(p_scatter, "ratio_entropy_scatter.png", width = 8, height = 5)
+```
+
+---
+
+## 6. Interpretation and Discussion
+
+- **Input size.** Shannon entropy is preserved from the raw crop down to about
+  16 px and only falls substantially at 8 and 4 px (§3.1–3.3). 64 × 64 px
+  therefore retains essentially all of the information in the raw crops while
+  keeping the pixel count — and the training compute — low, supporting the
+  64 × 64 input size used for model training (see `07_visual_complexity`).
+- **Entropy and score.** Entropy overlaps heavily between adjacent scores
+  (§4.1), so it is not a usable single feature for classifying severity.
+- **Colour and score.** Both the green:red ratio (§5.1) and the mean green
+  level (§5.2) increase monotonically with severity, and colour is only weakly
+  correlated with entropy (§5.7) — colour carries score information that
+  entropy does not.
+- **Lighting is a real but only partly removable confound.** Green level varies
+  between projects (§5.3; ~16% of green variance is between-project), confirming
+  that imaging/lighting differences add noise on top of the score signal. Three
+  intuition-led corrections were tried:
+  - *Centring green on the project mean* (§5.4): removes the offset and modestly
+    tightens the within-score spread, but the gain is small because green's
+    score signal is partly correlated with which project a CDA is from.
+  - *Source-image centring* (§5.4): over-corrects — a source image's own green
+    mean partly encodes the scores of its ~30 CDAs — so it removes real signal.
+  - *Segmenting the leaf and normalising green by leaf brightness* (§5.5–5.6):
+    the best proxy, because leaf brightness is far less score-driven than an
+    Otsu foreground (which latches onto the lesion) and carries more
+    between-project variation than green. This gives the largest improvement
+    (η² ≈ 0.52 → 0.58).
+- **The features are not enough.** Even the best lighting-corrected single
+  feature still leaves neighbouring severity classes heavily overlapped
+  (§5.6). Hand-engineered colour/brightness/entropy features capture part of
+  the severity signal but cannot cleanly separate adjacent scores — the
+  motivation for a learned model over hand-crafted features.
+```
