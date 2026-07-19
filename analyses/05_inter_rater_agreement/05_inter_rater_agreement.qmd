@@ -240,17 +240,30 @@ avg_row <- scorer_accuracy %>%
 
 # Axis tick labels annotated with each rater's CDA count (n), matching the
 # "(n=...)" convention used on the score-class-by-project heatmap axis in
-# analyses/04_project_level_analysis. The Avg bar carries no count.
+# analyses/04_project_level_analysis.
 rater_axis_labels <- scorer_accuracy %>%
   transmute(Scorer = as.character(Scorer), label = paste0(Scorer, "\n(n=", n, ")"))
 x_labels <- setNames(rater_axis_labels$label, rater_axis_labels$Scorer)
-x_labels["Avg"] <- "Avg"
 
-plot_acc <- bind_rows(scorer_accuracy, avg_row) %>%
+# Panel-wide averages, drawn as dashed reference lines (they replace the old
+# stacked "Avg" bar): the lower line is mean exact agreement, the upper line is
+# mean total within-+/-1 agreement (exact + near-miss), averaged across raters.
+# They carry their own colour legend (with the mean values) so no on-plot text
+# overlaps the bars.
+mean_exact <- mean(scorer_accuracy$exact)
+mean_within_one <- mean(scorer_accuracy$within_one)
+lab_mean_exact <- sprintf("Mean exact = %.1f%%", 100 * mean_exact)
+lab_mean_within <- sprintf("Mean within ±1 = %.1f%%", 100 * mean_within_one)
+mean_lines <- data.frame(
+  yintercept = c(mean_exact, mean_within_one),
+  Average = factor(c(lab_mean_exact, lab_mean_within), levels = c(lab_mean_exact, lab_mean_within))
+)
+
+plot_acc <- scorer_accuracy %>%
   mutate(Scorer = factor(Scorer,
-    levels = c(as.character(sort(as.numeric(
+    levels = as.character(sort(as.numeric(
       unique(as.character(scorer_accuracy$Scorer))
-    ))), "Avg")
+    )))
   )) %>%
   pivot_longer(
     cols = c(exact, extra_within_one),
@@ -258,18 +271,27 @@ plot_acc <- bind_rows(scorer_accuracy, avg_row) %>%
   ) %>%
   mutate(metric = factor(metric,
     levels = c("extra_within_one", "exact"),
-    labels = c("Additional within ±1", "Exact agreement")
+    labels = c("Near-miss agreement", "Exact agreement")
   ))
 
 p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
   geom_bar(stat = "identity") +
+  geom_hline(
+    data = mean_lines,
+    aes(yintercept = yintercept, colour = Average),
+    linetype = "dashed", linewidth = 0.8, inherit.aes = FALSE
+  ) +
   scale_fill_manual(
     values = c(
       "Exact agreement" = "steelblue",
-      "Additional within ±1" = "cornflowerblue"
+      "Near-miss agreement" = "#E69F00"
     ),
     name = NULL,
-    breaks = c("Exact agreement", "Additional within ±1")
+    breaks = c("Exact agreement", "Near-miss agreement")
+  ) +
+  scale_colour_manual(
+    values = setNames(c("steelblue", "#E69F00"), c(lab_mean_exact, lab_mean_within)),
+    name = NULL
   ) +
   scale_x_discrete(labels = x_labels) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
