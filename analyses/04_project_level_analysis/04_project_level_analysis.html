@@ -1096,9 +1096,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack the panels; patchwork aligns the plotting regions so the shared x-axis</span></span>
-<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a><span class="co"># lines up even though only panel A has the right-hand secondary axis.</span></span>
-<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p_top <span class="sc">/</span> p_bottom <span class="sc">+</span> <span class="fu">plot_annotation</span>(<span class="at">tag_levels =</span> <span class="st">"A"</span>)</span>
-<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a>p</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a><span class="co"># lines up even though only panel A has the right-hand secondary axis. The A/B</span></span>
+<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a><span class="co"># tags are styled to match the thesis's other multi-panel figures (Arial Bold,</span></span>
+<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a><span class="co"># 16 pt on the page): this 10in-wide plot is shown at the 155mm content width, a</span></span>
+<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a><span class="co"># ~0.61x scale, so 26 pt here renders at ~16 pt once placed.</span></span>
+<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p_top <span class="sc">/</span> p_bottom <span class="sc">+</span></span>
+<span id="cb32-97"><a href="#cb32-97" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(<span class="at">tag_levels =</span> <span class="st">"A"</span>) <span class="sc">&amp;</span></span>
+<span id="cb32-98"><a href="#cb32-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.tag =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">26</span>, <span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">family =</span> <span class="st">"Arial"</span>))</span>
+<span id="cb32-99"><a href="#cb32-99" aria-hidden="true" tabindex="-1"></a>p</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
