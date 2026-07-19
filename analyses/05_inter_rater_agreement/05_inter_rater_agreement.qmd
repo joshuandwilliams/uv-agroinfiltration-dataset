@@ -296,10 +296,12 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
   theme(
     axis.text = element_text(size = 13),
     axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.text.y.right = element_text(size = 11),
+    axis.text.y.right = element_text(size = 11, hjust = 0),
     axis.title = element_text(size = 15),
     legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11)
+    legend.text = element_text(size = 11),
+    legend.position = "right",
+    legend.justification = "top"
   )
 p
 save_plot(p, "scorer_accuracy.png", width = 8, height = 6, dir = "thesis_plots")
