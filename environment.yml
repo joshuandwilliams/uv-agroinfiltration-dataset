@@ -29,6 +29,10 @@ dependencies:
   - r-here
   - r-rcolorbrewer
   - r-patchwork
+  - r-randomforest
+  - r-mass
+  - r-shapviz
+  - r-kernelshap
   - bioconductor-ebimage
 
   # Quarto (for rendering .qmd analyses)
