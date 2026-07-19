@@ -542,6 +542,12 @@ zero_by_project <- median_corrected %>%
 project_n <- image_stats_ordered %>% count(Folder, name = "N")
 project_labels <- setNames(paste0(project_n$Folder, "\n(n=", project_n$N, ")"), project_n$Folder)
 
+# The zero-proportion overlay is a dashed teal line read against the right-hand
+# axis; that axis's title and labels are coloured the same teal, while the
+# boxplots are read against the default black left-hand axis. Colour-matching
+# the line to its axis makes it clear which series each axis belongs to.
+zero_col <- "#01665e"
+
 p <- ggplot() +
   geom_boxplot(
     data = image_stats_ordered, aes(x = Folder, y = Avg_Percent_Agreement, fill = Folder),
@@ -549,11 +555,11 @@ p <- ggplot() +
   ) +
   geom_line(
     data = zero_by_project, aes(x = Folder, y = Percent_0, group = 1),
-    color = "black", linewidth = 0.8
+    color = zero_col, linewidth = 1, linetype = "dashed"
   ) +
   geom_point(
     data = zero_by_project, aes(x = Folder, y = Percent_0),
-    color = "black", size = 2.5
+    color = zero_col, size = 2.5
   ) +
   scale_x_discrete(labels = project_labels) +
   scale_y_continuous(
@@ -567,11 +573,38 @@ p <- ggplot() +
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = 13),
     axis.title = element_text(size = 15),
-    axis.text.y.right = element_text(size = 13),
-    axis.title.y.right = element_text(size = 15)
+    axis.text.y.right = element_text(size = 13, colour = zero_col),
+    axis.title.y.right = element_text(size = 15, colour = zero_col)
   )
 p
 save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 6, dir = "thesis_plots")
+```
+
+### 6.3 Median agreement normalised by zero-proportion
+
+Dividing each project's median Metric 3 agreement (the middle of its boxplot) by
+its percentage of zero severity scores. If between-project differences in
+agreement were entirely explained by how many easy-to-score zeros a project
+contains, this normalised value would be roughly constant across projects.
+
+```{r}
+# 6.3
+metric3_normalised <- image_stats_ordered %>%
+  group_by(Folder) %>%
+  summarise(median_agreement = median(Avg_Percent_Agreement), .groups = "drop") %>%
+  left_join(zero_by_project, by = "Folder") %>%
+  arrange(Folder) %>%
+  transmute(
+    Project = as.character(Folder),
+    `Median agreement (%)` = round(median_agreement, 1),
+    `% scores = 0` = round(Percent_0, 1),
+    `Agreement / %0` = round(median_agreement / Percent_0, 2)
+  )
+
+metric3_normalised %>%
+  knitr::kable(
+    caption = "Median Metric 3 agreement per project, normalised by the project's percentage of zero severity scores"
+  )
 ```
 
 ## 7. Average corrected agreement per project
