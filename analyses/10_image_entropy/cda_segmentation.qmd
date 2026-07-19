@@ -484,6 +484,91 @@ p_features
 save_plot(p_features, "seg_features_by_score.png", width = 11, height = 12)
 ```
 
+### 5.1 Feature exemplars: low, medium and high
+
+For each of the twelve features, three median-score-3 CDA crops are shown: at a
+low (2nd percentile), median and high (98th percentile) value of that feature.
+Restricting to a single severity class isolates each feature's own variation
+from differences between score classes, so the low-to-high change reflects the
+feature alone. The blue outline marks the segmented CDA on the rows where the
+feature is measured over that region; the whole-leaf and global features
+(measured over the whole leaf) are drawn without an outline. Each crop is
+annotated with its feature value.
+
+```{r fig.width=6, fig.height=20}
+#| fig-width: 6
+#| fig-height: 20
+# 6.1b  Low / median / high example crop for each feature.
+feat6_ex <- seg %>%
+  left_join(
+    readRDS(here("analyses", "10_image_entropy", "entropy_cache", "cda_metrics.rds")) %>%
+      filter(size == "Raw") %>%
+      transmute(image_id, entropy_raw = entropy),
+    by = "image_id"
+  )
+
+qs <- c(Low = 0.02, Medium = 0.5, High = 0.98)
+pct_lab <- c("2nd percentile", "50th percentile", "98th percentile")
+# All examples are drawn from a single median-score class, so the low/med/high
+# comparison isolates within-feature variation from between-class differences.
+target_class <- 3
+# CDA-region features: the blue CDA outline is drawn only on these rows, where
+# the feature is measured over the segmented CDA region.
+cda_feats <- c(
+  "frac_g_gt_r", "cda_green", "cda_bright",
+  "cda_green_sd", "cda_bright_sd", "green_gap", "sep"
+)
+
+pick_examples <- function(fname) {
+  d <- feat6_ex[, c("image_id", "score", fname)]
+  names(d)[3] <- "v"
+  d <- d[d$score == target_class & is.finite(d$v), ]
+  targ <- quantile(d$v, qs, names = FALSE)
+  do.call(rbind, lapply(seq_along(targ), function(j) {
+    i <- which.min(abs(d$v - targ[j]))
+    data.frame(image_id = d$image_id[i], score = d$score[i], value = d$v[i])
+  }))
+}
+
+wrap_lab <- vapply(
+  feat_labels, function(s) paste(strwrap(s, width = 15), collapse = "\n"), character(1)
+)
+
+draw_feat_examples <- function() {
+  nf <- length(feat_order)
+  par(mfrow = c(nf, 3), mar = c(0.15, 0.15, 1.05, 0.15), oma = c(0.4, 8.5, 3.4, 0.3))
+  for (r in seq_along(feat_order)) {
+    ex <- pick_examples(feat_order[r])
+    # Blue CDA outline only on rows where the feature is measured over the CDA,
+    # so the reader can see the leaf-vs-CDA distinction where it matters.
+    draw_outline <- feat_order[r] %in% cda_feats
+    for (j in 1:3) {
+      img <- load_img(file.path(data_dir, ex$score[j], paste0(ex$image_id[j], ".tif")))
+      if (draw_outline) img <- outline(img, segment_cda(img)$mask)
+      plot(as.raster(img))
+      mtext(format(signif(ex$value[j], 3), scientific = FALSE, drop0trailing = TRUE, trim = TRUE),
+        side = 3, line = 0.05, cex = 0.55
+      )
+    }
+    mtext(wrap_lab[r],
+      side = 2, outer = TRUE, las = 1, line = 0.5, cex = 0.62,
+      at = 1 - (r - 0.5) / nf
+    )
+  }
+  for (cc in seq_along(qs)) {
+    at <- (cc - 0.5) / 3
+    mtext(names(qs)[cc], side = 3, outer = TRUE, line = 1.5, at = at, font = 2, cex = 0.95)
+    mtext(paste0("(", pct_lab[cc], ")"), side = 3, outer = TRUE, line = 0.5, at = at, cex = 0.6)
+  }
+}
+png(plot_output_path("10_image_entropy", "thesis_plots", "seg_feature_exemplars.png"),
+  width = 900, height = 3050, res = 150
+)
+draw_feat_examples()
+invisible(dev.off())
+draw_feat_examples()
+```
+
 ---
 
 ## 6. Predicting score from the hand-crafted features
