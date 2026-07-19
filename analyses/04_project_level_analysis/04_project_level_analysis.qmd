@@ -617,6 +617,36 @@ p
 save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 11, dir = "thesis_plots")
 ```
 
+The value at the centre (median) of each boxplot in panels A and B, alongside
+the panel A zero-proportion overlay, in the same left-to-right project order as
+the figure:
+
+```{r}
+# 6.2 (table) - boxplot medians behind panels A and B, plus the overlay
+panel_medians <- image_stats_ordered %>%
+  group_by(Folder) %>%
+  summarise(A_median = median(Avg_Percent_Agreement), .groups = "drop") %>%
+  left_join(zero_by_project, by = "Folder") %>%
+  left_join(
+    image_stats_nonzero %>%
+      group_by(Folder) %>%
+      summarise(B_median = median(Nonzero_Agreement), .groups = "drop"),
+    by = "Folder"
+  ) %>%
+  arrange(Folder) %>%
+  transmute(
+    Project = as.character(Folder),
+    `A: median agreement (%)` = round(A_median, 1),
+    `A: % scores = 0` = round(Percent_0, 1),
+    `B: median agreement, non-zero scores (%)` = round(B_median, 1)
+  )
+
+panel_medians %>%
+  knitr::kable(
+    caption = "Boxplot medians for panels A and B, and the panel A zero-proportion overlay, per project"
+  )
+```
+
 ### 6.3 Median agreement normalised by zero-proportion
 
 Dividing each project's median Metric 3 agreement (the middle of its boxplot) by
