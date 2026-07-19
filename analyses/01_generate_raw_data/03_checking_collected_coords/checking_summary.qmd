@@ -52,8 +52,11 @@ for set_num, (unchecked_path, checked_path) in sets.items():
     only_before = len(before) - len(merged)
     only_after  = len(after)  - len(merged)
 
-    print(f"CDAs in unchecked:  {len(before)}")
-    print(f"CDAs in checked:    {len(after)}")
+    n_cdas            = len(before)
+    total_annotations = merged[[f'Score{i}_before' for i in range(1, 4)]].notna().sum().sum()
+
+    print(f"CDAs collected across:  {n_cdas}")
+    print(f"Annotations collected:  {total_annotations}")
     print(f"CDAs only in unchecked (removed): {only_before}")
     print(f"CDAs only in checked  (added):    {only_after}")
     print()
@@ -73,20 +76,21 @@ for set_num, (unchecked_path, checked_path) in sets.items():
         ca = merged[[f'{c}_{i}_after'  for c in ['X1','X2','Y1','Y2']]].values
         total_changed += sum(coords_changed(b, a) for b, a in zip(cb, ca))
 
-    total_annotations = merged[[f'Score{i}_before' for i in range(1, 4)]].notna().sum().sum()
     print(f"  Annotations changed: {total_changed} / {total_annotations} ({total_changed / total_annotations * 100:.1f}%)")
     print()
 
-    results[set_num] = {"changed": total_changed, "total": total_annotations}
+    results[set_num] = {"cdas": n_cdas, "changed": total_changed, "total": total_annotations}
 ```
 
 ### 3. Total annotations changed across both sets
 ```{python}
 # 3
+total_cdas_all         = sum(r["cdas"] for r in results.values())
 total_changed_all      = sum(r["changed"] for r in results.values())
 total_annotations_all  = sum(r["total"] for r in results.values())
 pct_changed_all        = total_changed_all / total_annotations_all * 100
 
+print(f"CDAs collected across (both sets): {total_cdas_all}")
 print(f"Annotations changed (both sets): {total_changed_all} / {total_annotations_all} ({pct_changed_all:.1f}%)")
 ```
 
