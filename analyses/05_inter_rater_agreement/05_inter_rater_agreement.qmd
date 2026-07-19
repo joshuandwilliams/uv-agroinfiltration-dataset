@@ -581,12 +581,63 @@ save_plot(p_patterns, "agreement_patterns.png", width = 16, height = 16)
 
 ## 7. Krippendorff's Alpha — Raw Scores
 
+```{r}
+# Shared plotting helper for 7.1-7.3.
+# The mean and threshold lines are geom_segments bounded to the bar heights
+# (not full-height geom_vlines), so they physically cannot reach the label
+# row above - the dashed/dotted line can't cover the text because it stops
+# below it. Both labels sit at the same height, left-justified from their
+# own line's x-position, growing rightward. The one exception: when the
+# threshold (0.8) sits close enough to the mean that its left-justified
+# label would run into the mean's label - as happens in 7.2's non-zero panel,
+# where they differ by ~0.005 - the threshold label is right-justified
+# instead, so it grows leftward, away from the mean label.
+make_alpha_hist_panel <- function(boot_vec, xlab) {
+  mean_val <- mean(boot_vec)
+  threshold <- 0.8
+
+  base <- ggplot(data.frame(alpha = boot_vec), aes(x = alpha)) +
+    geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white")
+  max_count <- max(ggplot_build(base)$data[[1]]$count)
+  line_top <- max_count * 1.06
+  label_y <- max_count * 1.15
+
+  threshold_hjust <- if (abs(mean_val - threshold) < 0.02) 1 else 0
+
+  base +
+    geom_segment(
+      x = mean_val, xend = mean_val, y = 0, yend = line_top,
+      color = "firebrick", linetype = "dashed", linewidth = 1
+    ) +
+    geom_segment(
+      x = threshold, xend = threshold, y = 0, yend = line_top,
+      color = "black", linetype = "dotted", linewidth = 0.8
+    ) +
+    annotate("text",
+      x = mean_val, y = label_y, hjust = 0, size = 4, color = "firebrick",
+      label = sprintf("Mean=%.3f", mean_val)
+    ) +
+    annotate("text",
+      x = threshold, y = label_y, hjust = threshold_hjust, size = 4, color = "black",
+      label = "α=0.8"
+    ) +
+    scale_y_continuous(limits = c(0, max_count * 1.3), expand = expansion(mult = c(0.02, 0))) +
+    coord_cartesian(clip = "off") +
+    labs(x = xlab, y = "Count") +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 13),
+      axis.title = element_text(size = 15)
+    )
+}
+```
+
 ### 7.1 Ordinal metric
 
 ```{r}
 # 7.1.1
 # Computed on the full rater x CDA matrix directly (no median involved).
-# Two distance metrics are compared here and in 7.2 as a robustness check on
+# Two distance metrics are compared here and in 7.3 as a robustness check on
 # the assumed measurement level: ordinal (treats 0-6 as ordered categories)
 # and interval (treats 0-6 as equally spaced). If the two estimates agree,
 # the reliability conclusion doesn't hinge on which scale assumption is
@@ -598,67 +649,82 @@ cat("Krippendorff's alpha (ordinal, raw scores):", round(alpha_raw$value, 4), "\
 
 ```{r}
 # 7.1.2
-# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
+# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw, without
+# replacement (see bootstrap_kripp_alpha() docs - "bootstrap" in the function
+# name refers to the general repeated-resampling technique, but this call
+# draws fixed-size subsamples rather than classic with-replacement bootstrap
+# resamples).
 alpha_raw_boot <- bootstrap_kripp_alpha(
   scorer_matrix,
   method = "ordinal", sample_size = 500,
   cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal.rds")
 )
 
-cat("Bootstrap mean α:", round(mean(alpha_raw_boot), 4), "\n")
+cat("Subsample mean α:", round(mean(alpha_raw_boot), 4), "\n")
 cat(
   "95% CI: [", round(quantile(alpha_raw_boot, 0.025), 4), ",",
   round(quantile(alpha_raw_boot, 0.975), 4), "]\n"
 )
 ```
 
-```{r fig.width=7, fig.height=5}
+```{r fig.width=7, fig.height=3.2}
 #| fig-width: 7
-#| fig-height: 5
+#| fig-height: 3.2
 # 7.1.3
-boot_df <- data.frame(alpha = alpha_raw_boot)
-
-p <- ggplot(boot_df, aes(x = alpha)) +
-  geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
-  geom_vline(aes(
-    xintercept = mean(alpha_raw_boot), color = "Bootstrap mean",
-    linetype = "Bootstrap mean"
-  ), linewidth = 1) +
-  geom_vline(aes(
-    xintercept = 0.8, color = "α = 0.8 reliability threshold",
-    linetype = "α = 0.8 reliability threshold"
-  ), linewidth = 0.8) +
-  scale_color_manual(
-    name = NULL,
-    values = c(
-      "Bootstrap mean" = "firebrick",
-      "α = 0.8 reliability threshold" = "black"
-    )
-  ) +
-  scale_linetype_manual(
-    name = NULL,
-    values = c(
-      "Bootstrap mean" = "dashed",
-      "α = 0.8 reliability threshold" = "dotted"
-    )
-  ) +
-  labs(x = "Krippendorff's α (ordinal)", y = "Count") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11),
-    legend.position = "bottom"
-  )
+p <- make_alpha_hist_panel(alpha_raw_boot, "Krippendorff's α (ordinal, all CDAs)")
 p
-save_plot(p, "krippendorff_alpha_raw.png", width = 7, height = 5, dir = "thesis_plots")
+save_plot(p, "krippendorff_alpha_raw.png", width = 7, height = 3.2, dir = "thesis_plots")
 ```
 
-### 7.2 Interval metric
+### 7.2 Ordinal metric — non-zero-median CDAs
 
 ```{r}
 # 7.2.1
+# Same rater x CDA matrix as 7.1, restricted to CDAs whose aggregated median
+# score is non-zero (same restriction already applied to pairwise agreement
+# in section 3 via score_data_no_0). Checks whether 7.1's headline ordinal
+# alpha is inflated by the abundant, near-unanimous median-0 CDAs, where
+# raters trivially agree "no cell death".
+score_data_numeric_no_0 <- score_data_numeric %>%
+  filter(Median_Score > 0)
+
+scorer_matrix_no_0 <- build_scorer_matrix(score_data_numeric_no_0)
+cat("Rater matrix dimensions:", nrow(scorer_matrix_no_0), "raters ×", ncol(scorer_matrix_no_0), "CDAs\n")
+
+alpha_raw_no0 <- kripp.alpha(scorer_matrix_no_0, method = "ordinal")
+cat("Krippendorff's alpha (ordinal, non-zero-median CDAs):", round(alpha_raw_no0$value, 4), "\n")
+```
+
+```{r}
+# 7.2.2
+# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw (see 7.1.2
+# on "subsample" vs. classic bootstrap terminology).
+alpha_raw_no0_boot <- bootstrap_kripp_alpha(
+  scorer_matrix_no_0,
+  method = "ordinal", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal_no0.rds")
+)
+
+cat("Subsample mean α:", round(mean(alpha_raw_no0_boot), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_no0_boot, 0.025), 4), ",",
+  round(quantile(alpha_raw_no0_boot, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=3.2}
+#| fig-width: 7
+#| fig-height: 3.2
+# 7.2.3
+p <- make_alpha_hist_panel(alpha_raw_no0_boot, "Krippendorff's α (ordinal, non-zero-median CDAs)")
+p
+save_plot(p, "krippendorff_alpha_raw_no0.png", width = 7, height = 3.2, dir = "thesis_plots")
+```
+
+### 7.3 Interval metric
+
+```{r}
+# 7.3.1
 # Same rater x CDA matrix as 7.1, but with method = "interval" instead of
 # "ordinal" - no residuals or medians involved, just a different distance
 # metric applied to the same raw scores.
@@ -667,62 +733,29 @@ cat("Krippendorff's alpha (interval, raw scores):", round(alpha_raw_interval$val
 ```
 
 ```{r}
-# 7.2.2
-# Bootstrap distribution: 1,000 iterations, n = 500 CDAs per draw.
+# 7.3.2
+# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw (see 7.1.2
+# on "subsample" vs. classic bootstrap terminology).
 alpha_raw_interval_boot <- bootstrap_kripp_alpha(
   scorer_matrix,
   method = "interval", sample_size = 500,
   cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval.rds")
 )
 
-cat("Bootstrap mean α:", round(mean(alpha_raw_interval_boot), 4), "\n")
+cat("Subsample mean α:", round(mean(alpha_raw_interval_boot), 4), "\n")
 cat(
   "95% CI: [", round(quantile(alpha_raw_interval_boot, 0.025), 4), ",",
   round(quantile(alpha_raw_interval_boot, 0.975), 4), "]\n"
 )
 ```
 
-```{r fig.width=7, fig.height=5}
+```{r fig.width=7, fig.height=3.2}
 #| fig-width: 7
-#| fig-height: 5
-# 7.2.3
-boot_interval_df <- data.frame(alpha = alpha_raw_interval_boot)
-
-p <- ggplot(boot_interval_df, aes(x = alpha)) +
-  geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white") +
-  geom_vline(aes(
-    xintercept = mean(alpha_raw_interval_boot), color = "Bootstrap mean",
-    linetype = "Bootstrap mean"
-  ), linewidth = 1) +
-  geom_vline(aes(
-    xintercept = 0.8, color = "α = 0.8 reliability threshold",
-    linetype = "α = 0.8 reliability threshold"
-  ), linewidth = 0.8) +
-  scale_color_manual(
-    name = NULL,
-    values = c(
-      "Bootstrap mean" = "firebrick",
-      "α = 0.8 reliability threshold" = "black"
-    )
-  ) +
-  scale_linetype_manual(
-    name = NULL,
-    values = c(
-      "Bootstrap mean" = "dashed",
-      "α = 0.8 reliability threshold" = "dotted"
-    )
-  ) +
-  labs(x = "Krippendorff's α (interval)", y = "Count") +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 15),
-    legend.title = element_text(size = 13),
-    legend.text = element_text(size = 11),
-    legend.position = "bottom"
-  )
+#| fig-height: 3.2
+# 7.3.3
+p <- make_alpha_hist_panel(alpha_raw_interval_boot, "Krippendorff's α (interval, all CDAs)")
 p
-save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 5, dir = "thesis_plots")
+save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 3.2, dir = "thesis_plots")
 ```
 
 ---
