@@ -38,16 +38,35 @@ data_combined = pd.concat([data1, data2]).reset_index(drop=True)
 ### 3. Clean the coordinate and score data
 ```{python}
 # 3
+SCORE_COLS = ["Score1", "Score2", "Score3"]
 
-# clean_coordinates nulls any rater's coordinates + score if the bounding box is degenerate or has a missing coordinate (only 7 scores got nulled this way)
-
-# clean_scores drops a CDA row entirely if:
-# >=2 of the 3 scores are missing (356)
-# 1 score is missing and the remaining 2 disagree (can't take median) (88)
-
+# Step a) clean_coordinates nulls an individual rater's coordinates + score if the
+# bounding box is degenerate (zero width/height) or has a missing coordinate. This
+# removes annotations, not whole CDA rows.
 cleaned_coords = data_combined.apply(dataset_preparation.clean_coordinates, axis=1)
+n_coords_nulled = (
+    data_combined[SCORE_COLS].notna().sum().sum()
+    - cleaned_coords[SCORE_COLS].notna().sum().sum()
+)
+
+# Step b) clean_scores drops a whole CDA row if:
+#   - >=2 of the 3 scores are missing, or
+#   - exactly 1 score is missing and the remaining 2 disagree (no median possible).
+n_missing = cleaned_coords[SCORE_COLS].isnull().sum(axis=1)
+n_dropped_insufficient = int((n_missing >= 2).sum())
+n_dropped_disagree = int(
+    (
+        (n_missing == 1)
+        & cleaned_coords[SCORE_COLS].apply(lambda r: len(set(r.dropna())) > 1, axis=1)
+    ).sum()
+)
+
 cleaned_data = dataset_preparation.clean_scores(cleaned_coords)
+
 print(f"Original Data Length: {len(data_combined)}")
+print(f"  Step a - annotations nulled (degenerate/missing bounding box): {n_coords_nulled}")
+print(f"  Step b - CDAs dropped (fewer than 2 scores):                   {n_dropped_insufficient}")
+print(f"  Step b - CDAs dropped (2 scores but they disagree):            {n_dropped_disagree}")
 print(f"Cleaned Data Length: {len(cleaned_data)}")
 ```
 
