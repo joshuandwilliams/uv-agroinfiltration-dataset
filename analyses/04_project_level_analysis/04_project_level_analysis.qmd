@@ -25,6 +25,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(here)
+library(patchwork)
 ```
 
 ```{r}
@@ -511,9 +512,9 @@ save_plot(p, "agreement_vs_zeros_by_project.png", width = 10, height = 6)
 
 ### 6.2 Metric 3 agreement per project (boxplot), ordered by agreement, with zero-proportion overlay
 
-```{r fig.width=10, fig.height=6}
+```{r fig.width=10, fig.height=11}
 #| fig-width: 10
-#| fig-height: 6
+#| fig-height: 11
 # 6.2
 # Images as the unit of replication (one box per project, over the same
 # per-image Metric 3 values as 6.1) - shows which projects tend to be
@@ -542,13 +543,15 @@ zero_by_project <- median_corrected %>%
 project_n <- image_stats_ordered %>% count(Folder, name = "N")
 project_labels <- setNames(paste0(project_n$Folder, "\n(n=", project_n$N, ")"), project_n$Folder)
 
+zero_col <- "#01665e"
+
+# --- Panel A: per-image agreement (boxes) with the zero-proportion overlay ---
 # The zero-proportion overlay is a dashed teal line read against the right-hand
 # axis; that axis's title and labels are coloured the same teal, while the
 # boxplots are read against the default black left-hand axis. Colour-matching
-# the line to its axis makes it clear which series each axis belongs to.
-zero_col <- "#01665e"
-
-p <- ggplot() +
+# the line to its axis makes it clear which series each axis belongs to. The
+# x-axis labels are dropped here because panel B below carries the shared axis.
+p_top <- ggplot() +
   geom_boxplot(
     data = image_stats_ordered, aes(x = Folder, y = Avg_Percent_Agreement, fill = Folder),
     alpha = 0.6, outlier.alpha = 0.4
@@ -567,17 +570,46 @@ p <- ggplot() +
     sec.axis = sec_axis(~., name = "% of Severity Scores that were 0")
   ) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
-  labs(x = "Project", y = "Metric 3 Agreement (%)") +
+  labs(x = NULL, y = "Metric 3 Agreement (%)") +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_blank(),
     axis.text = element_text(size = 13),
     axis.title = element_text(size = 15),
     axis.text.y.right = element_text(size = 13, colour = zero_col),
     axis.title.y.right = element_text(size = 15, colour = zero_col)
   )
+
+# --- Panel B: agreement recomputed on non-zero scores only ---
+# Per image, mean corrected agreement over just that image's non-zero severity
+# scores (all-zero images have no non-zero scores and drop out). Same project
+# order and fills as panel A, so the two rows line up. If the ranking flattens
+# here, the between-project differences in panel A were driven by how many zeros
+# each project had; if it persists, they were not.
+image_stats_nonzero <- median_corrected %>%
+  filter(Score != 0) %>%
+  group_by(Basename, Folder) %>%
+  summarise(Nonzero_Agreement = mean(Exact_Match) * 100, .groups = "drop") %>%
+  mutate(Folder = factor(Folder, levels = project_order))
+
+p_bottom <- ggplot(image_stats_nonzero, aes(x = Folder, y = Nonzero_Agreement, fill = Folder)) +
+  geom_boxplot(alpha = 0.6, outlier.alpha = 0.4) +
+  scale_x_discrete(labels = project_labels) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_fill_brewer(palette = "Set1", guide = "none") +
+  labs(x = "Project", y = "Agreement on\nnon-zero scores (%)") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15)
+  )
+
+# Stack the panels; patchwork aligns the plotting regions so the shared x-axis
+# lines up even though only panel A has the right-hand secondary axis.
+p <- p_top / p_bottom + plot_annotation(tag_levels = "A")
 p
-save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 6, dir = "thesis_plots")
+save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 11, dir = "thesis_plots")
 ```
 
 ### 6.3 Median agreement normalised by zero-proportion
@@ -648,9 +680,34 @@ Superseded as a thesis figure by the combined boxplot + secondary-axis overlay i
 #| fig-width: 10
 #| fig-height: 6
 # 7.2 - supplementary; see 6.2 for the thesis figure this relationship now lives in
-p <- ggplot(results_df, aes(x = `% of Severity Scores that were 0`, y = Metric_3_Agreement)) +
+# Between-project regression of mean agreement on the project's zero-proportion.
+# n = 8 projects, so this is descriptive (report R^2 / correlation, not p-values).
+# Projects vary hugely in size (4-89 images), so an unweighted fit treats them
+# equally; a fit weighted by score count is reported alongside as a sanity check.
+zero_x <- results_df$`% of Severity Scores that were 0`
+zero_fit <- lm(Metric_3_Agreement ~ zero_x, data = results_df)
+zero_r2 <- summary(zero_fit)$r.squared
+zero_fit_w <- lm(Metric_3_Agreement ~ zero_x, data = results_df, weights = results_df$Count)
+
+cat(sprintf("Between-project (n = %d projects):\n", nrow(results_df)))
+cat(sprintf(
+  "  Pearson r = %.3f, R^2 = %.3f (%.1f%% of variance)\n",
+  cor(results_df$Metric_3_Agreement, zero_x), zero_r2, 100 * zero_r2
+))
+cat(sprintf(
+  "  Spearman rho = %.3f\n",
+  cor(results_df$Metric_3_Agreement, zero_x, method = "spearman")
+))
+cat(sprintf("  Weighted by score count: R^2 = %.3f\n", summary(zero_fit_w)$r.squared))
+
+p <- ggplot(results_df, aes(x = zero_x, y = Metric_3_Agreement)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "grey40", linetype = "dashed") +
   geom_point(size = 3, color = "steelblue") +
   geom_text(aes(label = sub("^Project ", "", Folder)), vjust = -1, size = 4) +
+  annotate("text",
+    x = Inf, y = -Inf, hjust = 1.1, vjust = -0.8, size = 5,
+    label = sprintf("R^2 == %.2f", zero_r2), parse = TRUE
+  ) +
   scale_y_continuous(limits = c(0, 100)) +
   labs(x = "% of Severity Scores that were 0", y = "Metric 3 Agreement (%)") +
   theme_minimal() +
