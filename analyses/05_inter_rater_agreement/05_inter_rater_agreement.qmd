@@ -224,6 +224,7 @@ scorer_accuracy <- score_data_long %>%
   summarise(
     exact = mean(Exact_Match),
     within_one = mean(NearMiss_Match),
+    n = n(),
     .groups = "drop"
   ) %>%
   mutate(extra_within_one = within_one - exact)
@@ -233,8 +234,17 @@ avg_row <- scorer_accuracy %>%
     Scorer = factor("Avg"),
     exact = mean(exact),
     within_one = mean(within_one),
-    extra_within_one = mean(extra_within_one)
+    extra_within_one = mean(extra_within_one),
+    n = NA_integer_
   )
+
+# Axis tick labels annotated with each rater's CDA count (n), matching the
+# "(n=...)" convention used on the score-class-by-project heatmap axis in
+# analyses/04_project_level_analysis. The Avg bar carries no count.
+rater_axis_labels <- scorer_accuracy %>%
+  transmute(Scorer = as.character(Scorer), label = paste0(Scorer, "\n(n=", n, ")"))
+x_labels <- setNames(rater_axis_labels$label, rater_axis_labels$Scorer)
+x_labels["Avg"] <- "Avg"
 
 plot_acc <- bind_rows(scorer_accuracy, avg_row) %>%
   mutate(Scorer = factor(Scorer,
@@ -261,17 +271,42 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
     name = NULL,
     breaks = c("Exact agreement", "Additional within ±1")
   ) +
+  scale_x_discrete(labels = x_labels) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
   labs(x = "Rater", y = "Corrected Agreement with Median Severity Score") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1),
     axis.title = element_text(size = 15),
     legend.title = element_text(size = 13),
     legend.text = element_text(size = 11)
   )
 p
 save_plot(p, "scorer_accuracy.png", width = 8, height = 6, dir = "thesis_plots")
+```
+
+The same per-rater values shown in the figure above, as a table (Exact agreement,
+and total agreement within ±1 of the median; n = CDAs scored by that rater):
+
+```{r}
+# 3 (table)
+scorer_accuracy_values <- bind_rows(scorer_accuracy, avg_row) %>%
+  mutate(Scorer = factor(Scorer,
+    levels = c(as.character(sort(as.numeric(
+      unique(as.character(scorer_accuracy$Scorer))
+    ))), "Avg")
+  )) %>%
+  arrange(Scorer) %>%
+  transmute(
+    Rater = as.character(Scorer),
+    `CDAs Scored (n)` = ifelse(is.na(n), "", as.character(n)),
+    `Exact Agreement` = scales::percent(exact, accuracy = 0.1),
+    `Within ±1` = scales::percent(within_one, accuracy = 0.1)
+  )
+
+scorer_accuracy_values %>%
+  knitr::kable(caption = "Per-rater corrected agreement with the median severity score")
 ```
 
 ---
