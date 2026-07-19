@@ -300,8 +300,7 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
     axis.title = element_text(size = 15),
     legend.title = element_text(size = 13),
     legend.text = element_text(size = 11),
-    legend.position = "right",
-    legend.justification = "top"
+    legend.position = "top"
   )
 p
 save_plot(p, "scorer_accuracy.png", width = 8, height = 6, dir = "thesis_plots")
@@ -328,6 +327,47 @@ scorer_accuracy_values <- bind_rows(scorer_accuracy, avg_row) %>%
 
 scorer_accuracy_values %>%
   knitr::kable(caption = "Per-rater corrected agreement with the median severity score")
+```
+
+### 3.1 Direction of disagreement (rater score minus median)
+
+Ported from PhD_DL_Models/analyses/0024_EDA_Plots/EDA.qmd (anonymised raters,
+same corrected-median dataset). For every CDA a rater scored, how far their score
+sat from that CDA's median severity (Score - median): 0 means they matched the
+consensus, positive means they scored higher than it, negative lower. Each cell is
+the proportion of that rater's scores at that distance (columns sum to 100%), so
+it shows the *direction* in which a rater tends to disagree, not just how often.
+
+```{r fig.width=10, fig.height=8}
+#| fig-width: 10
+#| fig-height: 8
+# 3.1
+score_distance <- score_data_long %>%
+  mutate(
+    Score = as.integer(Score),
+    Distance = Score - as.integer(Median_Score)
+  ) %>%
+  count(Scorer, Distance, name = "Count") %>%
+  group_by(Scorer) %>%
+  mutate(Proportion = Count / sum(Count)) %>%
+  ungroup()
+
+p <- ggplot(score_distance, aes(x = Scorer, y = Distance, fill = Proportion * 100)) +
+  geom_tile(colour = "grey40") +
+  geom_text(aes(label = sprintf("%.1f%%", Proportion * 100)), size = 3.2) +
+  scale_fill_gradient(name = "% of\nrater's\nscores", low = "white", high = "firebrick") +
+  scale_y_continuous(breaks = sort(unique(score_distance$Distance))) +
+  labs(x = "Rater", y = "Score − median severity") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+p
+save_plot(p, "score_distance_by_rater_heatmap.png", width = 10, height = 8, dir = "thesis_plots")
 ```
 
 ---
