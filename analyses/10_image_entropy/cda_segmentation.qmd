@@ -495,9 +495,9 @@ feature is measured over that region; the whole-leaf and global features
 (measured over the whole leaf) are drawn without an outline. Each crop is
 annotated with its feature value.
 
-```{r fig.width=6, fig.height=20}
-#| fig-width: 6
-#| fig-height: 20
+```{r fig.width=8, fig.height=8.4}
+#| fig-width: 8
+#| fig-height: 8.4
 # 6.1b  Low / median / high example crop for each feature.
 feat6_ex <- seg %>%
   left_join(
@@ -530,39 +530,66 @@ pick_examples <- function(fname) {
   }))
 }
 
-wrap_lab <- vapply(
-  feat_labels, function(s) paste(strwrap(s, width = 15), collapse = "\n"), character(1)
-)
-
 draw_feat_examples <- function() {
-  nf <- length(feat_order)
-  par(mfrow = c(nf, 3), mar = c(0.15, 0.15, 1.05, 0.15), oma = c(0.4, 8.5, 3.4, 0.3))
-  for (r in seq_along(feat_order)) {
-    ex <- pick_examples(feat_order[r])
-    # Blue CDA outline only on rows where the feature is measured over the CDA,
-    # so the reader can see the leaf-vs-CDA distinction where it matters.
-    draw_outline <- feat_order[r] %in% cda_feats
-    for (j in 1:3) {
-      img <- load_img(file.path(data_dir, ex$score[j], paste0(ex$image_id[j], ".tif")))
-      if (draw_outline) img <- outline(img, segment_cda(img)$mask)
-      plot(as.raster(img))
-      mtext(format(signif(ex$value[j], 3), scientific = FALSE, drop0trailing = TRUE, trim = TRUE),
-        side = 3, line = 0.05, cex = 0.55
-      )
-    }
-    mtext(wrap_lab[r],
-      side = 2, outer = TRUE, las = 1, line = 0.5, cex = 0.62,
-      at = 1 - (r - 0.5) / nf
+  half <- length(feat_order) / 2
+  # Two side-by-side groups of 6 features: each a label column + Low/Med/High
+  # crops, with a header row on top. Fully cellular layout so the middle label
+  # column sits between the two groups.
+  layout(matrix(seq_len((half + 1) * 8), nrow = half + 1, byrow = TRUE),
+    widths = c(1.2, 1, 1, 1, 1.2, 1, 1, 1),
+    heights = c(0.75, rep(1, half))
+  )
+  header <- function(cc) {
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+    text(0.5, 0.5, names(qs)[cc], font = 2, cex = 2.4)
+    text(0.5, 0.28, paste0("(", pct_lab[cc], ")"), cex = 1.85)
+  }
+  blank <- function() {
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+  }
+  # Feature name right-aligned so it sits against its crops, trimming the gap.
+  lab_cell <- function(idx) {
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+    text(0.97, 0.5, paste(strwrap(feat_labels[idx], width = 12), collapse = "\n"),
+      adj = c(1, 0.5), cex = 1.95
     )
   }
-  for (cc in seq_along(qs)) {
-    at <- (cc - 0.5) / 3
-    mtext(names(qs)[cc], side = 3, outer = TRUE, line = 1.5, at = at, font = 2, cex = 0.95)
-    mtext(paste0("(", pct_lab[cc], ")"), side = 3, outer = TRUE, line = 0.5, at = at, cex = 0.6)
+  # xaxs/yaxs = "i" + rasterImage fills the plot region exactly (no axis
+  # padding); the region is square, so the crop is not stretched. The value at
+  # line 0.3 sits just above its own image, while the large top margin (4.2)
+  # keeps the separating gap above the value, tying it to the image below.
+  crop_cell <- function(idx) {
+    ex <- pick_examples(feat_order[idx])
+    do_outline <- feat_order[idx] %in% cda_feats
+    for (j in 1:3) {
+      par(mar = c(0.2, 0.15, 4.2, 0.15))
+      img <- load_img(file.path(data_dir, ex$score[j], paste0(ex$image_id[j], ".tif")))
+      if (do_outline) img <- outline(img, segment_cda(img)$mask)
+      plot(c(0, 1), c(0, 1), type = "n", axes = FALSE, xlab = "", ylab = "", xaxs = "i", yaxs = "i")
+      rasterImage(as.raster(img), 0, 0, 1, 1)
+      mtext(format(signif(ex$value[j], 3), scientific = FALSE, drop0trailing = TRUE, trim = TRUE),
+        side = 3, line = 0.3, cex = 1.5
+      )
+    }
+  }
+  # Header row: blank | Low Med High | blank | Low Med High
+  blank()
+  for (cc in 1:3) header(cc)
+  blank()
+  for (cc in 1:3) header(cc)
+  # Feature rows: left group (1..half) beside right group (half+1..2*half)
+  for (r in seq_len(half)) {
+    lab_cell(r)
+    crop_cell(r)
+    lab_cell(r + half)
+    crop_cell(r + half)
   }
 }
 png(plot_output_path("10_image_entropy", "thesis_plots", "seg_feature_exemplars.png"),
-  width = 900, height = 3050, res = 150
+  width = 2100, height = 2200, res = 150
 )
 draw_feat_examples()
 invisible(dev.off())
