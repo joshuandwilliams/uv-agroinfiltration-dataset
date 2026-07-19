@@ -374,6 +374,35 @@ p
 save_plot(p, "score_distance_by_rater_heatmap.png", width = 10, height = 10.4, dir = "thesis_plots")
 ```
 
+Summarising the same data as the direction of each rater's bias: of the times a
+rater disagreed with the median (distance != 0), what share was scored higher
+versus lower. Disagreement rate is the share of all of that rater's scores that
+differed from the median.
+
+```{r}
+# 3.1 (table)
+rater_bias_table <- score_distance %>%
+  group_by(Scorer) %>%
+  summarise(
+    Total = sum(Count),
+    Disagreements = sum(Count[Distance != 0]),
+    Higher = sum(Count[Distance > 0]),
+    Lower = sum(Count[Distance < 0]),
+    .groups = "drop"
+  ) %>%
+  arrange(Scorer) %>%
+  transmute(
+    Rater = as.character(Scorer),
+    `Disagreements (n)` = Disagreements,
+    `Disagreement rate` = scales::percent(Disagreements / Total, accuracy = 0.1),
+    `Scored higher` = scales::percent(Higher / Disagreements, accuracy = 0.1),
+    `Scored lower` = scales::percent(Lower / Disagreements, accuracy = 0.1)
+  )
+
+rater_bias_table %>%
+  knitr::kable(caption = "Direction of each rater's disagreements with the median severity score")
+```
+
 ---
 
 ## 4. Pairwise % Agreement Between Raters
