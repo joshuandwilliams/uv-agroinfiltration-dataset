@@ -437,6 +437,8 @@ change_dir <- rescore_data %>%
     same = mean(score_change == 0),
     lower = mean(score_change < 0),
     n_disagree = sum(score_change != 0),
+    n_higher = sum(score_change > 0),
+    n_lower = sum(score_change < 0),
     higher_of_disagree = sum(score_change > 0) / sum(score_change != 0),
     lower_of_disagree = sum(score_change < 0) / sum(score_change != 0),
     .groups = "drop"
@@ -451,7 +453,9 @@ change_dir %>%
     Same = scales::percent(same, accuracy = 0.1),
     Lower = scales::percent(lower, accuracy = 0.1),
     `Disagreements (n)` = n_disagree,
+    `Higher (n)` = n_higher,
     `Higher | disagree` = scales::percent(higher_of_disagree, accuracy = 0.1),
+    `Lower (n)` = n_lower,
     `Lower | disagree` = scales::percent(lower_of_disagree, accuracy = 0.1)
   ) %>%
   knitr::kable(caption = "Per-rater direction of rescore change (panel B values)")
