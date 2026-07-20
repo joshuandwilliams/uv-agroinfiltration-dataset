@@ -711,37 +711,43 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">same =</span> <span class="fu">mean</span>(score_change <span class="sc">==</span> <span class="dv">0</span>),</span>
 <span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower =</span> <span class="fu">mean</span>(score_change <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
 <span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_disagree =</span> <span class="fu">sum</span>(score_change <span class="sc">!=</span> <span class="dv">0</span>),</span>
-<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">higher_of_disagree =</span> <span class="fu">sum</span>(score_change <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">sum</span>(score_change <span class="sc">!=</span> <span class="dv">0</span>),</span>
-<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower_of_disagree =</span> <span class="fu">sum</span>(score_change <span class="sc">&lt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">sum</span>(score_change <span class="sc">!=</span> <span class="dv">0</span>),</span>
-<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
-<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(Scorer)</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>change_dir <span class="sc">%&gt;%</span></span>
-<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
-<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">Rater =</span> <span class="fu">as.character</span>(Scorer),</span>
-<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Rescored (n)</span><span class="st">`</span> <span class="ot">=</span> n,</span>
-<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">Higher =</span> scales<span class="sc">::</span><span class="fu">percent</span>(higher, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">Same =</span> scales<span class="sc">::</span><span class="fu">percent</span>(same, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">Lower =</span> scales<span class="sc">::</span><span class="fu">percent</span>(lower, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Disagreements (n)</span><span class="st">`</span> <span class="ot">=</span> n_disagree,</span>
-<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Higher | disagree</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(higher_of_disagree, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Lower | disagree</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(lower_of_disagree, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
-<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Per-rater direction of rescore change (panel B values)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_higher =</span> <span class="fu">sum</span>(score_change <span class="sc">&gt;</span> <span class="dv">0</span>),</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_lower =</span> <span class="fu">sum</span>(score_change <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">higher_of_disagree =</span> <span class="fu">sum</span>(score_change <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">sum</span>(score_change <span class="sc">!=</span> <span class="dv">0</span>),</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower_of_disagree =</span> <span class="fu">sum</span>(score_change <span class="sc">&lt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">sum</span>(score_change <span class="sc">!=</span> <span class="dv">0</span>),</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(Scorer)</span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a>change_dir <span class="sc">%&gt;%</span></span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">Rater =</span> <span class="fu">as.character</span>(Scorer),</span>
+<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Rescored (n)</span><span class="st">`</span> <span class="ot">=</span> n,</span>
+<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">Higher =</span> scales<span class="sc">::</span><span class="fu">percent</span>(higher, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">Same =</span> scales<span class="sc">::</span><span class="fu">percent</span>(same, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">Lower =</span> scales<span class="sc">::</span><span class="fu">percent</span>(lower, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Disagreements (n)</span><span class="st">`</span> <span class="ot">=</span> n_disagree,</span>
+<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Higher (n)</span><span class="st">`</span> <span class="ot">=</span> n_higher,</span>
+<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Higher | disagree</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(higher_of_disagree, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Lower (n)</span><span class="st">`</span> <span class="ot">=</span> n_lower,</span>
+<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Lower | disagree</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(lower_of_disagree, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Per-rater direction of rescore change (panel B values)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Per-rater direction of rescore change (panel B values)</caption>
 <colgroup>
+<col style="width: 4%">
+<col style="width: 10%">
 <col style="width: 5%">
-<col style="width: 12%">
-<col style="width: 6%">
-<col style="width: 5%">
-<col style="width: 5%">
-<col style="width: 17%">
-<col style="width: 22%">
-<col style="width: 21%">
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 14%">
+<col style="width: 9%">
+<col style="width: 18%">
+<col style="width: 8%">
+<col style="width: 18%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -751,7 +757,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <th style="text-align: left;">Same</th>
 <th style="text-align: left;">Lower</th>
 <th style="text-align: right;">Disagreements (n)</th>
+<th style="text-align: right;">Higher (n)</th>
 <th style="text-align: left;">Higher | disagree</th>
+<th style="text-align: right;">Lower (n)</th>
 <th style="text-align: left;">Lower | disagree</th>
 </tr>
 </thead>
@@ -763,7 +771,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">53.0%</td>
 <td style="text-align: left;">28.0%</td>
 <td style="text-align: right;">47</td>
+<td style="text-align: right;">19</td>
 <td style="text-align: left;">40.4%</td>
+<td style="text-align: right;">28</td>
 <td style="text-align: left;">59.6%</td>
 </tr>
 <tr class="even">
@@ -773,7 +783,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">62.6%</td>
 <td style="text-align: left;">20.2%</td>
 <td style="text-align: right;">37</td>
+<td style="text-align: right;">17</td>
 <td style="text-align: left;">45.9%</td>
+<td style="text-align: right;">20</td>
 <td style="text-align: left;">54.1%</td>
 </tr>
 <tr class="odd">
@@ -783,7 +795,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">59.6%</td>
 <td style="text-align: left;">21.2%</td>
 <td style="text-align: right;">40</td>
+<td style="text-align: right;">19</td>
 <td style="text-align: left;">47.5%</td>
+<td style="text-align: right;">21</td>
 <td style="text-align: left;">52.5%</td>
 </tr>
 <tr class="even">
@@ -793,7 +807,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">56.6%</td>
 <td style="text-align: left;">13.1%</td>
 <td style="text-align: right;">43</td>
+<td style="text-align: right;">30</td>
 <td style="text-align: left;">69.8%</td>
+<td style="text-align: right;">13</td>
 <td style="text-align: left;">30.2%</td>
 </tr>
 <tr class="odd">
@@ -803,7 +819,9 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">30.0%</td>
 <td style="text-align: left;">4.0%</td>
 <td style="text-align: right;">70</td>
+<td style="text-align: right;">66</td>
 <td style="text-align: left;">94.3%</td>
+<td style="text-align: right;">4</td>
 <td style="text-align: left;">5.7%</td>
 </tr>
 </tbody>
