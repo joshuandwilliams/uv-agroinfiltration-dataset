@@ -234,17 +234,17 @@ intra_plot_data <- summary_stats %>%
     labels = c("Near-miss agreement (±1)", "Exact agreement")
   ))
 
-# Panel-wide medians, drawn as black dashed reference lines matching the
-# scorer_accuracy figure: the lower line is the median exact self-agreement,
-# the upper line the median near-miss self-agreement (within +/-1). They are
+# Panel-wide means, drawn as black dashed reference lines matching the
+# scorer_accuracy figure: the lower line is the mean exact self-agreement,
+# the upper line the mean near-miss self-agreement (within +/-1). They are
 # labelled on a secondary right-hand y-axis so they add no legend entries.
-median_exact <- median(summary_stats$intra_exact) / 100
-median_within1 <- median(summary_stats$intra_within1) / 100
+mean_exact <- mean(summary_stats$intra_exact) / 100
+mean_within1 <- mean(summary_stats$intra_within1) / 100
 
 p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
   geom_bar(stat = "identity") +
-  geom_hline(yintercept = median_exact, linetype = "dashed", colour = "black", linewidth = 0.6) +
-  geom_hline(yintercept = median_within1, linetype = "dashed", colour = "black", linewidth = 0.6) +
+  geom_hline(yintercept = mean_exact, linetype = "dashed", colour = "black", linewidth = 0.6) +
+  geom_hline(yintercept = mean_within1, linetype = "dashed", colour = "black", linewidth = 0.6) +
   scale_fill_manual(
     values = c(
       "Exact agreement" = "#238b45",
@@ -256,10 +256,10 @@ p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
   scale_y_continuous(
     labels = scales::percent, limits = c(0, 1),
     sec.axis = sec_axis(~.,
-      breaks = c(median_exact, median_within1),
+      breaks = c(mean_exact, mean_within1),
       labels = c(
-        sprintf("Median exact\n(%.1f%%)", 100 * median_exact),
-        sprintf("Median near-miss\n(%.1f%%)", 100 * median_within1)
+        sprintf("Mean exact\n(%.1f%%)", 100 * mean_exact),
+        sprintf("Mean near-miss\n(%.1f%%)", 100 * mean_within1)
       )
     )
   ) +
@@ -292,14 +292,14 @@ intra_agreement_values <- summary_stats %>%
     `Near-miss (±1)` = scales::percent(intra_within1 / 100, accuracy = 0.1)
   )
 
-median_agreement_row <- tibble(
-  Rater = "Median",
+mean_agreement_row <- tibble(
+  Rater = "Mean",
   `Rescored (n)` = "",
-  `Exact Agreement` = scales::percent(median(summary_stats$intra_exact) / 100, accuracy = 0.1),
-  `Near-miss (±1)` = scales::percent(median(summary_stats$intra_within1) / 100, accuracy = 0.1)
+  `Exact Agreement` = scales::percent(mean(summary_stats$intra_exact) / 100, accuracy = 0.1),
+  `Near-miss (±1)` = scales::percent(mean(summary_stats$intra_within1) / 100, accuracy = 0.1)
 )
 
-bind_rows(intra_agreement_values, median_agreement_row) %>%
+bind_rows(intra_agreement_values, mean_agreement_row) %>%
   knitr::kable(caption = "Per-rater intra-rater self-agreement (panel A values)")
 ```
 
