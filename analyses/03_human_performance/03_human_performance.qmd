@@ -77,6 +77,7 @@ cache_dir = repo_root / "analyses" / "03_human_performance"
 metric1_path = cache_dir / "metric1_resampling.csv"
 metric2_path = cache_dir / "metric2_resampling.csv"
 metric3_path = cache_dir / "metric3_resampling.csv"
+metric3_nonzero_path = cache_dir / "metric3_nonzero_resampling.csv"
 
 def scorer_accuracy_table(scorer_cms, labels):
 	"""Per-rater Exact/Near-Miss Accuracy (%) from a dict of {rater: confusion_matrix}."""
@@ -156,16 +157,19 @@ def pattern_breakdown_table(corrected_long):
 needs_metric1 = not metric1_path.exists()
 needs_metric2 = not metric2_path.exists()
 needs_metric3 = not metric3_path.exists()
+needs_metric3_nz = not metric3_nonzero_path.exists()
 
-if needs_metric1 or needs_metric2 or needs_metric3:
+if needs_metric1 or needs_metric2 or needs_metric3 or needs_metric3_nz:
 	missing = [name for name, needed in [
 		("Metric 1", needs_metric1), ("Metric 2", needs_metric2), ("Metric 3", needs_metric3),
+		("Metric 3 (non-median-0)", needs_metric3_nz),
 	] if needed]
 	print(f"Running 1000-iteration resampling loop for: {', '.join(missing)} (this will take a while)...")
 	num_iterations = 1000
 	agreement_dist, agreement_nearmiss = [], []
 	pairwise_dist, pairwise_nearmiss = [], []
 	corrected_dist, corrected_nearmiss = [], []
+	corrected_nz_dist, corrected_nz_nearmiss = [], []
 
 	for i in range(1, num_iterations + 1):
 		if i % 100 == 0:
@@ -197,12 +201,27 @@ if needs_metric1 or needs_metric2 or needs_metric3:
 			corrected_dist.append(corrected_long_iter["Exact_Match"].mean())
 			corrected_nearmiss.append(corrected_long_iter["NearMiss_Match"].mean())
 
+		if needs_metric3_nz:
+			# Metric 3, restricted to CDAs whose median severity score is not 0.
+			# Class-0 CDAs are near-unanimously agreed upon, so excluding them
+			# isolates agreement on the harder, non-zero severity classes -
+			# mirroring the non-median-0 comparison used for Krippendorff's alpha.
+			data_nz = data[data["Median_Score"] != 0]
+			data_nz_normclass = human_performance.downsample_score_classes_csv(data_nz, seed=i)
+			data_nz_long = pd.wide_to_long(data_nz_normclass, stubnames=['Scorer', 'Score'], i=['Basename', 'Row', 'Col', 'Pos'], j='num').reset_index()
+			data_nz_long_noNA = data_nz_long.dropna(subset=['Score'])
+			corrected_nz_long_iter = human_performance.corrected_median_agreement(data_nz_long_noNA)
+			corrected_nz_dist.append(corrected_nz_long_iter["Exact_Match"].mean())
+			corrected_nz_nearmiss.append(corrected_nz_long_iter["NearMiss_Match"].mean())
+
 	if needs_metric1:
 		pd.DataFrame({"agreement_dist": agreement_dist, "agreement_nearmiss": agreement_nearmiss}).to_csv(metric1_path, index=False)
 	if needs_metric2:
 		pd.DataFrame({"pairwise_dist": pairwise_dist, "pairwise_nearmiss": pairwise_nearmiss}).to_csv(metric2_path, index=False)
 	if needs_metric3:
 		pd.DataFrame({"corrected_dist": corrected_dist, "corrected_nearmiss": corrected_nearmiss}).to_csv(metric3_path, index=False)
+	if needs_metric3_nz:
+		pd.DataFrame({"corrected_nz_dist": corrected_nz_dist, "corrected_nz_nearmiss": corrected_nz_nearmiss}).to_csv(metric3_nonzero_path, index=False)
 
 if not needs_metric1:
 	m1 = pd.read_csv(metric1_path)
@@ -213,6 +232,9 @@ if not needs_metric2:
 if not needs_metric3:
 	m3 = pd.read_csv(metric3_path)
 	corrected_dist, corrected_nearmiss = m3["corrected_dist"].tolist(), m3["corrected_nearmiss"].tolist()
+if not needs_metric3_nz:
+	m3nz = pd.read_csv(metric3_nonzero_path)
+	corrected_nz_dist, corrected_nz_nearmiss = m3nz["corrected_nz_dist"].tolist(), m3nz["corrected_nz_nearmiss"].tolist()
 
 # Regenerate the example confusion matrices/tables below (fast, seed=42) -
 # independent of the cache above, so it's always fresh regardless of which
@@ -299,6 +321,19 @@ get_dist_stats(pairwise_nearmiss, "Near-Miss Accuracy (Metric 2: pairwise agreem
 # 3.3
 get_dist_stats(corrected_dist, "Exact Accuracy (Metric 3: corrected agreement with median)")
 get_dist_stats(corrected_nearmiss, "Near-Miss Accuracy (Metric 3: corrected agreement with median)")
+```
+
+### 3.4 Metric 3 (non-median-0 CDAs): summary statistics (mean, 95% CI, SD)
+
+Metric 3 recomputed after excluding CDAs with a median severity score of 0.
+Because class-0 CDAs are near-unanimously agreed upon, this isolates rater
+agreement on the harder non-zero severity classes, giving the appropriate
+inter-rater baseline for comparison against non-median-0 intra-rater agreement.
+
+```{python}
+# 3.4
+get_dist_stats(corrected_nz_dist, "Exact Accuracy (Metric 3, non-median-0 CDAs)")
+get_dist_stats(corrected_nz_nearmiss, "Near-Miss Accuracy (Metric 3, non-median-0 CDAs)")
 ```
 
 ## 4. Distribution plots
