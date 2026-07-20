@@ -677,25 +677,30 @@ save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5, dir = "the
 
 ```{r}
 # 7.3.1
-# Ordinal Krippendorff's alpha - the same statistic used for the full
-# inter-rater panel in 05_inter_rater_agreement.qmd - applied here to each
-# rater's two occasions (treating old_score and new_score as two raters).
-# Using one coefficient for both keeps intra- and inter-rater reliability on
-# a single comparable scale, and the ordinal metric respects that a 1<->6
-# disagreement is worse than 1<->2 (the reason alpha was chosen over %
-# agreement). It also handles missing values natively. Per-rater 95% CIs are
-# bootstrapped over CDAs.
+# Interval Krippendorff's alpha - the same metric now used for the full
+# inter-rater panel in 05_inter_rater_agreement.qmd (05 was switched from
+# ordinal to interval; see its section 7.1 for the rationale) - applied here
+# to each rater's two occasions (treating old_score and new_score as two
+# raters). Using one metric for both keeps intra- and inter-rater reliability
+# on a single comparable scale; the interval metric applies a fixed,
+# interpretable spacing between severity scores rather than one derived from
+# this sample's score frequencies. It also handles missing values natively.
+# Per-rater 95% CIs are bootstrapped over CDAs with replacement (n-of-n) - the
+# standard nonparametric bootstrap. Each rater rescored only ~100 CDAs, so a
+# fixed-size subsample without replacement (as 05's headline figure uses) is
+# not possible here, and a with-replacement bootstrap is in any case the
+# correct sampling distribution for a CI on the estimate.
 #
 # `inter_alpha` below is NOT reused from 05_inter_rater_agreement.qmd - it is
 # recomputed independently, from the original combined_cda_data_median.csv
-# panel, restricted to non-zero-median CDAs only (to match what was
-# available for rescoring; only non-zero-median CDAs were rescored - see
-# GOHREP). That restriction is why it legitimately differs from 05's
-# headline ordinal alpha, which is computed over all CDAs (0.805 here vs.
-# 0.935 there - the abundant, near-unanimous median-0 CDAs inflate 05's
-# figure). It is unrelated to the rescore data itself, which is far too
-# small (~100 trials/rater, almost no shared images across raters) to
-# support an inter-rater alpha of its own.
+# panel, restricted to non-zero-median CDAs only (to match what was available
+# for rescoring; only non-zero-median CDAs were rescored - see GOHREP). That
+# restriction is why it legitimately differs from 05's headline alpha, which is
+# computed over all CDAs (the abundant, near-unanimous median-0 CDAs inflate
+# 05's figure). It is given its own with-replacement bootstrap CI so that intra-
+# and inter-rater alpha are compared on identical footing - same metric, same
+# CDA restriction, same bootstrap scheme - with the comparison read off the
+# overlap of the two CIs.
 set.seed(42)
 
 # Per-rater intra-rater alpha (old vs new as two raters) with bootstrap CIs.
@@ -704,10 +709,10 @@ intra_alpha <- rescore_data %>%
   group_by(Scorer) %>%
   group_modify(~ {
     m <- rbind(.x$old_score, .x$new_score)
-    a <- kripp.alpha(m, method = "ordinal")$value
+    a <- kripp.alpha(m, method = "interval")$value
     boot <- bootstrap_kripp_alpha(
       m,
-      method = "ordinal", replace = TRUE, seed = NULL, suppress_warnings = TRUE,
+      method = "interval", replace = TRUE, seed = NULL, suppress_warnings = TRUE,
       cache_path = here(
         "analyses", "06_intra_rater_reliability", "bootstrap_cache",
         paste0("intra_alpha_scorer_", .y$Scorer, ".rds")
@@ -745,10 +750,25 @@ inter_mat <- inter_long %>%
   tibble::column_to_rownames("Scorer") %>%
   as.matrix()
 
-inter_alpha <- kripp.alpha(inter_mat, method = "ordinal")$value
+inter_alpha <- kripp.alpha(inter_mat, method = "interval")$value
+
+# With-replacement (n-of-n) bootstrap CI for the inter-rater reference, matching
+# the intra-rater bootstrap scheme above. Cached and reused in section 7.5.
+inter_alpha_boot <- bootstrap_kripp_alpha(
+  inter_mat,
+  method = "interval", replace = TRUE, suppress_warnings = TRUE,
+  cache_path = here(
+    "analyses", "06_intra_rater_reliability", "bootstrap_cache",
+    "alpha_inter_nonzero_interval.rds"
+  )
+)
+inter_alpha_lo <- quantile(inter_alpha_boot, 0.025)
+inter_alpha_hi <- quantile(inter_alpha_boot, 0.975)
+
 cat(
-  "Panel inter-rater alpha (ordinal, non-zero-median CDAs):",
-  round(inter_alpha, 3), "\n"
+  "Panel inter-rater alpha (interval, non-zero-median CDAs):",
+  round(inter_alpha, 3),
+  sprintf("95%% CI [%.3f, %.3f]\n", inter_alpha_lo, inter_alpha_hi)
 )
 print(intra_alpha)
 ```
@@ -758,15 +778,19 @@ print(intra_alpha)
 #| fig-height: 5
 # 7.3.2
 p <- ggplot(intra_alpha, aes(x = Scorer, y = alpha)) +
+  annotate("rect",
+    xmin = -Inf, xmax = Inf, ymin = inter_alpha_lo, ymax = inter_alpha_hi,
+    fill = "grey70", alpha = 0.35
+  ) +
   geom_hline(yintercept = inter_alpha, linetype = "dashed", color = "grey40") +
   annotate("text",
     x = Inf, y = inter_alpha, vjust = -0.6, hjust = 1.05,
-    label = sprintf("Inter-rater α = %.3f", inter_alpha),
+    label = sprintf("Inter-rater α = %.3f (95%% CI %.3f–%.3f)", inter_alpha, inter_alpha_lo, inter_alpha_hi),
     size = 4, color = "grey30"
   ) +
   geom_pointrange(aes(ymin = lo, ymax = hi), color = "firebrick", linewidth = 0.7) +
   scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "Rater", y = "Krippendorff's α (ordinal)") +
+  labs(x = "Rater", y = "Krippendorff's α (interval)") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -788,15 +812,15 @@ intra_raw_mat <- rbind(
   new = intra_pooled$new_score
 )
 
-alpha_intra_raw <- kripp.alpha(intra_raw_mat, method = "ordinal")$value
+alpha_intra_raw <- kripp.alpha(intra_raw_mat, method = "interval")$value
 
 alpha_intra_raw_boot <- bootstrap_kripp_alpha(
   intra_raw_mat,
-  method = "ordinal", replace = TRUE, suppress_warnings = TRUE,
+  method = "interval", replace = TRUE, suppress_warnings = TRUE,
   cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_intra_raw.rds")
 )
 
-cat("Pooled intra-rater α (ordinal, raw):", round(alpha_intra_raw, 4), "\n")
+cat("Pooled intra-rater α (interval, raw):", round(alpha_intra_raw, 4), "\n")
 cat("Bootstrap mean α:", round(mean(alpha_intra_raw_boot), 4), "\n")
 cat(
   "95% CI: [", round(quantile(alpha_intra_raw_boot, 0.025), 4), ",",
@@ -810,11 +834,10 @@ cat(
 # 7.4.2
 boot_df <- data.frame(alpha = alpha_intra_raw_boot)
 
-# inter_alpha (0.805) sits almost exactly on top of the fixed 0.8 reliability
-# convention (a coincidence of this dataset, not a relationship between the
-# two - see §7.3.1), so their vlines would otherwise be indistinguishable.
-# Embedding each line's actual value in its own legend label, rather than a
-# fixed string, makes them unambiguous even when visually overlapping.
+# The inter-rater and 0.8-threshold vlines can fall close together, so their
+# lines would otherwise be hard to tell apart. Embedding each line's actual
+# value in its own legend label, rather than a fixed string, keeps them
+# unambiguous even when they visually overlap.
 boot_mean_lab <- sprintf("Bootstrap mean = %.3f", mean(alpha_intra_raw_boot))
 inter_lab <- sprintf("Inter-rater α (panel) = %.3f", inter_alpha)
 threshold_lab <- "α = 0.8 reliability threshold (fixed convention)"
@@ -847,7 +870,7 @@ p <- ggplot(boot_df, aes(x = alpha)) +
       c(boot_mean_lab, inter_lab, threshold_lab)
     )
   ) +
-  labs(x = "Krippendorff's α (ordinal)", y = "Count") +
+  labs(x = "Krippendorff's α (interval)", y = "Count") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -867,11 +890,12 @@ save_plot(p, "intra_krippendorff_alpha_raw.png", width = 7, height = 5, dir = "t
 # (test-retest) alpha from 7.4, and the panel inter-rater alpha bootstrapped
 # over the same non-zero-median CDAs (resampling the inter_mat columns with
 # replacement). This shows directly how much the two reliabilities overlap.
-# (The inter-rater bootstrap over ~3,650 CDAs adds ~30-60s to the render.)
+# Same call (and cache) as the inter-rater bootstrap in 7.3.1, so this reads
+# the cached result rather than recomputing.
 alpha_inter_boot <- bootstrap_kripp_alpha(
   inter_mat,
-  method = "ordinal", replace = TRUE, suppress_warnings = TRUE,
-  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_inter.rds")
+  method = "interval", replace = TRUE, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_inter_nonzero_interval.rds")
 )
 
 cat(
@@ -902,7 +926,7 @@ p <- ggplot(alpha_dist, aes(x = alpha, fill = source, color = source)) +
   geom_density(alpha = 0.4, linewidth = 0.8) +
   scale_fill_manual(values = dist_pal, name = NULL) +
   scale_color_manual(values = dist_pal, name = NULL) +
-  labs(x = "Krippendorff's α (ordinal)", y = "Density") +
+  labs(x = "Krippendorff's α (interval)", y = "Density") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13), axis.title = element_text(size = 15),
