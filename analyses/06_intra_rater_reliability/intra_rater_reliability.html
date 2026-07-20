@@ -417,17 +417,17 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Near-miss agreement (±1)"</span>, <span class="st">"Exact agreement"</span>)</span>
 <span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  ))</span>
 <span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel-wide medians, drawn as black dashed reference lines matching the</span></span>
-<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="co"># scorer_accuracy figure: the lower line is the median exact self-agreement,</span></span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="co"># the upper line the median near-miss self-agreement (within +/-1). They are</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel-wide means, drawn as black dashed reference lines matching the</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="co"># scorer_accuracy figure: the lower line is the mean exact self-agreement,</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="co"># the upper line the mean near-miss self-agreement (within +/-1). They are</span></span>
 <span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="co"># labelled on a secondary right-hand y-axis so they add no legend entries.</span></span>
-<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>median_exact <span class="ot">&lt;-</span> <span class="fu">median</span>(summary_stats<span class="sc">$</span>intra_exact) <span class="sc">/</span> <span class="dv">100</span></span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>median_within1 <span class="ot">&lt;-</span> <span class="fu">median</span>(summary_stats<span class="sc">$</span>intra_within1) <span class="sc">/</span> <span class="dv">100</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>mean_exact <span class="ot">&lt;-</span> <span class="fu">mean</span>(summary_stats<span class="sc">$</span>intra_exact) <span class="sc">/</span> <span class="dv">100</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>mean_within1 <span class="ot">&lt;-</span> <span class="fu">mean</span>(summary_stats<span class="sc">$</span>intra_within1) <span class="sc">/</span> <span class="dv">100</span></span>
 <span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(intra_plot_data, <span class="fu">aes</span>(<span class="at">x =</span> Scorer, <span class="at">y =</span> value <span class="sc">/</span> <span class="dv">100</span>, <span class="at">fill =</span> metric)) <span class="sc">+</span></span>
 <span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>) <span class="sc">+</span></span>
-<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> median_exact, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
-<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> median_within1, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> mean_exact, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> mean_within1, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
 <span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
 <span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
 <span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Exact agreement"</span> <span class="ot">=</span> <span class="st">"#238b45"</span>,</span>
@@ -439,10 +439,10 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
 <span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span>percent, <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
 <span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(<span class="sc">~</span>.,</span>
-<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">breaks =</span> <span class="fu">c</span>(median_exact, median_within1),</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">breaks =</span> <span class="fu">c</span>(mean_exact, mean_within1),</span>
 <span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>      <span class="at">labels =</span> <span class="fu">c</span>(</span>
-<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>        <span class="fu">sprintf</span>(<span class="st">"Median exact</span><span class="sc">\n</span><span class="st">(%.1f%%)"</span>, <span class="dv">100</span> <span class="sc">*</span> median_exact),</span>
-<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>        <span class="fu">sprintf</span>(<span class="st">"Median near-miss</span><span class="sc">\n</span><span class="st">(%.1f%%)"</span>, <span class="dv">100</span> <span class="sc">*</span> median_within1)</span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>        <span class="fu">sprintf</span>(<span class="st">"Mean exact</span><span class="sc">\n</span><span class="st">(%.1f%%)"</span>, <span class="dv">100</span> <span class="sc">*</span> mean_exact),</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>        <span class="fu">sprintf</span>(<span class="st">"Mean near-miss</span><span class="sc">\n</span><span class="st">(%.1f%%)"</span>, <span class="dv">100</span> <span class="sc">*</span> mean_within1)</span>
 <span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>      )</span>
 <span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
@@ -484,14 +484,14 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Near-miss (±1)</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(intra_within1 <span class="sc">/</span> <span class="dv">100</span>, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
 <span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>median_agreement_row <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">Rater =</span> <span class="st">"Median"</span>,</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>mean_agreement_row <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">Rater =</span> <span class="st">"Mean"</span>,</span>
 <span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Rescored (n)</span><span class="st">`</span> <span class="ot">=</span> <span class="st">""</span>,</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Exact Agreement</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(<span class="fu">median</span>(summary_stats<span class="sc">$</span>intra_exact) <span class="sc">/</span> <span class="dv">100</span>, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Near-miss (±1)</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(<span class="fu">median</span>(summary_stats<span class="sc">$</span>intra_within1) <span class="sc">/</span> <span class="dv">100</span>, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Exact Agreement</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(<span class="fu">mean</span>(summary_stats<span class="sc">$</span>intra_exact) <span class="sc">/</span> <span class="dv">100</span>, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Near-miss (±1)</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(<span class="fu">mean</span>(summary_stats<span class="sc">$</span>intra_within1) <span class="sc">/</span> <span class="dv">100</span>, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
 <span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="fu">bind_rows</span>(intra_agreement_values, median_agreement_row) <span class="sc">%&gt;%</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="fu">bind_rows</span>(intra_agreement_values, mean_agreement_row) <span class="sc">%&gt;%</span></span>
 <span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Per-rater intra-rater self-agreement (panel A values)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
@@ -537,10 +537,10 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <td style="text-align: left;">63.0%</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Median</td>
+<td style="text-align: left;">Mean</td>
 <td style="text-align: left;"></td>
-<td style="text-align: left;">56.6%</td>
-<td style="text-align: left;">92.9%</td>
+<td style="text-align: left;">52.4%</td>
+<td style="text-align: left;">87.4%</td>
 </tr>
 </tbody>
 </table>
