@@ -51,7 +51,10 @@ project_lookup <- setNames(project_key$Anon_Label, project_key$Project)
 
 ```{r}
 # 1.3
-path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+path_data <- here(
+  "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+  "combined_cda_data_medoid.csv"
+)
 score_data <- read_csv(path_data, show_col_types = FALSE) %>%
   select(Basename, Row, Col, Pos, Scorer1, Score1, Scorer2, Score2, Scorer3, Score3, Median_Score) %>%
   mutate(
@@ -166,7 +169,10 @@ merged_2 <- pairwise_score_data(score_long_2)
 
 ```{r}
 # 1.6
-median_path <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+median_path <- here(
+  "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+  "combined_cda_data_medoid.csv"
+)
 median_long <- read_csv(median_path, show_col_types = FALSE) %>%
   select(Basename, Row, Col, Pos, Score1, Score2, Score3, Median_Score) %>%
   mutate(across(c(Score1, Score2, Score3), ~ replace(as.character(.), . == "[]", NA))) %>%
@@ -570,7 +576,7 @@ p_top <- ggplot() +
     sec.axis = sec_axis(~., name = "% of Severity Scores that were 0")
   ) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
-  labs(x = NULL, y = "Metric 3 Agreement (%)") +
+  labs(x = NULL, y = "Corrected agreement") +
   theme_minimal() +
   theme(
     axis.text.x = element_blank(),
@@ -597,7 +603,7 @@ p_bottom <- ggplot(image_stats_nonzero, aes(x = Folder, y = Nonzero_Agreement, f
   scale_x_discrete(labels = project_labels) +
   scale_y_continuous(limits = c(0, 100)) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
-  labs(x = "Project", y = "Agreement on\nnon-zero scores (%)") +
+  labs(x = "Project", y = "Corrected agreement (non-0)") +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
