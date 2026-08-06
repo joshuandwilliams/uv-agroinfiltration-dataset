@@ -40,6 +40,7 @@ library(patchwork)
 library(scales)
 library(here)
 library(irr)
+library(irrCAC)
 ```
 
 ### 1.2 Load and anonymise rescore data
@@ -150,8 +151,8 @@ rescore_prop <- rescore_data %>%
 
 original_alloc <- read_csv(
   here(
-    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
-    "combined_cda_data_median.csv"
+    "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+    "combined_cda_data_medoid.csv"
   ),
   show_col_types = FALSE
 ) %>%
@@ -469,8 +470,8 @@ change_dir %>%
 # 6
 canonical_scores <- read_csv(
   here(
-    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
-    "combined_cda_data_median.csv"
+    "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+    "combined_cda_data_medoid.csv"
   ),
   show_col_types = FALSE
 ) %>%
@@ -556,8 +557,8 @@ save_plot(p, "median_label_changes.png", width = 7, height = 5, dir = "thesis_pl
 # uncertainty rather than systematic between-rater bias.
 between_raw <- read_csv(
   here(
-    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
-    "combined_cda_data_median.csv"
+    "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+    "combined_cda_data_medoid.csv"
   ),
   show_col_types = FALSE
 ) %>%
@@ -622,6 +623,79 @@ p <- ggplot(dist_abs, aes(x = factor(adiff), y = prop, fill = source)) +
   )
 p
 save_plot(p, "within_vs_between_abs.png", width = 8, height = 5, dir = "thesis_plots")
+```
+
+### 7.1.1 Absolute difference distribution — within-rater excluding rater 9
+
+Rater 9 was the clear outlier in self-agreement (sections 4.1 and 5.1). This is a
+copy of 7.1 with rater 9's rescores removed from the within-rater differences, to
+check whether the within- vs between-rater gap is driven by that single rater. The
+between-rater distribution is unchanged.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 7.1.1
+within_diff_no9 <- rescore_data %>%
+  filter(!is.na(score_change), Scorer != 9) %>%
+  transmute(diff = as.numeric(score_change))
+
+src_levels_no9 <- c("Within-rater (excl. rater 9)", "Between-rater")
+src_pal_no9 <- setNames(c("firebrick", "steelblue"), src_levels_no9)
+
+dist_abs_no9 <- bind_rows(
+  within_diff_no9 %>% transmute(adiff = abs(diff), source = src_levels_no9[1]),
+  between_diff %>% transmute(adiff = abs(diff), source = src_levels_no9[2])
+) %>%
+  count(source, adiff) %>%
+  group_by(source) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(source = factor(source, levels = src_levels_no9))
+
+p <- ggplot(dist_abs_no9, aes(x = factor(adiff), y = prop, fill = source)) +
+  geom_col(position = "dodge", color = "black", linewidth = 0.3) +
+  scale_fill_manual(values = src_pal_no9, name = NULL) +
+  scale_y_continuous(
+    labels = scales::percent,
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(x = "Score difference", y = "Proportion") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 15),
+    legend.text = element_text(size = 12),
+    legend.position = "top"
+  )
+p
+save_plot(p, "within_vs_between_abs_no9.png", width = 8, height = 5, dir = "thesis_plots")
+```
+
+Per-difference proportions for within-rater (all raters), within-rater excluding
+rater 9, and between-rater:
+
+```{r}
+# 7.1.1 (table)
+prop_by_source <- function(df, label) {
+  df %>%
+    transmute(adiff = abs(diff)) %>%
+    count(adiff, name = "n") %>%
+    mutate(!!label := n / sum(n)) %>%
+    select(adiff, !!label)
+}
+
+tabs <- list(
+  prop_by_source(within_diff, "Within-rater"),
+  prop_by_source(within_diff_no9, "Within-rater (no rater 9)"),
+  prop_by_source(between_diff, "Between-rater")
+)
+
+Reduce(function(a, b) full_join(a, b, by = "adiff"), tabs) %>%
+  arrange(adiff) %>%
+  mutate(across(-adiff, ~ scales::percent(tidyr::replace_na(.x, 0), accuracy = 0.1))) %>%
+  rename(`|Score difference|` = adiff) %>%
+  knitr::kable(caption = "Absolute score-difference proportions by comparison type")
 ```
 
 ### 7.2 Disagreement by score class
@@ -692,7 +766,7 @@ save_plot(p, "within_vs_between_by_class.png", width = 9, height = 5, dir = "the
 # correct sampling distribution for a CI on the estimate.
 #
 # `inter_alpha` below is NOT reused from 05_inter_rater_agreement.qmd - it is
-# recomputed independently, from the original combined_cda_data_median.csv
+# recomputed independently, from the original combined_cda_data_medoid.csv
 # panel, restricted to non-zero-median CDAs only (to match what was available
 # for rescoring; only non-zero-median CDAs were rescored - see GOHREP). That
 # restriction is why it legitimately differs from 05's headline alpha, which is
@@ -729,8 +803,8 @@ intra_alpha <- rescore_data %>%
 # Panel inter-rater alpha on the same non-zero-median CDAs (reference).
 inter_long <- read_csv(
   here(
-    "analyses", "01_generate_raw_data", "04_median_and_centre_coords",
-    "combined_cda_data_median.csv"
+    "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+    "combined_cda_data_medoid.csv"
   ),
   show_col_types = FALSE
 ) %>%
@@ -936,8 +1010,326 @@ p
 save_plot(p, "intra_vs_inter_alpha_distributions.png", width = 7, height = 5)
 ```
 
+### 7.6 Intra- vs inter-rater Gwet's AC2 (matched bootstrap)
+
+```{r}
+# 7.6.1
+# AC2 counterpart to 7.4/7.5: same intra_raw_mat and inter_mat, same n-of-n
+# with-replacement bootstrap scheme, same non-zero-median CDA restriction, so
+# AC2 is compared intra- vs inter-rater on identical footing to alpha above.
+# Reuses gwet.ac1.raw()/bootstrap_gwet_ac2() from section 8, not the 500-CDA
+# subsample scheme used there - this pairing is deliberately matched to 7.3-7.5
+# instead, since that is what the intra- vs inter-rater comparison needs.
+ac2_intra_raw <- gwet.ac1.raw(as.data.frame(t(intra_raw_mat)), weights = "quadratic")$est$coeff.val
+ac2_inter_nonzero <- gwet.ac1.raw(as.data.frame(t(inter_mat)), weights = "quadratic")$est$coeff.val
+
+ac2_intra_raw_boot <- bootstrap_gwet_ac2(
+  intra_raw_mat,
+  weights = "quadratic", replace = TRUE, seed = 42, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "ac2_intra_raw.rds")
+)
+ac2_inter_boot <- bootstrap_gwet_ac2(
+  inter_mat,
+  weights = "quadratic", replace = TRUE, seed = 42, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "ac2_inter_nonzero.rds")
+)
+
+cat("Pooled intra-rater AC2 (raw):", round(ac2_intra_raw, 4), "\n")
+cat("Panel inter-rater AC2 (non-zero-median):", round(ac2_inter_nonzero, 4), "\n\n")
+cat(
+  "Intra-rater AC2: mean", round(mean(ac2_intra_raw_boot), 3),
+  " 95% CI [", round(quantile(ac2_intra_raw_boot, 0.025), 3), ",",
+  round(quantile(ac2_intra_raw_boot, 0.975), 3), "]\n"
+)
+cat(
+  "Inter-rater AC2: mean", round(mean(ac2_inter_boot), 3),
+  " 95% CI [", round(quantile(ac2_inter_boot, 0.025), 3), ",",
+  round(quantile(ac2_inter_boot, 0.975), 3), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 7.6.2
+ac2_dist <- bind_rows(
+  tibble(ac2 = ac2_intra_raw_boot, source = "Intra-rater (test–retest)"),
+  tibble(ac2 = ac2_inter_boot, source = "Inter-rater (panel)")
+) %>%
+  mutate(source = factor(source, levels = c("Intra-rater (test–retest)", "Inter-rater (panel)")))
+
+p <- ggplot(ac2_dist, aes(x = ac2, fill = source, color = source)) +
+  geom_density(alpha = 0.4, linewidth = 0.8) +
+  scale_fill_manual(values = dist_pal, name = NULL) +
+  scale_color_manual(values = dist_pal, name = NULL) +
+  labs(x = "Gwet's AC2 (quadratic)", y = "Density") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 13), axis.title = element_text(size = 15),
+    legend.text = element_text(size = 12), legend.position = "top"
+  )
+p
+save_plot(p, "intra_vs_inter_ac2_distributions.png", width = 7, height = 5)
+```
+
 ---
 
-## 8. Interpretation and Discussion
+## 8. Gwet's AC2: a prevalence-robust cross-check
+
+Krippendorff's interval α (computed on the inter-rater panel in
+`05_inter_rater_agreement.qmd`, sections 7.1–7.2) estimates chance agreement from
+the observed score distribution, so it can be depressed when one class dominates
+(the kappa "high-agreement paradox"). Gwet's AC2 uses a chance-agreement model
+that is stable under class imbalance. AC2 with quadratic weights is the direct
+analogue of interval α — same inter-rater panel, same 1,000-draw / 500-CDA
+subsample scheme — computed here for the full dataset and the non-zero-median
+subset so it can be read alongside the α values. Where AC2 and α agree, the α
+value is not a paradox artefact; where they diverge, the gap is the prevalence
+effect.
+
+### 8.1 AC2 point estimates and bootstrap distributions (full and non-zero-median)
+
+```{r}
+# 8.1.1
+# Same inter-rater panel and matrix builder as 05. AC2 (Gwet, quadratic weights)
+# and interval Krippendorff's alpha are computed on identical matrices so the two
+# chance models are compared like-for-like. gwet.ac1.raw() with weights returns
+# the weighted "AC2" coefficient and expects a subjects x raters table, hence the
+# transpose of the scorer x CDA matrix; missing scores (NA) are handled natively.
+panel_all <- read_csv(
+  here(
+    "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+    "combined_cda_data_medoid.csv"
+  ),
+  show_col_types = FALSE
+) %>% mutate(Median_Score = as.numeric(Median_Score))
+
+gwet_mat_full <- build_scorer_matrix(panel_all)
+gwet_mat_no0 <- build_scorer_matrix(panel_all %>% filter(Median_Score > 0))
+
+ac2_full <- gwet.ac1.raw(as.data.frame(t(gwet_mat_full)), weights = "quadratic")$est$coeff.val
+ac2_no0 <- gwet.ac1.raw(as.data.frame(t(gwet_mat_no0)), weights = "quadratic")$est$coeff.val
+alpha_full <- kripp.alpha(gwet_mat_full, method = "interval")$value
+alpha_no0 <- kripp.alpha(gwet_mat_no0, method = "interval")$value
+
+cat(sprintf("Full dataset    : AC2 = %.4f  |  Krippendorff alpha = %.4f\n", ac2_full, alpha_full))
+cat(sprintf("Non-zero-median : AC2 = %.4f  |  Krippendorff alpha = %.4f\n", ac2_no0, alpha_no0))
+```
+
+```{r}
+# 8.1.2
+# 1,000-draw / 500-CDA subsample distributions (without replacement), mirroring
+# the interval-alpha subsample scheme in 05 (7.1/7.2). Both coefficients are
+# bootstrapped on the identical matrices and scheme so their distributions can
+# be overlaid directly. Cached - delete the .rds files under bootstrap_cache/
+# to recompute.
+set.seed(42)
+ac2_full_boot <- bootstrap_gwet_ac2(
+  gwet_mat_full,
+  weights = "quadratic", sample_size = 500, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "gwet_ac2_full.rds")
+)
+ac2_no0_boot <- bootstrap_gwet_ac2(
+  gwet_mat_no0,
+  weights = "quadratic", sample_size = 500, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "gwet_ac2_no0.rds")
+)
+alpha_full_boot <- bootstrap_kripp_alpha(
+  gwet_mat_full,
+  method = "interval", sample_size = 500, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_full_interval_500.rds")
+)
+alpha_no0_boot <- bootstrap_kripp_alpha(
+  gwet_mat_no0,
+  method = "interval", sample_size = 500, suppress_warnings = TRUE,
+  cache_path = here("analyses", "06_intra_rater_reliability", "bootstrap_cache", "alpha_no0_interval_500.rds")
+)
+cat(sprintf(
+  "Full     : AC2 mean %.3f [%.3f, %.3f]   alpha mean %.3f [%.3f, %.3f]\n",
+  mean(ac2_full_boot), quantile(ac2_full_boot, 0.025), quantile(ac2_full_boot, 0.975),
+  mean(alpha_full_boot), quantile(alpha_full_boot, 0.025), quantile(alpha_full_boot, 0.975)
+))
+cat(sprintf(
+  "Non-zero : AC2 mean %.3f [%.3f, %.3f]   alpha mean %.3f [%.3f, %.3f]\n",
+  mean(ac2_no0_boot), quantile(ac2_no0_boot, 0.025), quantile(ac2_no0_boot, 0.975),
+  mean(alpha_no0_boot), quantile(alpha_no0_boot, 0.025), quantile(alpha_no0_boot, 0.975)
+))
+```
+
+```{r fig.width=8.6, fig.height=4}
+#| fig-width: 8.6
+#| fig-height: 4
+# 8.1.3
+# The two coefficients' bootstrap distributions are drawn as two SEPARATE plots
+# (translucent overlay, not stacked), one per CDA set, and saved as individual
+# PNGs so they can be stacked in the thesis figure. Each dashed line marks a
+# distribution's mean, labelled with its value (each label offset left or right of
+# its line to avoid collisions - see make_panel). A dotted mark at X = 0.80 is
+# shown on both, and both panels share common x-limits so they read on a single
+# scale when stacked. The colour legend is drawn once, above the all-CDAs (top)
+# plot, and reads for both panels. The panel (data) area is pinned to an identical
+# absolute size in both files (via the gtable in save_fixed_panel) so the two
+# align exactly when stacked in the thesis figure.
+coef_pal <- c("Krippendorff's α" = "#4477AA", "Gwet's AC2" = "#CC6677")
+
+make_panel <- function(boot_alpha, boot_ac2, xlab, show_legend,
+                       alpha_side, ac2_side, x80_side) {
+  # Each value label is placed just left ("left") or just right ("right") of its
+  # own vertical line; the side is chosen per panel so no two labels collide - in
+  # the all-CDAs panel alpha and AC2 are close, so alpha goes left and AC2 right;
+  # in the non-zero panel alpha is close to the 0.80 mark, so the mark goes left
+  # and alpha goes right. All three labels share one height and font size.
+  hj <- function(side) if (side == "left") 1.1 else -0.1
+
+  df <- bind_rows(
+    tibble(stat = boot_alpha, Coefficient = "Krippendorff's α"),
+    tibble(stat = boot_ac2, Coefficient = "Gwet's AC2")
+  ) %>%
+    mutate(Coefficient = factor(Coefficient, levels = c("Krippendorff's α", "Gwet's AC2")))
+
+  means <- df %>%
+    group_by(Coefficient) %>%
+    summarise(m = mean(stat), .groups = "drop")
+  m_alpha <- means$m[means$Coefficient == "Krippendorff's α"]
+  m_ac2 <- means$m[means$Coefficient == "Gwet's AC2"]
+
+  ggplot(df, aes(x = stat, fill = Coefficient)) +
+    geom_histogram(position = "identity", alpha = 0.5, binwidth = 0.005, colour = NA) +
+    geom_vline(
+      data = means, aes(xintercept = m, colour = Coefficient),
+      linetype = "dashed", linewidth = 0.8, show.legend = FALSE
+    ) +
+    geom_vline(xintercept = 0.8, linetype = "dotted", colour = "black", linewidth = 0.6) +
+    annotate("text",
+      x = m_alpha, y = Inf, label = sprintf("%.3f", m_alpha),
+      colour = coef_pal[["Krippendorff's α"]], hjust = hj(alpha_side), vjust = 1.5, size = 3.3
+    ) +
+    annotate("text",
+      x = m_ac2, y = Inf, label = sprintf("%.3f", m_ac2),
+      colour = coef_pal[["Gwet's AC2"]], hjust = hj(ac2_side), vjust = 1.5, size = 3.3
+    ) +
+    annotate("text",
+      x = 0.8, y = Inf, label = "X = 0.80",
+      colour = "grey30", hjust = hj(x80_side), vjust = 1.5, size = 3.3
+    ) +
+    scale_fill_manual(values = coef_pal, name = NULL) +
+    scale_colour_manual(values = coef_pal, guide = "none") +
+    coord_cartesian(xlim = c(0.75, 0.965)) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
+    labs(x = xlab, y = "Count") +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 13),
+      legend.position = if (show_legend) "top" else "none",
+      legend.text = element_text(size = 12)
+    )
+}
+
+# Pin the panel (data area) to an identical absolute size in both files, so the
+# two subplots line up exactly when stacked in the thesis figure, then save.
+save_fixed_panel <- function(p, filename, canvas_h) {
+  g <- ggplotGrob(p)
+  is_panel <- g$layout$name == "panel"
+  g$widths[unique(g$layout$l[is_panel])] <- grid::unit(18, "cm")
+  g$heights[unique(g$layout$t[is_panel])] <- grid::unit(6, "cm")
+  ggplot2::ggsave(
+    here("analyses", "06_intra_rater_reliability", "thesis_plots", filename),
+    plot = g, width = 8.6, height = canvas_h, units = "in", dpi = 300
+  )
+  invisible(g)
+}
+
+p_all <- make_panel(alpha_full_boot, ac2_full_boot, "Statistic (all CDAs)",
+  show_legend = TRUE, alpha_side = "left", ac2_side = "right", x80_side = "left"
+)
+p_no0 <- make_panel(alpha_no0_boot, ac2_no0_boot, "Statistic (CDAs outside score class 0)",
+  show_legend = FALSE, alpha_side = "right", ac2_side = "right", x80_side = "left"
+)
+
+save_fixed_panel(p_all, "gwet_vs_krippendorff_all.png", canvas_h = 4.0)
+save_fixed_panel(p_no0, "gwet_vs_krippendorff_no0.png", canvas_h = 3.4)
+
+p_all
+p_no0
+```
+
+### 8.2 All four distributions on a single axis
+
+A compact alternative to the two stacked panels: all four bootstrap distributions
+overlaid on one axis, each statistic shown in a light (all CDAs) and dark
+(non-zero-median) shade of the same hue.
+
+```{r fig.width=11, fig.height=5}
+#| fig-width: 11
+#| fig-height: 5
+# 8.2.1
+# Four equal-weight hues - a cool pair for Krippendorff (blue = all CDAs, teal =
+# non-zero) and a warm pair for Gwet (orange = all CDAs, magenta = non-zero) - so
+# no distribution reads as more important than another (varying hue, not
+# brightness). Each dashed line marks a mean, labelled with its value; the close
+# all-CDAs pair is offset left/right to avoid collision. Single-row legend above.
+pal4 <- c(
+  "Krippendorff's α (all CDAs)" = "#3B6DB3",
+  "Krippendorff's α (non-0)" = "#1B9E8A",
+  "Gwet's AC2 (all CDAs)" = "#E8803A",
+  "Gwet's AC2 (non-0)" = "#C23B6B"
+)
+df4 <- bind_rows(
+  tibble(stat = alpha_full_boot, grp = "Krippendorff's α (all CDAs)"),
+  tibble(stat = alpha_no0_boot, grp = "Krippendorff's α (non-0)"),
+  tibble(stat = ac2_full_boot, grp = "Gwet's AC2 (all CDAs)"),
+  tibble(stat = ac2_no0_boot, grp = "Gwet's AC2 (non-0)")
+) %>%
+  mutate(grp = factor(grp, levels = names(pal4)))
+means4 <- df4 %>%
+  group_by(grp) %>%
+  summarise(m = mean(stat), .groups = "drop")
+
+# Mean-value label: sits just left ("left") or right of its own mean line, above
+# the histograms (the y-axis has top headroom below).
+mlab <- function(m, hjust, colour) {
+  annotate("text",
+    x = m, y = Inf, label = sprintf("%.3f", m),
+    colour = colour, hjust = hjust, vjust = 1.5, size = 3.2
+  )
+}
+
+p_combined <- ggplot(df4, aes(x = stat, fill = grp)) +
+  geom_histogram(position = "identity", alpha = 0.55, binwidth = 0.005, colour = NA) +
+  geom_vline(
+    data = means4, aes(xintercept = m, colour = grp),
+    linetype = "dashed", linewidth = 0.7, show.legend = FALSE
+  ) +
+  geom_vline(xintercept = 0.8, linetype = "dotted", colour = "black", linewidth = 0.6) +
+  mlab(mean(alpha_full_boot), 1.1, pal4[["Krippendorff's α (all CDAs)"]]) +
+  mlab(mean(alpha_no0_boot), -0.1, pal4[["Krippendorff's α (non-0)"]]) +
+  mlab(mean(ac2_full_boot), -0.1, pal4[["Gwet's AC2 (all CDAs)"]]) +
+  mlab(mean(ac2_no0_boot), 1.1, pal4[["Gwet's AC2 (non-0)"]]) +
+  annotate("text",
+    x = 0.8, y = Inf, label = "X = 0.80",
+    colour = "grey30", hjust = 1.1, vjust = 3.0, size = 3.2
+  ) +
+  scale_fill_manual(values = pal4, name = NULL) +
+  scale_colour_manual(values = pal4, guide = "none") +
+  guides(fill = guide_legend(nrow = 1)) +
+  coord_cartesian(xlim = c(0.75, 0.965)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(x = "Statistic", y = "Count") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 13),
+    legend.position = "top",
+    legend.text = element_text(size = 10),
+    legend.key.size = grid::unit(0.9, "lines")
+  )
+p_combined
+save_plot(p_combined, "gwet_vs_krippendorff_combined.png", width = 11, height = 5, dir = "thesis_plots")
+```
+
+---
+
+## 9. Interpretation and Discussion
 
 _Add notes here._
