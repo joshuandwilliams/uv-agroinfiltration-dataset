@@ -45,7 +45,7 @@ import human_performance
 
 ```{python}
 # 1.2
-data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"))
+data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_representative_bounding_box_and_score/combined_cda_data_medoid.csv"))
 ```
 
 ## 2. Compute agreement metrics
@@ -376,8 +376,8 @@ plot_distribution(pairwise_nearmiss, f"{plots_dir}/metric2_nearmiss.png", "Near-
 ```{python}
 #| fig-cap: Distribution of Metric 3 after 1,000 iterations of stratified undersampling. (a) Distribution of exact accuracy. (b) Distribution of near-miss accuracy.
 # 4.3
-plot_distribution(corrected_dist, f"{thesis_plots_dir}/metric3_exact.png", "Exact Accuracy (corrected agreement with median)")
-plot_distribution(corrected_nearmiss, f"{thesis_plots_dir}/metric3_nearmiss.png", "Near-Miss Accuracy (corrected agreement with median)")
+plot_distribution(corrected_dist, f"{thesis_plots_dir}/metric3_exact.png", "Corrected Agreement")
+plot_distribution(corrected_nearmiss, f"{thesis_plots_dir}/metric3_nearmiss.png", "Corrected Near-Miss Agreement")
 ```
 
 ## 5. Interpretation and Discussion
