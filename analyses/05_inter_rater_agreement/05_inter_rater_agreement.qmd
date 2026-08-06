@@ -46,7 +46,10 @@ library(irr)
 
 ```{r}
 # 1.2
-path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+path_data <- here(
+  "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+  "combined_cda_data_medoid.csv"
+)
 
 raw_data <- read_csv(path_data, show_col_types = FALSE)
 
@@ -183,7 +186,7 @@ p <- ggplot(conf_counts, aes(x = factor(`Median Score`), y = n, fill = Agreement
     values = agree_pal, name = "Rater Agreement",
     guide = guide_legend(reverse = TRUE)
   ) +
-  labs(x = "Median Severity Score", y = "Frequency") +
+  labs(x = "Severity Score Class", y = "Frequency") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -265,7 +268,7 @@ plot_acc <- scorer_accuracy %>%
   ) %>%
   mutate(metric = factor(metric,
     levels = c("extra_within_one", "exact"),
-    labels = c("Near-miss agreement (±1)", "Exact agreement")
+    labels = c("Corrected near-miss agreement", "Corrected agreement")
   ))
 
 p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
@@ -274,11 +277,11 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
   geom_hline(yintercept = mean_within_one, linetype = "dashed", colour = "grey20", linewidth = 0.6) +
   scale_fill_manual(
     values = c(
-      "Exact agreement" = "steelblue",
-      "Near-miss agreement (±1)" = "#E69F00"
+      "Corrected agreement" = "steelblue",
+      "Corrected near-miss agreement" = "#E69F00"
     ),
     name = NULL,
-    breaks = c("Exact agreement", "Near-miss agreement (±1)")
+    breaks = c("Corrected agreement", "Corrected near-miss agreement")
   ) +
   scale_x_discrete(labels = x_labels) +
   scale_y_continuous(
@@ -286,12 +289,12 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
     sec.axis = sec_axis(~.,
       breaks = c(mean_exact, mean_within_one),
       labels = c(
-        sprintf("Mean exact\n(%.1f%%)", 100 * mean_exact),
-        sprintf("Mean near-miss\n(%.1f%%)", 100 * mean_within_one)
+        sprintf("Mean corrected agreement\n(%.1f%%)", 100 * mean_exact),
+        sprintf("Mean corrected near-miss\n(%.1f%%)", 100 * mean_within_one)
       )
     )
   ) +
-  labs(x = "Rater", y = "Corrected Agreement with Median Severity Score") +
+  labs(x = "Rater", y = "Corrected Agreement") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -683,38 +686,57 @@ save_plot(p_patterns, "agreement_patterns.png", width = 16, height = 16)
 # below it. Both labels sit at the same height, left-justified from their
 # own line's x-position, growing rightward. The one exception: when the
 # threshold (0.8) sits close enough to the mean that its left-justified
-# label would run into the mean's label - as happens in 7.2's non-zero panel,
-# where they differ by ~0.005 - the threshold label is right-justified
+# label would run into the mean's label - as can happen in 7.2's non-zero
+# panel when the mean sits near 0.8 - the threshold label is right-justified
 # instead, so it grows leftward, away from the mean label.
-make_alpha_hist_panel <- function(boot_vec, xlab) {
+make_alpha_hist_panel <- function(boot_vec, xlab, show_threshold = TRUE) {
   mean_val <- mean(boot_vec)
   threshold <- 0.8
 
   base <- ggplot(data.frame(alpha = boot_vec), aes(x = alpha)) +
-    geom_histogram(binwidth = 0.005, fill = "cornflowerblue", color = "white")
+    geom_histogram(bins = 30, fill = "cornflowerblue", color = "white")
   max_count <- max(ggplot_build(base)$data[[1]]$count)
   line_top <- max_count * 1.06
   label_y <- max_count * 1.15
 
   threshold_hjust <- if (abs(mean_val - threshold) < 0.02) 1 else 0
 
+  # Right-justify the mean label when the mean sits in the right ~40% of the
+  # axis, so a tight distribution near the upper edge (e.g. the with-replacement
+  # bootstraps) doesn't push the label off the panel. The axis range depends on
+  # whether the 0.8 threshold line is drawn, since it anchors the left edge.
+  x_rng <- if (show_threshold) range(c(boot_vec, threshold)) else range(boot_vec)
+  mean_hjust <- if ((mean_val - x_rng[1]) / diff(x_rng) > 0.6) 1 else 0
+
+  # The 0.8 threshold line is optional: on a distribution sitting far above 0.8
+  # (e.g. the full-dataset alpha) it only squashes the histogram into one corner,
+  # so it is dropped there and kept where the distribution sits close to 0.8.
+  threshold_layers <- if (show_threshold) {
+    list(
+      geom_segment(
+        x = threshold, xend = threshold, y = 0, yend = line_top,
+        color = "black", linetype = "dotted", linewidth = 0.8
+      ),
+      annotate("text",
+        x = threshold, y = label_y, hjust = threshold_hjust, size = 4, color = "black",
+        label = "α=0.8"
+      )
+    )
+  } else {
+    list()
+  }
+
   base +
     geom_segment(
       x = mean_val, xend = mean_val, y = 0, yend = line_top,
       color = "firebrick", linetype = "dashed", linewidth = 1
     ) +
-    geom_segment(
-      x = threshold, xend = threshold, y = 0, yend = line_top,
-      color = "black", linetype = "dotted", linewidth = 0.8
-    ) +
     annotate("text",
-      x = mean_val, y = label_y, hjust = 0, size = 4, color = "firebrick",
+      x = mean_val, y = label_y, hjust = mean_hjust, size = 4, color = "firebrick",
       label = sprintf("Mean=%.3f", mean_val)
     ) +
-    annotate("text",
-      x = threshold, y = label_y, hjust = threshold_hjust, size = 4, color = "black",
-      label = "α=0.8"
-    ) +
+    threshold_layers +
+    scale_x_continuous(expand = expansion(mult = c(0.05, 0.08))) +
     scale_y_continuous(limits = c(0, max_count * 1.3), expand = expansion(mult = c(0.02, 0))) +
     coord_cartesian(clip = "off") +
     labs(x = xlab, y = "Count") +
@@ -726,19 +748,24 @@ make_alpha_hist_panel <- function(boot_vec, xlab) {
 }
 ```
 
-### 7.1 Ordinal metric
+### 7.1 Interval metric — all CDAs
+
+Krippendorff's alpha is reported here using the **interval** metric, which treats
+the 0-6 severity scores as equally spaced, so a two-class disagreement counts
+four times a one-class disagreement. The **ordinal** metric is deliberately not
+used. Its distance between two scores is derived from the marginal frequencies of
+the scores lying between them, so those distances are a property of this
+particular sample's score distribution rather than of the scale itself: a
+different dataset would imply different distances between the same scores, which
+makes ordinal alpha an unstable basis for a statement about the scale. The
+interval metric instead applies a fixed, interpretable spacing, matching how the
+scores are treated in the rest of this work. Missing values are handled
+automatically: expected agreement is estimated from all rated pairs.
 
 ```{r}
-# 7.1.1
-# Computed on the full rater x CDA matrix directly (no median involved).
-# Two distance metrics are compared here and in 7.3 as a robustness check on
-# the assumed measurement level: ordinal (treats 0-6 as ordered categories)
-# and interval (treats 0-6 as equally spaced). If the two estimates agree,
-# the reliability conclusion doesn't hinge on which scale assumption is
-# correct. Missing values are handled automatically: expected agreement is
-# estimated from all rated pairs.
-alpha_raw <- kripp.alpha(scorer_matrix, method = "ordinal")
-cat("Krippendorff's alpha (ordinal, raw scores):", round(alpha_raw$value, 4), "\n")
+# 7.1.1  Interval alpha on the full rater x CDA matrix (no median involved).
+alpha_raw_interval <- kripp.alpha(scorer_matrix, method = "interval")
+cat("Krippendorff's alpha (interval, raw scores):", round(alpha_raw_interval$value, 4), "\n")
 ```
 
 ```{r}
@@ -748,88 +775,6 @@ cat("Krippendorff's alpha (ordinal, raw scores):", round(alpha_raw$value, 4), "\
 # name refers to the general repeated-resampling technique, but this call
 # draws fixed-size subsamples rather than classic with-replacement bootstrap
 # resamples).
-alpha_raw_boot <- bootstrap_kripp_alpha(
-  scorer_matrix,
-  method = "ordinal", sample_size = 500,
-  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal.rds")
-)
-
-cat("Subsample mean α:", round(mean(alpha_raw_boot), 4), "\n")
-cat(
-  "95% CI: [", round(quantile(alpha_raw_boot, 0.025), 4), ",",
-  round(quantile(alpha_raw_boot, 0.975), 4), "]\n"
-)
-```
-
-```{r fig.width=7, fig.height=3.2}
-#| fig-width: 7
-#| fig-height: 3.2
-# 7.1.3
-p <- make_alpha_hist_panel(alpha_raw_boot, "Krippendorff's α (ordinal, all CDAs)")
-p
-save_plot(p, "krippendorff_alpha_raw.png", width = 7, height = 3.2, dir = "thesis_plots")
-```
-
-### 7.2 Ordinal metric — non-zero-median CDAs
-
-```{r}
-# 7.2.1
-# Same rater x CDA matrix as 7.1, restricted to CDAs whose aggregated median
-# score is non-zero (same restriction already applied to pairwise agreement
-# in section 3 via score_data_no_0). Checks whether 7.1's headline ordinal
-# alpha is inflated by the abundant, near-unanimous median-0 CDAs, where
-# raters trivially agree "no cell death".
-score_data_numeric_no_0 <- score_data_numeric %>%
-  filter(Median_Score > 0)
-
-scorer_matrix_no_0 <- build_scorer_matrix(score_data_numeric_no_0)
-cat("Rater matrix dimensions:", nrow(scorer_matrix_no_0), "raters ×", ncol(scorer_matrix_no_0), "CDAs\n")
-
-alpha_raw_no0 <- kripp.alpha(scorer_matrix_no_0, method = "ordinal")
-cat("Krippendorff's alpha (ordinal, non-zero-median CDAs):", round(alpha_raw_no0$value, 4), "\n")
-```
-
-```{r}
-# 7.2.2
-# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw (see 7.1.2
-# on "subsample" vs. classic bootstrap terminology).
-alpha_raw_no0_boot <- bootstrap_kripp_alpha(
-  scorer_matrix_no_0,
-  method = "ordinal", sample_size = 500,
-  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_ordinal_no0.rds")
-)
-
-cat("Subsample mean α:", round(mean(alpha_raw_no0_boot), 4), "\n")
-cat(
-  "95% CI: [", round(quantile(alpha_raw_no0_boot, 0.025), 4), ",",
-  round(quantile(alpha_raw_no0_boot, 0.975), 4), "]\n"
-)
-```
-
-```{r fig.width=7, fig.height=3.2}
-#| fig-width: 7
-#| fig-height: 3.2
-# 7.2.3
-p <- make_alpha_hist_panel(alpha_raw_no0_boot, "Krippendorff's α (ordinal, non-zero-median CDAs)")
-p
-save_plot(p, "krippendorff_alpha_raw_no0.png", width = 7, height = 3.2, dir = "thesis_plots")
-```
-
-### 7.3 Interval metric
-
-```{r}
-# 7.3.1
-# Same rater x CDA matrix as 7.1, but with method = "interval" instead of
-# "ordinal" - no residuals or medians involved, just a different distance
-# metric applied to the same raw scores.
-alpha_raw_interval <- kripp.alpha(scorer_matrix, method = "interval")
-cat("Krippendorff's alpha (interval, raw scores):", round(alpha_raw_interval$value, 4), "\n")
-```
-
-```{r}
-# 7.3.2
-# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw (see 7.1.2
-# on "subsample" vs. classic bootstrap terminology).
 alpha_raw_interval_boot <- bootstrap_kripp_alpha(
   scorer_matrix,
   method = "interval", sample_size = 500,
@@ -846,10 +791,114 @@ cat(
 ```{r fig.width=7, fig.height=3.2}
 #| fig-width: 7
 #| fig-height: 3.2
-# 7.3.3
+# 7.1.3
 p <- make_alpha_hist_panel(alpha_raw_interval_boot, "Krippendorff's α (interval, all CDAs)")
 p
-save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 3.2, dir = "thesis_plots")
+save_plot(p, "krippendorff_alpha_raw_interval.png", width = 7, height = 4.1, dir = "thesis_plots")
+```
+
+### 7.2 Interval metric — non-zero-median CDAs
+
+```{r}
+# 7.2.1
+# Same interval metric as 7.1, restricted to CDAs whose aggregated median score
+# is non-zero (same restriction already applied to pairwise agreement in section
+# 3 via score_data_no_0). Checks whether 7.1's headline alpha is inflated by the
+# abundant, near-unanimous median-0 CDAs, where raters trivially agree "no cell
+# death".
+score_data_numeric_no_0 <- score_data_numeric %>%
+  filter(Median_Score > 0)
+
+scorer_matrix_no_0 <- build_scorer_matrix(score_data_numeric_no_0)
+cat("Rater matrix dimensions:", nrow(scorer_matrix_no_0), "raters ×", ncol(scorer_matrix_no_0), "CDAs\n")
+
+alpha_raw_interval_no0 <- kripp.alpha(scorer_matrix_no_0, method = "interval")
+cat("Krippendorff's alpha (interval, non-zero-median CDAs):", round(alpha_raw_interval_no0$value, 4), "\n")
+```
+
+```{r}
+# 7.2.2
+# Subsample distribution: 1,000 iterations, n = 500 CDAs per draw (see 7.1.2
+# on "subsample" vs. classic bootstrap terminology).
+alpha_raw_interval_no0_boot <- bootstrap_kripp_alpha(
+  scorer_matrix_no_0,
+  method = "interval", sample_size = 500,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval_no0.rds")
+)
+
+cat("Subsample mean α:", round(mean(alpha_raw_interval_no0_boot), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_interval_no0_boot, 0.025), 4), ",",
+  round(quantile(alpha_raw_interval_no0_boot, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=3.2}
+#| fig-width: 7
+#| fig-height: 3.2
+# 7.2.3
+p <- make_alpha_hist_panel(alpha_raw_interval_no0_boot, "Krippendorff's α (interval, non-zero-median CDAs)")
+p
+save_plot(p, "krippendorff_alpha_raw_interval_no0.png", width = 7, height = 4.1, dir = "thesis_plots")
+```
+
+### 7.3 Interval metric — with-replacement bootstrap (for comparison with intra-rater α)
+
+The 7.1/7.2 distributions above subsample 500 CDAs *without* replacement, so
+their spread reflects how much α varies across 500-CDA subsets rather than the
+sampling uncertainty of the estimate itself. For a like-for-like comparison
+against the intra-rater α in `06_intra_rater_reliability` (whose ~100-CDA-per-rater
+sets are too small to subsample 500 without replacement), the same interval α is
+bootstrapped here with replacement over all CDAs (n-of-n) — the standard
+nonparametric bootstrap. Both variants are kept so either can be used downstream;
+the point estimates (7.1.1, 7.2.1) are unchanged.
+
+```{r}
+# 7.3.1  All CDAs, with-replacement (n-of-n) bootstrap.
+alpha_raw_interval_wr <- bootstrap_kripp_alpha(
+  scorer_matrix,
+  method = "interval", replace = TRUE,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval_wr.rds")
+)
+
+cat("Bootstrap mean α (all CDAs, with replacement):", round(mean(alpha_raw_interval_wr), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_interval_wr, 0.025), 4), ",",
+  round(quantile(alpha_raw_interval_wr, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=3.2}
+#| fig-width: 7
+#| fig-height: 3.2
+# 7.3.2
+p <- make_alpha_hist_panel(alpha_raw_interval_wr, "Krippendorff's α (interval, all CDAs)", show_threshold = FALSE)
+p
+save_plot(p, "krippendorff_alpha_raw_interval_wr.png", width = 7, height = 4.1, dir = "thesis_plots")
+```
+
+```{r}
+# 7.3.3  Non-zero-median CDAs, with-replacement (n-of-n) bootstrap.
+alpha_raw_interval_no0_wr <- bootstrap_kripp_alpha(
+  scorer_matrix_no_0,
+  method = "interval", replace = TRUE,
+  cache_path = here("analyses", "05_inter_rater_agreement", "bootstrap_cache", "alpha_raw_interval_no0_wr.rds")
+)
+
+cat("Bootstrap mean α (non-zero-median CDAs, with replacement):", round(mean(alpha_raw_interval_no0_wr), 4), "\n")
+cat(
+  "95% CI: [", round(quantile(alpha_raw_interval_no0_wr, 0.025), 4), ",",
+  round(quantile(alpha_raw_interval_no0_wr, 0.975), 4), "]\n"
+)
+```
+
+```{r fig.width=7, fig.height=3.2}
+#| fig-width: 7
+#| fig-height: 3.2
+# 7.3.4
+p <- make_alpha_hist_panel(alpha_raw_interval_no0_wr, "Krippendorff's α (interval, non-zero-median CDAs)")
+p
+save_plot(p, "krippendorff_alpha_raw_interval_no0_wr.png", width = 7, height = 4.1, dir = "thesis_plots")
 ```
 
 ---
