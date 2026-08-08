@@ -338,10 +338,16 @@ count_data <- allocation_long_combined %>%
 count_data$ScorerName <- factor(count_data$ScorerName, levels = sort(as.numeric(unique(count_data$ScorerName))))
 count_data$Folder <- factor(count_data$Folder, levels = sort(unique(count_data$Folder)))
 
+# Set1 only has 9 qualitative colours; with 10 raters we add one more
+# (black) to keep every rater visually distinct.
+rater_levels <- levels(count_data$ScorerName)
+rater_pal <- setNames(c(RColorBrewer::brewer.pal(9, "Set1"), "black")[seq_along(rater_levels)], rater_levels)
+
 p <- ggplot(count_data, aes(x = ScorerName, y = row_count, color = ScorerName)) +
   geom_point(size = 5) +
   facet_wrap(~Folder, scales = "free_y", nrow = 2) +
   scale_y_continuous(limits = c(min(count_data$row_count), max(count_data$row_count))) +
+  scale_colour_manual(values = rater_pal) +
   labs(x = "Rater", y = "Source Image Count", color = "Rater ID") +
   theme_minimal() +
   theme(
@@ -603,7 +609,7 @@ p_bottom <- ggplot(image_stats_nonzero, aes(x = Folder, y = Nonzero_Agreement, f
   scale_x_discrete(labels = project_labels) +
   scale_y_continuous(limits = c(0, 100)) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
-  labs(x = "Project", y = "Corrected agreement (non-0)") +
+  labs(x = "Project", y = "Corrected agreement (outside score class 0)") +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
