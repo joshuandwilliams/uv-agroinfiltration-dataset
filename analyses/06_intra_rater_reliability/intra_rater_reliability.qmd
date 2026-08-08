@@ -248,8 +248,8 @@ p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
   geom_hline(yintercept = mean_within1, linetype = "dashed", colour = "black", linewidth = 0.6) +
   scale_fill_manual(
     values = c(
-      "Exact agreement" = "#238b45",
-      "Near-miss agreement (±1)" = "#fec44f"
+      "Exact agreement" = "steelblue",
+      "Near-miss agreement (±1)" = "firebrick"
     ),
     name = NULL,
     breaks = c("Exact agreement", "Near-miss agreement (±1)")
@@ -264,7 +264,7 @@ p <- ggplot(intra_plot_data, aes(x = Scorer, y = value / 100, fill = metric)) +
       )
     )
   ) +
-  labs(x = "Rater", y = "Intra-rater agreement") +
+  labs(x = "Rater", y = "Within-rater agreement") +
   theme_minimal() +
   theme(
     axis.text = element_text(size = 13),
@@ -1170,7 +1170,7 @@ cat(sprintf(
 # plot, and reads for both panels. The panel (data) area is pinned to an identical
 # absolute size in both files (via the gtable in save_fixed_panel) so the two
 # align exactly when stacked in the thesis figure.
-coef_pal <- c("Krippendorff's α" = "#4477AA", "Gwet's AC2" = "#CC6677")
+coef_pal <- c("Krippendorff's α" = "steelblue", "Gwet's AC2" = "firebrick")
 
 make_panel <- function(boot_alpha, boot_ac2, xlab, show_legend,
                        alpha_side, ac2_side, x80_side) {
