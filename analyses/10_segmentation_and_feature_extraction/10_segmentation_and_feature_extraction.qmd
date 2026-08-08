@@ -12,27 +12,27 @@ Date: 13/7/2026
 **Goal:**
 
 Test whether the cell death area (CDA) of a leaf can be separated from the
-healthy leaf background *universally* — with one method and no per-image manual
-threshold tuning — using the distribution of pixel values.
+healthy leaf background universally, with one method and no per-image manual
+threshold tuning, using the distribution of pixel values.
 
 **Hypothesis:**
 
 An earlier attempt (`PhD_DL_Models/analyses/0009_Non_DL_Green_Channel_Analysis`)
-watershedded on image **brightness/grayscale** and found the threshold had to be
-retuned per image. The reason is colour: under this UV-fluorescence imaging the
-healthy leaf is **red** (high R, low G) and cell death is **yellow-green**
-(G ≈ or > R), and red leaf and green CDA have *similar brightness*. Segmenting
-on a **greenness** channel (G − R) instead should separate CDA from leaf with a
-threshold that Otsu can set automatically per image, because the two tissues
-form distinct modes in greenness even when they do not in brightness.
+watershedded on image brightness and found the threshold had to be retuned per
+image. The reason is colour. Under this UV-fluorescence imaging the healthy leaf
+is red (high R, low G) and cell death is yellow-green (G at or above R), and red
+leaf and green CDA have similar brightness. Segmenting on a greenness channel
+(G - R) instead should separate CDA from leaf with a threshold that Otsu can set
+automatically per image, because the two tissues form distinct modes in greenness
+even when they do not in brightness.
 
 **Rationale:**
 
 Otsu's method finds the threshold that best splits a bimodal distribution. If
 CDA and leaf are two modes in greenness, Otsu adapts to each image with no
-manual input. Where there is no CDA (median-0 leaves), there is only one mode,
-so segmentation is only meaningful once an image is known to be non-zero — hence
-0 and non-0 are treated separately here.
+manual input. Where there is no CDA (median-0 leaves) there is only one mode, so
+segmentation is only meaningful once an image is known to be non-zero. 0 and
+non-0 are therefore treated separately here.
 
 ---
 
@@ -51,10 +51,6 @@ library(tidyr)
 library(patchwork)
 library(here)
 library(RColorBrewer)
-# randomForest and MASS are called namespaced (randomForest::randomForest,
-# MASS::polr) rather than attached, so they do not mask dplyr::select etc.
-requireNamespace("randomForest", quietly = TRUE)
-requireNamespace("MASS", quietly = TRUE)
 ```
 
 ### 1.2 Helper functions and colour palettes
@@ -77,8 +73,8 @@ load_img <- function(path) {
 }
 
 # Leaf mask: non-black pixels (mean RGB >= 0.15), dropping the near-black
-# background and holes. Analysis 09_image_entropy (§5.5) uses a comparable
-# non-dark threshold on peak brightness.
+# background and holes. 09_image_entropy uses a comparable non-dark threshold
+# on peak brightness.
 leaf_mask <- function(img) (img[, , 1] + img[, , 2] + img[, , 3]) / 3 >= 0.15
 
 # Greenness channel: green minus red. Healthy (red) leaf is strongly negative;
@@ -119,8 +115,8 @@ segment_cda <- function(img, sigma = 2) {
   # smoothing is constant across crop resolutions: base 5 px at the 264-px median
   # crop, applied at radius 2*base. A median filter removes thin protrusions
   # (veins, spurs) far more effectively than a morphological opening of the same
-  # scale while barely shrinking the bulk; see the cleanup comparison in section
-  # 3.3 for the circularity/area justification of this choice.
+  # scale while barely shrinking the bulk, at 0.95 circularity for 98.6% of the
+  # area retained (see the cleanup comparison below).
   b <- max(1, round(5 * mean(dim(img)[1:2]) / 264))
   mask <- EBImage::fillHull(EBImage::medianFilter(mask, 2 * b))
   # The median filter and fillHull ignore the leaf boundary, so they can bridge
@@ -217,14 +213,17 @@ region_entropy <- function(img, mask) {
 
 ## 2. Why brightness fails and greenness works
 
-For one low- and one high-score CDA, the brightness of the leaf and the CDA
-overlap (a single smeared mode), while in greenness the CDA and leaf separate
-into two modes. This is why an Otsu/watershed threshold on brightness cannot be
-set once and reused, but one on greenness can.
+- Otsu's threshold on brightness falls at 66 of 255 for the score-2 crop and 137
+  for the score-6 crop, so no single fixed brightness cut can serve both images.
+- On greenness the same two thresholds are -0.16 and -0.15, so a single greenness
+  cut transfers between crops with no retuning.
 
-```{r fig.width=10, fig.height=5.4}
-#| fig-width: 10
-#| fig-height: 5.4
+```{r fig.width=11.538, fig.height=6.154, dpi=130}
+#| fig-width: 11.538
+#| fig-height: 6.154
+#| fig-dpi: 130
+# Display device matches the saved png() below (1500x800 px at res 130), so the
+# figure renders here exactly as it is saved.
 # 2.1
 set.seed(2)
 demo <- c(
@@ -259,21 +258,38 @@ png(plot_output_path("10_segmentation_and_feature_extraction", "supp_plots", "se
 draw_channels()
 invisible(dev.off())
 draw_channels()
+
+# The point of the figure is threshold stability, not the shape of one histogram:
+# report where Otsu lands in each channel for the two crops.
+for (r in seq_along(demo)) {
+  img <- load_img(demo[r])
+  leaf <- leaf_mask(img)
+  bright <- ((img[, , 1] + img[, , 2] + img[, , 3]) / 3)[leaf]
+  cat(sprintf(
+    "score %d: Otsu threshold on brightness = %.0f/255, on greenness = %+.2f\n",
+    demo_scores[r], 255 * otsu_sep(bright)["thr"],
+    otsu_sep(greenness(img)[leaf])["thr"]
+  ))
+}
 ```
 
 ---
 
 ## 3. Per-image segmentation via Otsu on greenness
 
-One CDA per score (including a median-0 leaf). Columns: crop, blurred greenness,
-Otsu CDA overlay, and the leaf-greenness histogram with the Otsu threshold. For
-non-zero scores the histogram is bimodal and Otsu lands in the valley, cleanly
-isolating the CDA. For score 0 there is no true CDA, yet Otsu still forces a
-split — a spurious "CDA" on healthy tissue (see §4).
+- For every non-zero score the leaf-greenness histogram is bimodal and the Otsu
+  threshold lands in the valley between the modes, so the CDA is isolated with no
+  manual input.
+- The score-0 crop has no lesion, yet Otsu still splits it, and dataset-wide the
+  segmented region covers 49% of the leaf at score 0 against 46% at score 6, so
+  the segmented area alone cannot say whether a lesion is there.
 
-```{r fig.width=10, fig.height=10}
-#| fig-width: 10
-#| fig-height: 10
+```{r fig.width=10.714, fig.height=10.714, dpi=140}
+#| fig-width: 10.714
+#| fig-height: 10.714
+#| fig-dpi: 140
+# Display device matches the saved png() below (1500x1500 px at res 140), so the
+# figure renders here exactly as it is saved.
 # 3.1
 set.seed(7)
 seg_scores <- c(0, 2, 4, 6)
@@ -309,16 +325,18 @@ draw_seg()
 
 ### 3.1 Segmentation of six CDAs per severity score
 
-To check that the cell-death-area selection is correct across many images, six
-randomly sampled CDAs per severity score (0–6) are shown below. The segmented CDA
-boundary (from the Otsu-on-greenness spatial segmentation of §3, after
-morphological cleanup) is drawn in blue on the original crop, so both the leaf
-and the selected region are visible. Rows are severity scores; the six crops in a
-row are independent random samples.
+- Six randomly sampled crops per score, 42 in all, so this is a random audit of
+  the segmentation rather than a curated set of successes.
+- The blue outline follows the visible lesion closely from score 2 upward, while
+  at scores 0-1 it encloses whole regions of healthy or merely infiltrated
+  tissue, which is where the feature overlap later shows up.
 
-```{r fig.width=11, fig.height=12}
-#| fig-width: 11
-#| fig-height: 12
+```{r fig.width=13.333, fig.height=13.333, dpi=150}
+#| fig-width: 13.333
+#| fig-height: 13.333
+#| fig-dpi: 150
+# Display device matches the saved png() below (2000x2000 px at res 150), so the
+# figure renders here exactly as it is saved.
 # 3.1
 set.seed(11)
 n_per <- 6
@@ -353,17 +371,17 @@ draw_seg_grid()
 
 ### 3.2 Otsu vs background-only leaf masks
 
-The spatial segmentation above isolates the cell-death area. A related but
-distinct question is which pixels count as *leaf* when estimating per-image
-lighting (used in the entropy analysis, `09_image_entropy`, §5.5). Two thresholds
-on each CDA's own brightness histogram are compared: the image-adaptive **Otsu**
-threshold, and a low fixed **leaf** cut (brightness >= 0.1) that removes only the
-near-black background and keeps all tissue. For one CDA per score, the original
-crop, the Otsu mask, and the background-only leaf mask are shown.
+Which pixels count as leaf when estimating per-image lighting is a separate
+question from segmenting the lesion. The image-adaptive Otsu threshold is
+compared against a low fixed cut (brightness at or above 0.10) that removes only
+the near-black background.
 
-```{r fig.width=9, fig.height=11}
-#| fig-width: 9
-#| fig-height: 11
+```{r fig.width=10, fig.height=12, dpi=150}
+#| fig-width: 10
+#| fig-height: 12
+#| fig-dpi: 150
+# Display device matches the saved png() below (1500x1800 px at res 150), so the
+# figure renders here exactly as it is saved.
 # 3.2
 set.seed(7)
 leaf_mask_examples <- lapply(c(0, 2, 4, 6), function(sc) {
@@ -411,34 +429,27 @@ invisible(dev.off())
 draw_leaf_masks()
 ```
 
-The Otsu mask cleanly removes the black background where there is one (scores 2,
-4), but because healthy tissue fluoresces red (darker) while lesions are bright
-yellow-green, in higher-score CDAs Otsu selects the **lesion** rather than the
-whole leaf; the background-only leaf mask keeps all tissue regardless of score.
-This is why the entropy analysis (§5.5) uses background-only leaf brightness,
-not Otsu, as its lighting proxy.
+- At score 6 the Otsu mask keeps only 27% of the crop against 100% for the fixed
+  cut, because the bright yellow-green lesion outranks the darker red healthy
+  tissue, so Otsu selects the lesion rather than the leaf.
+- Where a black background exists the two agree closely (78% against 79% at score
+  2), so the fixed cut is the safer lighting proxy for `09_image_entropy`.
 
 ### 3.3 Choosing the morphological cleanup step
 
-The raw Otsu mask is ragged: it carries thin vein spurs and a jagged boundary that
-the near-circular cell death phenotype does not have, so a smoothing step is applied
-before the region features are measured. Several scale-aware smoothers were compared
-to choose it, each scored by **circularity** (4πA/P², where 1 is a perfect circle)
-and **area retained** relative to the raw mask (1 = no shrinkage), on a sample of
-higher-severity crops where spurs are most visible.
+- A median filter at radius 2b gives the roundest outline at circularity 0.95
+  while retaining 98.6% of the raw mask area, so it strips vein spurs without
+  eroding the lesion.
+- The raw mask sits at circularity 0.68 and opening-by-reconstruction leaves it
+  there unchanged, so reconstruction is no use against spurs attached to the
+  bulk of the mask.
 
-A **median filter at radius 2b** was selected: it gives the roundest outlines
-(circularity 0.94) while shrinking the CDA the least (98.7% of the area retained). A
-morphological opening of comparable scale rounds less for more area loss, because it
-erodes the whole boundary rather than only the thin protrusions; a strong boundary
-blur over-rounds genuine lobes; and opening-by-reconstruction leaves spurs that are
-attached to the bulk untouched (its outline is identical to the raw mask), so it does
-not help here. All cleanup radii scale with image size (base b = round(5 · side /
-264)), so the smoothing is constant across crop resolutions.
-
-```{r fig.width=12, fig.height=9}
-#| fig-width: 12
-#| fig-height: 9
+```{r fig.width=16, fig.height=12, dpi=150}
+#| fig-width: 16
+#| fig-height: 12
+#| fig-dpi: 150
+# Display device matches the saved png() below (2400x1800 px at res 150), so the
+# figure renders here exactly as it is saved.
 # 3.3
 odd <- function(n) {
   n <- round(n)
@@ -550,11 +561,9 @@ draw_cleanup_grid()
 
 ## 4. Can the distribution alone detect whether a CDA is present?
 
-Segmenting assumes a CDA exists. The natural universal test for "is there a CDA"
-is the bimodality (separability) of the leaf-greenness distribution. The
-following computes, for every image, the eleven region features summarised from
-the segmentation (§6.1), including the leaf-greenness separability. Computed once
-and cached.
+Segmenting assumes a CDA exists. The natural universal test for whether a lesion
+is present is the bimodality of the leaf-greenness distribution, computed below
+for every image alongside the other region features.
 
 ```{r}
 # 5.1
@@ -578,7 +587,7 @@ if (file.exists(cache_path)) {
       # leaf (leaf minus CDA). Nothing is re-thresholded per feature.
       img <- load_img(f)
       s <- segment_cda(img)
-      leaf <- s$leaf # leaf region ((R+G+B)/3 >= 0.10)
+      leaf <- s$leaf # leaf region ((R+G+B)/3 >= 0.15)
       cda <- s$mask & leaf # segmented CDA (largest greenness component)
       healthy <- leaf & !cda # healthy leaf = leaf minus CDA
       gmat <- greenness(img) # greenness G - R over the whole image
@@ -633,12 +642,12 @@ seg <- seg %>% mutate(
 cat(sprintf("Segmentation metrics for %d images.\n", nrow(seg)))
 ```
 
-Separability rises with score. Median-0 leaves score lower (their greenness is
-closer to unimodal), though not zero — veins, brightness gradients and the
-infiltration-site ring still give Otsu something to split. Even so, the gap from
-non-0 images is large: the area under the ROC curve for classifying 0 vs non-0
-from separability alone is high (§4.2), so the distribution *does* detect CDA
-presence well — consistent with 0-vs-non-0 being the easy part of the problem.
+- Median separability rises from 0.65 at score 0 to 0.85 at score 6 and
+  classifies 0 against non-0 at AUC 0.944 on its own, so the distribution detects
+  a lesion reliably.
+- The same test on segmented CDA area gives AUC 0.451, no better than chance, so
+  the shape of the greenness distribution carries the presence signal where its
+  area does not.
 
 ```{r}
 # 5.2
@@ -674,30 +683,101 @@ p_sep
 save_plot(p_sep, "seg_separability_by_score.png", width = 8, height = 5)
 ```
 
----
+### 4.1 The twelve features, and the exported feature table
 
-## 5. How each feature relates to severity
+The full pipeline, end to end, for one cropped CDA image:
 
-Each of the twelve features used for prediction (§6) is shown as a boxplot
-against median severity score. The eight segmentation features and the four
-colour/brightness/entropy features (from `09_image_entropy`) are faceted together
-(3 wide × 4 high, with free y-axes since the features are on different scales).
-Most rise with severity but overlap heavily between adjacent scores; the
-within-CDA variation features (`cda_green_sd`, `cda_bright_sd`) are close to flat.
+1. Load the raw RGB crop. No resizing, since every feature is a mean, a spread or
+   a ratio and so does not depend on the crop's pixel dimensions.
+2. Leaf mask. Keep pixels whose mean RGB is at least 0.15, which drops the
+   near-black off-leaf background.
+3. Segment the CDA. Rescale greenness (G - R) to 0-1, Gaussian blur at sigma 2,
+   take the Otsu threshold over the leaf pixels only, smooth the mask with a
+   median filter at radius 2b (b = round(5 x side / 264), so smoothing is
+   constant across crop resolutions), re-apply the leaf mask, keep the largest
+   connected component, and fill its enclosed holes.
+4. Summarise the crop. Eleven scalar features are measured here, and Shannon
+   entropy is joined from `09_image_entropy` to make twelve.
 
-```{r fig.width=11, fig.height=12}
-#| fig-width: 11
-#| fig-height: 12
-# 6.1
-# All region features (1-11) are already in `seg`; only Shannon entropy (12) is
-# joined from the entropy analysis so all twelve can be faceted.
-feat6 <- seg %>%
+No per-image threshold tuning anywhere. "Greenness" means G - R (green minus red
+channel). The "CDA" is the segmented region from step 3, the "leaf" is every
+pixel kept by step 2, and the "healthy leaf" is the leaf minus the CDA.
+
+Segmentation features, measured in this analysis:
+
+| Variable | Feature | What it measures | With severity |
+|---|---|---|---|
+| `ent_gap` | CDA-leaf entropy difference | Shannon entropy (bits) of the segmented CDA minus that of the healthy leaf | rises |
+| `cda_green` | CDA greenness | mean greenness (G − R) inside the segmented CDA | rises |
+| `green_gap` | CDA–leaf contrast | CDA greenness minus healthy-leaf (leaf minus CDA) greenness | rises |
+| `sep` | greenness bimodality | Otsu between-class ÷ total variance of leaf greenness (0–1): how cleanly the leaf splits into CDA + healthy | rises (also detects presence) |
+| `cda_bright` | CDA brightness | mean brightness (mean of R,G,B, 0–255) inside the CDA | rises |
+| `leaf_green_sd` | whole-leaf greenness spread | SD of greenness over all leaf pixels (0–255) | rises |
+| `cda_green_sd` | within-CDA greenness spread | SD of greenness among CDA pixels: how mottled the lesion's colour is | ~flat |
+| `cda_bright_sd` | within-CDA brightness spread | SD of brightness among CDA pixels | ~flat |
+
+Colour, brightness and entropy features, taken from `09_image_entropy`:
+
+| Variable | Feature | What it measures | With severity |
+|---|---|---|---|
+| `mean_green` | mean green | mean green-channel intensity over leaf pixels (0–255) | rises |
+| `log_gr` | log green/red ratio | log of the green-pixel to red-pixel count ratio over leaf pixels | rises |
+| `leaf_bright` | leaf brightness | mean brightness over non-black leaf pixels (0–255) | rises |
+| `entropy_raw` | Shannon entropy | information content of the raw crop (bits) | weakly rises |
+
+All twelve are written out for every image, along with the source leaf each crop
+came from and the lesion-area fraction `frac_g_gt_r`. `source` is the crop
+filename with the trailing `_Row_Col_Pos` stripped, and is the grouping unit for
+any leakage-safe cross validation, since crops from one leaf share lighting,
+plant and tissue. The table is the input to `10b_score_prediction.qmd` and
+`11_project_feature_differences`.
+
+```{r}
+# 5.4  Export the full (unbalanced) feature table for every image.
+# Region features 1-11 come from `seg` above; Shannon entropy is the twelfth,
+# taken from the entropy analysis.
+features_all <- seg %>%
   left_join(
     readRDS(here("analyses", "09_image_entropy", "entropy_cache", "cda_metrics.rds")) %>%
       filter(size == "Raw") %>%
       transmute(image_id, entropy_raw = entropy),
     by = "image_id"
+  ) %>%
+  mutate(source = sub("_[0-9]+_[0-9]+_[0-9]+$", "", image_id)) %>%
+  select(
+    image_id, source, score,
+    ent_gap, green_gap, cda_green, sep, cda_green_sd, cda_bright,
+    cda_bright_sd, leaf_green_sd, mean_green, log_gr, leaf_bright,
+    entropy_raw, frac_g_gt_r
   )
+
+features_path <- here("data", "features", "cda_image_features.csv")
+dir.create(dirname(features_path), showWarnings = FALSE, recursive = TRUE)
+write.csv(features_all, features_path, row.names = FALSE)
+cat(sprintf(
+  "Wrote %d images x %d features to data/features/%s (%d source leaves).\n",
+  nrow(features_all), length(setdiff(names(features_all), c("image_id", "source", "score"))),
+  basename(features_path), length(unique(features_all$source))
+))
+```
+
+---
+
+## 5. How each feature relates to severity
+
+- Median CDA greenness climbs from -0.19 at score 0 to +0.02 at score 6, crossing
+  zero near score 4, which is where the lesion becomes greener than the leaf
+  around it.
+- Interquartile ranges of neighbouring scores overlap for all twelve features, so
+  the boxplots already show that no single feature will separate adjacent
+  classes.
+
+```{r fig.width=11, fig.height=12}
+#| fig-width: 11
+#| fig-height: 12
+# 6.1
+# All twelve features are in the table exported in section 4.1.
+feat6 <- features_all %>% mutate(score_f = factor(score, levels = 0:6))
 
 # Order groups the features by region (lesion -> whole-leaf -> global), filled
 # row by row into the 3-wide facet. Readable labels replace the variable names.
@@ -738,26 +818,19 @@ save_plot(p_features, "seg_features_by_score.png", width = 11, height = 12)
 
 ### 5.1 Feature exemplars: low, medium and high
 
-For each of the twelve features, three median-score-3 CDA crops are shown: at a
-low (2nd percentile), median and high (98th percentile) value of that feature.
-Restricting to a single severity class isolates each feature's own variation
-from differences between score classes, so the low-to-high change reflects the
-feature alone. The blue outline marks the segmented CDA on the rows where the
-feature is measured over that region; the whole-leaf and global features
-(measured over the whole leaf) are drawn without an outline. Each crop is
-annotated with its feature value.
+- Within score class 3 alone, CDA greenness spans -0.16 to +0.04 between the 2nd
+  and 98th percentile, over half the full-dataset spread of -0.32 to +0.05.
+- That within-class spread is why crops sharing a score look so different, and why
+  a single feature threshold cannot recover the score.
 
-```{r fig.width=8, fig.height=8.4}
-#| fig-width: 8
-#| fig-height: 8.4
+```{r fig.width=14, fig.height=14.667, dpi=150}
+#| fig-width: 14
+#| fig-height: 14.667
+#| fig-dpi: 150
+# Display device matches the saved png() below (2100x2200 px at res 150), so the
+# figure renders here exactly as it is saved.
 # 6.1b  Low / median / high example crop for each feature.
-feat6_ex <- seg %>%
-  left_join(
-    readRDS(here("analyses", "09_image_entropy", "entropy_cache", "cda_metrics.rds")) %>%
-      filter(size == "Raw") %>%
-      transmute(image_id, entropy_raw = entropy),
-    by = "image_id"
-  )
+feat6_ex <- features_all
 
 qs <- c(Low = 0.02, Medium = 0.5, High = 0.98)
 pct_lab <- c("2nd percentile", "50th percentile", "98th percentile")
@@ -850,42 +923,13 @@ draw_feat_examples()
 
 ### 5.2 How each feature relates to score, and to the others
 
-Two summaries of the twelve features, both on the full (unbalanced) dataset and
-using Spearman (rank) correlation so a feature counts as informative if it is
-monotonically related to score, not necessarily linearly.
+Both summaries use Spearman (rank) correlation on the full unbalanced dataset, so
+a feature counts as informative if it is monotonically related to score.
 
-First, each feature's correlation with severity score (panel B of the
-features-by-score figure above). CDA greenness, the log green-to-red ratio and
-whole-leaf greenness bimodality lead (ρ ≈ 0.83-0.84); Shannon entropy and
-whole-leaf brightness sit mid-pack (ρ ≈ 0.4-0.45); the CDA-leaf entropy
-difference is a moderate, positive signal (ρ ≈ 0.3, and a clean monotone trend in
-the class medians — the segmented CDA is more texturally complex, i.e. has higher
-Shannon entropy, than the surrounding healthy leaf, and increasingly so with
-severity); and within-CDA greenness variation carries almost no marginal signal
-(ρ ≈ 0.02).
-
-Panel C reframes the same features as adjacent-class separability: the mean, over
-the six neighbouring score pairs (0-1, 1-2, ... 5-6), of the AUC — the probability
-that a CDA from the higher score has the larger feature value. Adjacent pairs are
-where raters actually disagree (off-by-one), so this isolates the separability
-that matters, and the picture is stark: even the strongest features (CDA greenness,
-the log green-to-red ratio) reach only AUC ≈ 0.68, the mid-pack features sit at
-AUC ≈ 0.56-0.58, and within-CDA greenness variation is at chance (AUC ≈ 0.49). No
-single hand-crafted feature comes close to cleanly separating neighbouring severity
-scores, consistent with the heavy boxplot overlap in panel A and the off-by-one
-disagreement seen among human raters.
-
-The CDA-leaf entropy difference (segmented CDA entropy minus healthy-leaf entropy,
-so it parallels the CDA-leaf greenness contrast) replaces the CDA area fraction
-that earlier versions of this feature set used. Area was effectively an Otsu
-artefact: Otsu splits every leaf into roughly two greenness classes whether or not
-a real lesion is present, so the segmented area sat near half the leaf at every
-score (ρ ≈ -0.1 with score) and contributed only through interactions. The entropy
-difference is both monotonically related to score and statistically independent of
-the other eleven features (see the matrix below), and swapping it in leaves
-accuracy unchanged (§6.5). Note that some features with a high *marginal* correlation here,
-such as within-CDA brightness variation (ρ ≈ 0.7), are conditionally redundant —
-see the matrix below and the near-zero SHAP values in §6.8.
+- CDA greenness, the log green-to-red ratio and greenness bimodality lead at
+  rho = 0.84, 0.84 and 0.83, so lesion colour carries most of the severity signal.
+- Within-CDA greenness variation is flat at rho = 0.03, so how mottled a lesion is
+  says nothing about how severe it is.
 
 ```{r fig.width=9, fig.height=4.5}
 #| fig-width: 9
@@ -899,7 +943,7 @@ score_cor <- data.frame(
 p_scorecor <- ggplot(score_cor, aes(x = reorder(feature, -rho), y = rho, fill = rho > 0)) +
   geom_col() +
   geom_text(aes(label = sprintf("%.2f", rho), vjust = ifelse(rho > 0, -0.4, 1.3)), size = 3) +
-  scale_fill_manual(values = c(`TRUE` = "#B2182B", `FALSE` = "#2166AC"), guide = "none") +
+  scale_fill_manual(values = c(`TRUE` = "firebrick", `FALSE` = "steelblue"), guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0.12, 0.12))) +
   labs(x = NULL, y = "Spearman correlation with score") +
   theme_minimal() +
@@ -910,10 +954,20 @@ p_scorecor <- ggplot(score_cor, aes(x = reorder(feature, -rho), y = rho, fill = 
 p_scorecor
 ```
 
-```{r}
-#| output: false
-# 6.2b  Per-feature class separability, and assembly of the thesis
-# features-by-score figure.
+- On neighbouring score pairs even the best features reach only AUC 0.68, so the
+  strongest feature is wrong about a third of the time on exactly the comparisons
+  raters confuse.
+- Within-CDA greenness variation sits at AUC 0.49, which is chance, so a feature's
+  marginal correlation overstates how well it separates adjacent classes.
+- The segmented area fraction was dropped as a model feature because Otsu splits
+  every leaf at roughly half its area whatever the score (rho = -0.1), and the
+  CDA-leaf entropy difference replaced it at rho = 0.32.
+
+```{r fig.width=9, fig.height=4.5}
+#| fig-width: 9
+#| fig-height: 4.5
+# 6.2b  Per-feature class separability.
+# Shown standalone here and reused as panel C of the features-by-score figure.
 #
 # Separability is summarised as the mean adjacent-class AUC: for each pair of
 # neighbouring scores (0-1, 1-2, ... 5-6), the probability that a CDA from the
@@ -956,7 +1010,12 @@ p_auc <- ggplot(score_auc, aes(x = feature, y = auc)) +
     axis.text.x = element_text(angle = 40, hjust = 1, size = 10),
     axis.text.y = element_text(size = 11), axis.title = element_text(size = 12)
   )
-# Combined thesis figure: boxplots (panel A) over the Spearman correlations
+p_auc
+```
+
+```{r}
+#| output: false
+# 6.2c  Combined thesis figure: boxplots (panel A) over the Spearman correlations
 # (panel B, x labels dropped since panel C carries them) over the separability
 # AUC (panel C). Saved to thesis_plots.
 p_scorecor_stk <- p_scorecor + theme(axis.text.x = element_blank())
@@ -969,20 +1028,12 @@ p_features_abc <- (p_features / p_scorecor_stk / p_auc) +
 save_plot(p_features_abc, "features_by_score.png", width = 11, height = 16, dir = "thesis_plots")
 ```
 
-Second, the feature-by-feature correlation matrix, with its rows and columns
-ordered by hierarchical clustering (average linkage on 1 − ρ) and the resulting
-dendrogram drawn above, so that similar features sit next to each other. Several
-features are near duplicates and cluster into tight, low branches: the CDA-leaf
-greenness contrast and whole-leaf greenness spread are almost the same
-measurement (ρ = 0.97); CDA brightness, whole-leaf mean green and whole-leaf
-brightness form a brightness block (ρ = 0.87-0.92); and CDA greenness clusters
-with the log green-to-red ratio (ρ = 0.92). The two least-redundant features — the
-CDA-leaf entropy difference and within-CDA greenness variation — join the tree
-last, at the greatest height, confirming they carry information the colour and
-brightness features do not. The redundancy does not hurt the tree/ordinal models
-but does mean the SHAP and Gini rankings (§6.7-6.8) split credit across
-interchangeable features and should be read as blocks rather than as a strict
-per-feature ordering.
+- The CDA-leaf greenness contrast and whole-leaf greenness spread correlate at
+  rho = 0.97, and CDA greenness with the log green-to-red ratio at rho = 0.92, so
+  twelve columns carry far fewer than twelve independent measurements.
+- The CDA-leaf entropy difference and within-CDA greenness variation join the
+  dendrogram last, so they are the only two features adding information the
+  colour and brightness measures miss.
 
 ```{r fig.width=9.5, fig.height=10}
 #| fig-width: 9.5
@@ -1059,621 +1110,12 @@ save_plot(p_cormat, "feature_correlation_matrix.png", width = 9.5, height = 10, 
 
 ---
 
-## 6. Predicting score from the hand-crafted features
+## 6. PCA of the image content, with and without the background
 
-Can these hand-crafted features predict a CDA's score? All modelling here uses a
-**class-balanced** dataset — every score downsampled to the smallest class — so
-the abundant score-0 class cannot dominate (the same balancing used in
-`07_visual_complexity` and the AutoCDAScorer ensemble analysis). Because the
-classes are equal, a majority-class guess scores only 1/7 and exact accuracy
-equals balanced accuracy. Accuracy is reported as **exact** (predicted = true),
-**near-miss** (within ±1, as in `07_visual_complexity`), and **balanced** (mean
-of the per-class exact accuracies).
-
-**The full pipeline, end to end**, for one cropped CDA image:
-
-1. **Load** the raw RGB crop (no resizing — the features are scale-free).
-2. **Leaf mask** — keep pixels with mean brightness ≥ 0.1 (§1.3).
-3. **Segment the CDA** — Otsu threshold on the blurred leaf greenness (G − R),
-   morphological cleanup, then keep the largest connected component (§3).
-4. **Summarise** the crop into 12 scalar features (§6.1).
-5. **Predict** the 0–6 score from those features (random forest, k-NN or ordinal
-   regression). No per-image threshold tuning anywhere.
-
-**The twelve features** — all per-image summaries of the raw crop, so they can be
-read directly off the importance (§6.7) and SHAP (§6.8) plots. "Greenness" means
-G − R (green minus red channel); the "CDA" is the segmented cell-death region
-(the largest connected greenness component after Otsu thresholding and
-morphological cleanup, §3); the "leaf" is all non-black pixels (§1.3); the
-"healthy leaf" is the leaf minus the CDA.
-
-_Segmentation features (this analysis, §3 & §4.1):_
-
-| Variable | Feature | What it measures | With severity |
-|---|---|---|---|
-| `ent_gap` | CDA-leaf entropy difference | Shannon entropy (bits) of the segmented CDA minus that of the healthy leaf | rises |
-| `cda_green` | CDA greenness | mean greenness (G − R) inside the segmented CDA | rises |
-| `green_gap` | CDA–leaf contrast | CDA greenness minus healthy-leaf (leaf minus CDA) greenness | rises |
-| `sep` | greenness bimodality | Otsu between-class ÷ total variance of leaf greenness (0–1): how cleanly the leaf splits into CDA + healthy | rises (also detects presence) |
-| `cda_bright` | CDA brightness | mean brightness (mean of R,G,B, 0–255) inside the CDA | rises |
-| `leaf_green_sd` | whole-leaf greenness spread | SD of greenness over all leaf pixels (0–255) | rises |
-| `cda_green_sd` | within-CDA greenness spread | SD of greenness among CDA pixels: how mottled the lesion's colour is | ~flat |
-| `cda_bright_sd` | within-CDA brightness spread | SD of brightness among CDA pixels | ~flat |
-
-_Colour / brightness / entropy features (from `09_image_entropy`, §4 & §5):_
-
-| Variable | Feature | What it measures | With severity |
-|---|---|---|---|
-| `mean_green` | mean green | mean green-channel intensity over leaf pixels (0–255) | rises |
-| `log_gr` | log green/red ratio | log of the green-pixel to red-pixel count ratio over leaf pixels | rises |
-| `leaf_bright` | leaf brightness | mean brightness over non-black leaf pixels (0–255) | rises |
-| `entropy_raw` | Shannon entropy | information content of the raw crop (bits) | weakly rises |
-
-### 6.1 Assemble features, and a leakage-safe cross-validation
-
-Each cropped CDA comes from a source leaf image (~29 crops per leaf). Crops from
-the same leaf share lighting, plant and tissue, so they are correlated; splitting
-them across training and held-out folds would leak information and inflate
-accuracy. All cross-validation here is therefore **grouped by source leaf** —
-whole leaves are assigned to folds, so no leaf ever appears in both the training
-and held-out folds.
-(Ungrouped image-level cross validation gives ~0.58 exact; grouping removes the
-leak and gives the honest ~0.55.) A shuffled-label check (§6.1) confirms the
-pipeline has no other leakage.
-
-```{r}
-# 7.1.1  Features and class balancing
-# All region features (1-11) are computed in `seg`; only Shannon entropy (12) is
-# taken from the entropy analysis.
-main_feat <- readRDS(here(
-  "analyses", "09_image_entropy", "entropy_cache",
-  "cda_metrics.rds"
-)) %>%
-  filter(size == "Raw") %>%
-  transmute(image_id, entropy_raw = entropy)
-
-seg_features <- c(
-  "ent_gap", "green_gap", "cda_green", "sep",
-  "cda_green_sd", "cda_bright", "cda_bright_sd", "leaf_green_sd",
-  "mean_green", "log_gr", "leaf_bright"
-)
-other_features <- c("entropy_raw")
-all_features <- c(seg_features, other_features)
-
-# frac_g_gt_r is no longer a model feature (its Otsu-artefact behaviour is
-# discussed in section 5.2); it is kept in the frame only for the single-feature
-# "Threshold: CDA area" baseline in section 6.5.
-feat_all <- seg %>%
-  select(image_id, score, frac_g_gt_r, all_of(seg_features)) %>%
-  inner_join(main_feat, by = "image_id")
-
-set.seed(42)
-min_n <- min(table(feat_all$score))
-bal_idx <- unlist(lapply(0:6, function(s) {
-  idx <- which(feat_all$score == s)
-  if (length(idx) > min_n) sample(idx, min_n) else idx
-}))
-feat <- feat_all[bal_idx, ]
-X <- as.matrix(feat[, all_features])
-y <- feat$score
-cat(sprintf(
-  "Balanced set: %d images per class, %d total, %d features\n",
-  min_n, nrow(feat), length(all_features)
-))
-```
-
-```{r}
-# 7.1.2  Source-grouped 5-fold assignment (a leaf's crops never split across folds)
-# The crop filename is <SourceBasename>_<Row>_<Col>_<Pos>, so stripping the
-# trailing _Row_Col_Pos recovers the source leaf image.
-feat$source <- sub("_[0-9]+_[0-9]+_[0-9]+$", "", feat$image_id)
-K <- 5
-set.seed(42)
-usrc <- unique(feat$source)
-src_fold <- setNames(sample(rep(1:K, length.out = length(usrc))), usrc)
-fold <- unname(src_fold[feat$source])
-cat(sprintf(
-  "%d source leaves assigned across %d folds; fold sizes: %s\n",
-  length(usrc), K, paste(as.integer(table(fold)), collapse = ", ")
-))
-
-metric_row <- function(pred, name, tuning = "") {
-  per <- vapply(0:6, function(s) mean(pred[y == s] == s), numeric(1))
-  data.frame(
-    model = name, tuning = tuning,
-    exact = mean(pred == y), near_miss = mean(abs(pred - y) <= 1),
-    balanced = mean(per)
-  )
-}
-# Per-fold accuracy, so the cross-validation is fully transparent (reported
-# alongside the mean, not just pooled).
-per_fold <- function(pred, name) {
-  do.call(rbind, lapply(1:K, function(f) {
-    m <- fold == f
-    data.frame(
-      model = name, fold = as.character(f), n = sum(m),
-      exact = mean(pred[m] == y[m]),
-      near_miss = mean(abs(pred[m] - y[m]) <= 1)
-    )
-  }))
-}
-```
-
-```{r}
-# 7.1.3  Random-forest regressor under the grouped cross validation, plus a leakage sanity check.
-rf_reg_cv <- function(ntree, target = y) {
-  pred <- numeric(length(target))
-  for (f in 1:K) {
-    tr <- fold != f
-    te <- fold == f
-    m <- randomForest::randomForest(x = X[tr, , drop = FALSE], y = target[tr], ntree = ntree)
-    pred[te] <- predict(m, X[te, , drop = FALSE])
-  }
-  pmin(pmax(round(pred), 0), 6)
-}
-# Shuffle the labels: a correctly-built cross validation with no leakage MUST collapse to chance.
-set.seed(7)
-y_shuffled <- sample(y)
-shuffle_acc <- mean(rf_reg_cv(200, y_shuffled) == y_shuffled)
-cat(sprintf(
-  "Leakage check - shuffled-label cross validation exact accuracy = %.3f (chance = %.3f)\n",
-  shuffle_acc, 1 / 7
-))
-```
-
-### 6.2 Choosing k for k-NN
-
-k is swept over a range and chosen by grouped cross-validated exact accuracy (the
-supervised analogue of the k-selection in `07_visual_complexity`). Held-out
-accuracy is essentially flat beyond k ≈ 5, so the precise value barely matters;
-it is taken as the cross validation maximum for definiteness. (Only held-out accuracy is shown
-— training-set accuracy is meaningless for k-NN, since at k = 1 each point is its
-own neighbour and scores 100% by construction.)
-
-```{r}
-# 7.2.1
-knn_cv <- function(ks) {
-  P <- matrix(0L, nrow(X), length(ks), dimnames = list(NULL, paste0("k", ks)))
-  for (f in 1:K) {
-    tr <- fold != f
-    te <- fold == f
-    mu <- colMeans(X[tr, ])
-    sdv <- apply(X[tr, ], 2, sd)
-    sdv[sdv == 0] <- 1
-    Xtr <- scale(X[tr, , drop = FALSE], mu, sdv)
-    Xte <- scale(X[te, , drop = FALSE], mu, sdv)
-    d <- outer(rowSums(Xte^2), rowSums(Xtr^2), "+") - 2 * Xte %*% t(Xtr)
-    ytr <- y[tr]
-    ord <- t(apply(d, 1, order))
-    for (j in seq_along(ks)) {
-      P[te, j] <- apply(ord[, 1:ks[j], drop = FALSE], 1, function(ix) {
-        tb <- table(ytr[ix])
-        as.integer(names(tb)[which.max(tb)])
-      })
-    }
-  }
-  P
-}
-kseq <- seq(1, 51, by = 2)
-knn_preds <- knn_cv(kseq)
-knn_curve <- data.frame(
-  k = kseq,
-  exact = apply(knn_preds, 2, function(p) mean(p == y)),
-  near_miss = apply(knn_preds, 2, function(p) mean(abs(p - y) <= 1))
-)
-best_k <- kseq[which.max(knn_curve$exact)]
-cat(sprintf(
-  "Best k = %d  (held-out exact = %.3f, near-miss = %.3f)\n",
-  best_k, max(knn_curve$exact), knn_curve$near_miss[knn_curve$k == best_k]
-))
-```
-
-```{r fig.width=8, fig.height=4.5}
-#| fig-width: 8
-#| fig-height: 4.5
-# 7.2.2
-p_ksweep <- ggplot(knn_curve, aes(k, exact)) +
-  geom_line(colour = "#2166AC") +
-  geom_point(colour = "#2166AC", size = 1.4) +
-  geom_vline(xintercept = best_k, linetype = "dashed", colour = "grey40") +
-  coord_cartesian(ylim = c(min(knn_curve$exact) - 0.02, max(knn_curve$exact) + 0.02)) +
-  labs(
-    x = "k (number of neighbours)", y = "Held-out exact accuracy (grouped 5-fold cross validation)",
-    title = sprintf("k-NN: held-out accuracy is flat beyond k ~ 5; chosen k = %d", best_k)
-  ) +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
-p_ksweep
-save_plot(p_ksweep, "seg_knn_k_sweep.png", width = 8, height = 4.5)
-```
-
-### 6.3 Random forest: regularising to control overfitting
-
-A fully-grown random forest memorises the training set — its training accuracy is
-~0.91 against ~0.55 held-out, a ~36-point gap — so by the rule of discarding any
-model whose train–cross-validation gap exceeds 15%, it must be regularised. The
-forest is fixed at 200 trees (accuracy plateaus well before that, and more trees
-never hurt a random forest) and the tree size is capped with `maxnodes`,
-increasing it until the train–cross-validation gap reaches 15%; the largest
-held-out accuracy within that bound is chosen. Training accuracy is fit and scored
-on all the data (resubstitution); held-out is the grouped 5-fold cross validation.
-
-```{r}
-# 7.3.1
-NTREE <- 200
-rf_fit_cv <- function(maxnodes) { # grouped cross validation (held-out) predictions
-  pred <- numeric(length(y))
-  for (f in 1:K) {
-    tr <- fold != f
-    te <- fold == f
-    m <- randomForest::randomForest(
-      x = X[tr, , drop = FALSE], y = y[tr],
-      ntree = NTREE, maxnodes = maxnodes
-    )
-    pred[te] <- predict(m, X[te, , drop = FALSE])
-  }
-  pmin(pmax(round(pred), 0), 6)
-}
-rf_fit_train <- function(maxnodes) { # resubstitution (training) predictions
-  set.seed(1)
-  m <- randomForest::randomForest(x = X, y = y, ntree = NTREE, maxnodes = maxnodes)
-  pmin(pmax(round(predict(m, X)), 0), 6)
-}
-maxnodes_grid <- c(4, 8, 16, 32, 64, 128, 256)
-set.seed(42)
-reg_curve <- data.frame(
-  maxnodes = maxnodes_grid,
-  train = sapply(maxnodes_grid, function(mn) mean(rf_fit_train(mn) == y)),
-  cross_validation = sapply(maxnodes_grid, function(mn) mean(rf_fit_cv(mn) == y))
-)
-reg_curve$gap <- reg_curve$train - reg_curve$cross_validation
-best_maxnodes <- max(reg_curve$maxnodes[reg_curve$gap <= 0.15])
-cat(sprintf(
-  "Chosen maxnodes = %d: train = %.3f, cross validation = %.3f, gap = %.3f (<= 0.15)\n",
-  best_maxnodes,
-  reg_curve$train[reg_curve$maxnodes == best_maxnodes],
-  reg_curve$cross_validation[reg_curve$maxnodes == best_maxnodes],
-  reg_curve$gap[reg_curve$maxnodes == best_maxnodes]
-))
-rf_best <- rf_fit_cv(best_maxnodes) # held-out predictions of the chosen model
-```
-
-```{r fig.width=8, fig.height=4.5}
-#| fig-width: 8
-#| fig-height: 4.5
-# 7.3.2
-p_reg <- reg_curve %>%
-  pivot_longer(c(train, cross_validation), names_to = "set", values_to = "accuracy") %>%
-  ggplot(aes(maxnodes, accuracy, colour = set)) +
-  geom_line() +
-  geom_point(size = 1.6) +
-  geom_vline(xintercept = best_maxnodes, linetype = "dashed", colour = "grey40") +
-  scale_colour_manual(
-    values = c(train = "#B2182B", cross_validation = "#2166AC"),
-    labels = c(cross_validation = "held out (grouped 5-fold cross validation)", train = "training"),
-    name = NULL
-  ) +
-  scale_x_log10(breaks = maxnodes_grid) +
-  labs(
-    x = "max leaf nodes per tree (log scale)", y = "Exact accuracy",
-    title = sprintf("RF regularisation: train-cross-validation gap kept <= 15%%; maxnodes = %d", best_maxnodes)
-  ) +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
-p_reg
-save_plot(p_reg, "seg_rf_regularisation.png", width = 8, height = 4.5)
-```
-
-### 6.4 Ordinal regression
-
-Proportional-odds ordinal logistic regression models the ordered 0–6 scale directly:
-a single linear predictor is fit to the 12 features, and six ordered cut-points split
-that predictor into the seven score classes, so the model respects the ordering of
-the scale rather than treating the classes as unrelated labels. It has no
-hyperparameter to tune, so unlike k-NN (§6.2) and the random forest (§6.3) there is no
-sweep — just the fit below, scored under the same source-grouped cross validation.
-With only twelve coefficients plus the cut-points it has little capacity to memorise
-the training set, so its training and held-out accuracy are almost identical.
-
-```{r}
-# 7.4.0  Ordinal logistic regression (proportional odds, MASS::polr), scored under
-# the same source-grouped cross validation. Features are standardised with
-# training-fold statistics inside each fold, so nothing leaks into the scaling.
-ord_cv <- function() {
-  pred <- integer(length(y))
-  for (f in 1:K) {
-    tr <- fold != f
-    te <- fold == f
-    mu <- colMeans(X[tr, ])
-    sdv <- apply(X[tr, ], 2, sd)
-    sdv[sdv == 0] <- 1
-    dtr <- data.frame(scale(X[tr, , drop = FALSE], mu, sdv),
-      y = factor(y[tr], levels = 0:6, ordered = TRUE)
-    )
-    dte <- data.frame(scale(X[te, , drop = FALSE], mu, sdv))
-    fit <- suppressWarnings(MASS::polr(y ~ ., data = dtr, Hess = TRUE))
-    pred[te] <- as.integer(as.character(predict(fit, dte, type = "class")))
-  }
-  pred
-}
-ord_train <- function() {
-  mu <- colMeans(X)
-  sdv <- apply(X, 2, sd)
-  sdv[sdv == 0] <- 1
-  d <- data.frame(scale(X, mu, sdv), y = factor(y, levels = 0:6, ordered = TRUE))
-  fit <- suppressWarnings(MASS::polr(y ~ ., data = d, Hess = TRUE))
-  as.integer(as.character(predict(fit, data.frame(scale(X, mu, sdv)), type = "class")))
-}
-ord_best <- ord_cv()
-ord_tr <- ord_train()
-ord_fmt <- paste0(
-  "Ordinal regression: held-out (grouped cross validation) exact = %.3f, near-miss = %.3f; ",
-  "training = %.3f, gap = %.3f\n"
-)
-cat(sprintf(
-  ord_fmt,
-  mean(ord_best == y), mean(abs(ord_best - y) <= 1),
-  mean(ord_tr == y), mean(ord_tr == y) - mean(ord_best == y)
-))
-```
-
-### 6.5 Model comparison, with per-fold results
-
-The tuned models are compared with a majority-class baseline and a single-feature
-threshold rule, all under the same grouped 5-fold cross validation. Both
-**training** (fit and scored on all the data) and **held-out** (grouped cross
-validation) accuracy are reported for every model, with the gap between them; any
-model whose gap exceeds 15% is flagged for discarding as overfit (only the
-*fully-grown* forest of §6.3 fails — every tuned model here passes).
-
-```{r}
-# 7.4.1
-# Held-out (grouped cross validation) predictors. The ordinal-regression
-# predictors (ord_best, ord_tr) are defined in section 6.4 above.
-thresh_cv <- function(x) {
-  pred <- integer(length(y))
-  for (f in 1:K) {
-    tr <- fold != f
-    te <- fold == f
-    med <- tapply(x[tr], y[tr], median)
-    sc <- as.integer(names(med))
-    o <- order(sc)
-    med <- med[o]
-    sc <- sc[o]
-    cuts <- cummax((head(med, -1) + tail(med, -1)) / 2)
-    pred[te] <- sc[findInterval(x[te], cuts) + 1]
-  }
-  pred
-}
-# Training (resubstitution) predictors, for the train-cross-validation gap
-thresh_train <- function(x) {
-  med <- tapply(x, y, median)
-  sc <- as.integer(names(med))
-  o <- order(sc)
-  med <- med[o]
-  sc <- sc[o]
-  cuts <- cummax((head(med, -1) + tail(med, -1)) / 2)
-  sc[findInterval(x, cuts) + 1]
-}
-knn_train_at <- function(k) { # self-inclusive; meaningful for k > 1
-  mu <- colMeans(X)
-  sdv <- apply(X, 2, sd)
-  sdv[sdv == 0] <- 1
-  Xs <- scale(X, mu, sdv)
-  d <- outer(rowSums(Xs^2), rowSums(Xs^2), "+") - 2 * Xs %*% t(Xs)
-  ord <- t(apply(d, 1, order))
-  apply(ord[, 1:k, drop = FALSE], 1, function(ix) {
-    tb <- table(y[ix])
-    as.integer(names(tb)[which.max(tb)])
-  })
-}
-
-knn_best <- knn_preds[, which(kseq == best_k)]
-maj <- rep(as.integer(names(which.max(table(y)))), length(y))
-
-cmp_row <- function(train_pred, test_pred, name, tuning) {
-  data.frame(
-    model = name, tuning = tuning,
-    train = mean(train_pred == y), cross_validation = mean(test_pred == y),
-    gap = mean(train_pred == y) - mean(test_pred == y),
-    near_miss = mean(abs(test_pred - y) <= 1)
-  )
-}
-results <- rbind(
-  cmp_row(maj, maj, "Majority class", ""),
-  cmp_row(thresh_train(feat$frac_g_gt_r), thresh_cv(feat$frac_g_gt_r), "Threshold: CDA area", "1 feature"),
-  cmp_row(ord_tr, ord_best, "Ordinal regression", "12 features"),
-  cmp_row(knn_train_at(best_k), knn_best, "k-NN", sprintf("k = %d", best_k)),
-  cmp_row(rf_fit_train(best_maxnodes), rf_best, "Random forest", sprintf("%d nodes", best_maxnodes))
-)
-
-results %>%
-  mutate(across(c(train, cross_validation, gap, near_miss), ~ round(., 3)),
-    overfit = ifelse(gap > 0.15, "DISCARD", "ok")
-  ) %>%
-  arrange(desc(cross_validation)) %>%
-  as.data.frame()
-```
-
-```{r}
-# 7.4.2  Per-fold breakdown of the best model (chosen by held-out accuracy).
-cv_preds <- list("Random forest" = rf_best, "k-NN" = knn_best, "Ordinal regression" = ord_best)
-best_cv_name <- names(cv_preds)[which.max(vapply(cv_preds, function(p) mean(p == y), numeric(1)))]
-pf <- per_fold(cv_preds[[best_cv_name]], best_cv_name)
-print(transform(pf, exact = round(exact, 3), near_miss = round(near_miss, 3)))
-cat(sprintf(
-  "MEAN across folds: exact = %.3f (fold range %.3f-%.3f); near-miss = %.3f\n",
-  mean(pf$exact), min(pf$exact), max(pf$exact), mean(pf$near_miss)
-))
-```
-
-For reference (not a like-for-like comparison — different data split and class
-distribution), the project's deep-learning models reach ~70% training and 60–67%
-held-out test accuracy: a small train–test gap, and test accuracy broadly
-comparable to these hand-crafted features
-(~`r sprintf("%.0f%%", 100 * max(results$cross_validation))`).
-
-### 6.6 Confusion matrix of the best model
-
-```{r fig.width=7, fig.height=6}
-#| fig-width: 7
-#| fig-height: 6
-# 7.5
-model_preds <- list(
-  "Random forest" = rf_best, "k-NN" = knn_best,
-  "Ordinal regression" = ord_best
-)
-best_name <- names(model_preds)[which.max(vapply(
-  model_preds,
-  function(p) mean(p == y), numeric(1)
-))]
-best_pred <- model_preds[[best_name]]
-
-cm <- as.data.frame(table(true = factor(y, 0:6), pred = factor(best_pred, 0:6)))
-p_cm <- ggplot(cm, aes(x = pred, y = true, fill = Freq)) +
-  geom_tile(colour = "grey90") +
-  geom_text(aes(label = Freq), size = 3.5) +
-  scale_fill_gradient(low = "white", high = "#B2182B", guide = "none") +
-  scale_y_discrete(limits = rev) +
-  labs(
-    x = "Predicted score", y = "True score",
-    title = sprintf(
-      "%s (grouped cross validation): exact %.1f%%, near-miss %.1f%%",
-      best_name, 100 * mean(best_pred == y),
-      100 * mean(abs(best_pred - y) <= 1)
-    )
-  ) +
-  coord_equal() +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 12), axis.title = element_text(size = 14),
-    plot.title = element_text(size = 12), panel.grid = element_blank()
-  )
-p_cm
-save_plot(p_cm, "seg_confusion_matrix.png", width = 7, height = 6)
-```
-
-### 6.7 Gini importance
-
-A random forest classifier on the balanced data ranks the features by mean
-decrease in Gini impurity.
-
-```{r fig.width=7, fig.height=5}
-#| fig-width: 7
-#| fig-height: 5
-# 7.6
-set.seed(1)
-rf_clf <- randomForest::randomForest(
-  x = X, y = factor(y, levels = 0:6),
-  ntree = NTREE, maxnodes = best_maxnodes,
-  importance = TRUE
-)
-imp_df <- data.frame(
-  feature = rownames(randomForest::importance(rf_clf)),
-  importance = randomForest::importance(rf_clf)[, "MeanDecreaseGini"]
-)
-p_imp <- ggplot(imp_df, aes(x = reorder(feature, importance), y = importance)) +
-  geom_col(fill = "#2166AC") +
-  coord_flip() +
-  labs(x = NULL, y = "Random-forest importance (mean decrease in Gini)") +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
-p_imp
-save_plot(p_imp, "seg_feature_importance.png", width = 7, height = 5)
-```
-
-### 6.8 SHAP analysis
-
-Gini importance is global and directionless. SHAP (SHapley Additive
-exPlanations) attributes each prediction to its features, showing both magnitude
-and direction — replicating the SHAP series from the AutoCDAScorer ensemble
-analysis, here in R via `kernelshap` + `shapviz`. SHAP is computed on the random
-forest **regressor** (single output) with an interventional, class-balanced
-background set.
-
-```{r}
-#| output: false
-# 7.7.1
-library(kernelshap)
-library(shapviz)
-
-set.seed(1)
-rf_reg <- randomForest::randomForest(x = X, y = y, ntree = NTREE, maxnodes = best_maxnodes)
-
-# Class-balanced background (~14/class) and a class-balanced explanation set.
-Xdf <- as.data.frame(X)
-bg_idx <- unlist(lapply(0:6, function(s) sample(which(y == s), 14)))
-ex_idx <- unlist(lapply(0:6, function(s) sample(which(y == s), 20)))
-shp <- shapviz(suppressWarnings(
-  permshap(rf_reg, X = Xdf[ex_idx, ], bg_X = Xdf[bg_idx, ])
-))
-y_ex <- y[ex_idx]
-```
-
-```{r fig.width=8, fig.height=6}
-#| fig-width: 8
-#| fig-height: 6
-# 7.7.2 Beeswarm: global importance + direction of each feature's effect.
-p_bee <- sv_importance(shp, kind = "beeswarm", max_display = length(all_features)) +
-  theme_minimal() + theme(axis.text = element_text(size = 11))
-p_bee
-save_plot(p_bee, "seg_shap_beeswarm.png", width = 8, height = 6)
-```
-
-```{r fig.width=11, fig.height=4}
-#| fig-width: 11
-#| fig-height: 4
-# 7.7.3 Dependence plots for the three most important features (by mean |SHAP|).
-mean_abs <- sort(colMeans(abs(get_shap_values(shp))), decreasing = TRUE)
-top3 <- names(mean_abs)[1:3]
-p_dep <- patchwork::wrap_plots(lapply(top3, function(v) {
-  sv_dependence(shp, v = v, color_var = NULL) + theme_minimal()
-}), nrow = 1)
-p_dep
-save_plot(p_dep, "seg_shap_dependence.png", width = 11, height = 4)
-```
-
-```{r}
-# 7.7.4 Does the feature ranking reshuffle between low (0-1) and high (5-6)
-# severity? (mean |SHAP| per feature, matching the AutoCDAScorer MSHAP table.)
-S <- abs(get_shap_values(shp))
-mshap <- data.frame(
-  feature = colnames(S),
-  low_severity = colMeans(S[y_ex %in% 0:1, , drop = FALSE]),
-  high_severity = colMeans(S[y_ex %in% 5:6, , drop = FALSE])
-)
-mshap$rank_low <- rank(-mshap$low_severity)
-mshap$rank_high <- rank(-mshap$high_severity)
-mshap %>%
-  mutate(across(c(low_severity, high_severity), ~ round(., 3))) %>%
-  arrange(desc(high_severity)) %>%
-  as.data.frame()
-```
-
-```{r fig.width=8, fig.height=5}
-#| fig-width: 8
-#| fig-height: 5
-# 7.7.5 Waterfall: how the features add up to the prediction for one CDA
-# (a mid-severity example, where the models struggle most).
-wf_row <- which(y_ex == 3)[1]
-p_wf <- sv_waterfall(shp, row_id = wf_row) +
-  labs(title = sprintf("SHAP waterfall for one score-%d CDA", y_ex[wf_row]))
-p_wf
-save_plot(p_wf, "seg_shap_waterfall.png", width = 8, height = 5)
-```
-
----
-
-## 7. PCA of the image content, with and without the background
-
-`07_visual_complexity` runs a principal component analysis (PCA) on the CDA
-images and colours the first two components by severity score. Here the same PCA
-is repeated on images in which everything outside the segmented CDA is set to
-black, to test whether removing the leaf background and imaging artefacts makes
-the score ordering clearer. Both PCAs use the same class-balanced sample (the
-smallest class's size per score), the same 64 × 64 pixel normalised inputs, and
-the same severity-score colouring; the only difference is whether the background
-is masked out.
+The same PCA as `07_visual_complexity`, repeated on images with everything
+outside the segmented CDA set to black. Both runs use the same class-balanced
+sample and the same 64 x 64 normalised inputs, so the only difference is whether
+the background is masked.
 
 ```{r}
 # 8.1  Build original and CDA-masked 64x64 inputs and run PCA (cached: only the
@@ -1764,65 +1206,32 @@ p_pca
 save_plot(p_pca, "seg_pca_masked_vs_original.png", width = 11, height = 5)
 ```
 
-Masking the background concentrates the severity signal onto the first component:
-its alignment with score (η²) increases, and the masked scatter shows a clearer
-low-to-high gradient along PC1, whereas in the original the gradient runs
-diagonally across PC1 and PC2. Adjacent scores still overlap substantially,
-consistent with the rest of this analysis, but removing the background does make
-the ordering somewhat cleaner.
+- Masking the background raises PC1's alignment with score from eta-squared 0.27
+  to 0.37, so the severity signal concentrates onto one component once the leaf
+  and imaging artefacts are gone.
+- PC1's share of variance falls from 31.0% to 21.7%, so the masked components
+  explain less of the image while explaining more of the score.
 
 ---
 
-## 8. Interpretation and Discussion
+## 7. Interpretation and Discussion
 
-- **Greenness solves the universal-threshold problem.** Switching the
-  segmentation channel from brightness to greenness (G − R) makes CDA and leaf
-  distinct modes, so **Otsu sets the threshold automatically per image** with no
-  manual tuning (§2–§3). This is the fix for the failure in
-  `0009_Non_DL_Green_Channel_Analysis`, where brightness watershedding needed a
-  different threshold for every image.
-- **Presence detection works, but segment conditionally.** The bimodality
-  (separability) of the leaf-greenness distribution classifies 0 vs non-0 well on
-  its own (AUC ≈ 0.94, §4.2), so the distribution *does* detect whether a CDA is
-  present — confirming this is the easy part of the problem. But if the spatial
-  Otsu segmentation is run unconditionally it still outlines a spurious region on
-  a median-0 leaf (§3), so segmentation should be gated on the non-0 decision,
-  as hypothesised.
-- **The features predict score to ±1 reliably, but the exact score only about
-  half the time (§6).** All modelling is on the class-balanced data (436/class),
-  so there is no score-0 free ride and exact = balanced accuracy, and all
-  accuracy is measured with **source-grouped** 5-fold cross validation (a leaf's
-  crops are never split across folds; an image-level split leaks ~2–3 points,
-  §6.1). A shuffled-label check collapses to chance, confirming no other leakage.
-  The best model is a linear **ordinal regression** at
-  **`r sprintf("%.0f%%", 100 * results$cross_validation[results$model == "Ordinal regression"])` held-out exact**
-  and
-  **`r sprintf("%.0f%%", 100 * results$near_miss[results$model == "Ordinal regression"])` near-miss**,
-  with a train–cross-validation gap of essentially zero; a regularised random forest
-  (tree size capped so the train–cross-validation gap stays under 15%, §6.3) and a
-  k-NN (k = `r best_k`, chosen by cross validation) trail a few points behind. A
-  single-feature threshold rule reaches
-  **`r sprintf("%.0f%%", 100 * results$cross_validation[results$model == "Threshold: CDA area"])`**.
-  The confusion matrix is a tight band-diagonal (errors almost
-  entirely between adjacent scores; score 1 mostly confused with 0 and 2), so the
-  features locate a CDA to within ±1 of its score almost always but cannot pin the
-  exact neighbouring severity. An unregularised forest reaches ~91% *training*
-  accuracy but the same ~55% held-out — pure memorisation (a ~36-point gap), so it
-  is discarded; regularising costs almost nothing in held-out accuracy. For
-  reference (not a like-for-like comparison), the project's deep-learning models
-  reach ~70% training and 60–67% held-out test — a small gap and higher test
-  accuracy than these hand-crafted features.
-- **Gini importance and SHAP agree on what matters (§6.7–6.8).** CDA greenness,
-  the green/red ratio, greenness bimodality and CDA brightness drive the
-  predictions. The SHAP beeswarm shows high values
-  of these features push the prediction toward higher scores, consistently across
-  images rather than as narrow high- or low-severity specialists; the dependence
-  plots show mostly monotonic (area saturating) effects, and the within-CDA
-  texture features (`cda_green_sd`, `cda_bright_sd`) sit near zero — how mottled a
-  lesion is matters far less than how large, green and bright it is.
-- **Low scores remain hard.** At scores 1–2 the CDA is barely greener than the
-  leaf, so the modes overlap and the segmentation
-  features overlap the neighbouring classes (§5, §6). This is the same
-  faint-signal regime that limits every hand-crafted feature in `09_image_entropy`
-  — mild cell death is genuinely close to healthy tissue in these images, which
-  is why a learned model is needed to resolve the fine-grained scores.
+- Greenness solves the universal-threshold problem. Otsu's brightness cut moves
+  from 66 to 137 of 255 between two crops while its greenness cut holds at -0.16
+  to -0.15, so changing channel is what removes the per-image tuning that defeated
+  the earlier brightness watershed.
+- Presence detection works, so segmentation should be conditional. Leaf-greenness
+  bimodality separates 0 from non-0 at AUC 0.944, yet the spatial segmentation
+  still carves 49% of a score-0 leaf into a spurious lesion, so it should run only
+  after the non-zero decision.
+- The features track severity without separating neighbouring scores. Three
+  features reach rho = 0.84 against score, but the best adjacent-class AUC is
+  0.68, so the ordering is recoverable while the exact class is not.
+- The feature set is redundant. Near-duplicate pairs reach rho = 0.97, so the
+  twelve columns carry far fewer than twelve independent measurements.
+- What the features can predict is answered in `10b_score_prediction.qmd`, where
+  they place a CDA within one point of its score almost always but pin the exact
+  score about 60% of the time.
+- Low scores remain hard. Median CDA greenness at scores 1-2 (-0.13 and -0.08) is
+  barely above the score-0 value of -0.19, so mild cell death is genuinely close
+  to healthy tissue in these images.

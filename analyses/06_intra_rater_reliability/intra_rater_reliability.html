@@ -431,8 +431,8 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> mean_within1, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
 <span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
 <span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(</span>
-<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Exact agreement"</span> <span class="ot">=</span> <span class="st">"#238b45"</span>,</span>
-<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Near-miss agreement (±1)"</span> <span class="ot">=</span> <span class="st">"#fec44f"</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Exact agreement"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>,</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Near-miss agreement (±1)"</span> <span class="ot">=</span> <span class="st">"firebrick"</span></span>
 <span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>    ),</span>
 <span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span>,</span>
 <span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"Exact agreement"</span>, <span class="st">"Near-miss agreement (±1)"</span>)</span>
@@ -447,7 +447,7 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>      )</span>
 <span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Intra-rater agreement"</span>) <span class="sc">+</span></span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Rater"</span>, <span class="at">y =</span> <span class="st">"Within-rater agreement"</span>) <span class="sc">+</span></span>
 <span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
@@ -1788,10 +1788,10 @@ Rows with missing old_score (original score was '[]'):</code></pre>
 <span id="cb88-9"><a href="#cb88-9" aria-hidden="true" tabindex="-1"></a><span class="co"># plot, and reads for both panels. The panel (data) area is pinned to an identical</span></span>
 <span id="cb88-10"><a href="#cb88-10" aria-hidden="true" tabindex="-1"></a><span class="co"># absolute size in both files (via the gtable in save_fixed_panel) so the two</span></span>
 <span id="cb88-11"><a href="#cb88-11" aria-hidden="true" tabindex="-1"></a><span class="co"># align exactly when stacked in the thesis figure.</span></span>
-<span id="cb88-12"><a href="#cb88-12" aria-hidden="true" tabindex="-1"></a>coef_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Krippendorff's α"</span> <span class="ot">=</span> <span class="st">"#4477AA"</span>, <span class="st">"Gwet's AC2"</span> <span class="ot">=</span> <span class="st">"#CC6677"</span>)</span>
+<span id="cb88-12"><a href="#cb88-12" aria-hidden="true" tabindex="-1"></a>coef_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Krippendorff's α"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>, <span class="st">"Gwet's AC2"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>)</span>
 <span id="cb88-13"><a href="#cb88-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb88-14"><a href="#cb88-14" aria-hidden="true" tabindex="-1"></a>make_panel <span class="ot">&lt;-</span> <span class="cf">function</span>(boot_alpha, boot_ac2, xlab, show_legend,</span>
-<span id="cb88-15"><a href="#cb88-15" aria-hidden="true" tabindex="-1"></a>                        alpha_side, ac2_side, x80_side) {</span>
+<span id="cb88-15"><a href="#cb88-15" aria-hidden="true" tabindex="-1"></a>                       alpha_side, ac2_side, x80_side) {</span>
 <span id="cb88-16"><a href="#cb88-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Each value label is placed just left ("left") or just right ("right") of its</span></span>
 <span id="cb88-17"><a href="#cb88-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># own vertical line; the side is chosen per panel so no two labels collide - in</span></span>
 <span id="cb88-18"><a href="#cb88-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the all-CDAs panel alpha and AC2 are close, so alpha goes left and AC2 right;</span></span>

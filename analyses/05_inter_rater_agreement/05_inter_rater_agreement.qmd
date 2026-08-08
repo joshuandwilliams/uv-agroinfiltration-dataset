@@ -278,7 +278,7 @@ p <- ggplot(plot_acc, aes(x = Scorer, y = value, fill = metric)) +
   scale_fill_manual(
     values = c(
       "Corrected agreement" = "steelblue",
-      "Corrected near-miss agreement" = "#E69F00"
+      "Corrected near-miss agreement" = "firebrick"
     ),
     name = NULL,
     breaks = c("Corrected agreement", "Corrected near-miss agreement")
