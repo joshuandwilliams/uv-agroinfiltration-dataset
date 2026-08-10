@@ -609,7 +609,7 @@ p_bottom <- ggplot(image_stats_nonzero, aes(x = Folder, y = Nonzero_Agreement, f
   scale_x_discrete(labels = project_labels) +
   scale_y_continuous(limits = c(0, 100)) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
-  labs(x = "Project", y = "Corrected agreement (outside score class 0)") +
+  labs(x = "Project", y = "Corrected agreement (non-zero CDAs)") +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),

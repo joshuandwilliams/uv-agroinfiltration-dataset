@@ -1243,7 +1243,7 @@ save_fixed_panel <- function(p, filename, canvas_h) {
 p_all <- make_panel(alpha_full_boot, ac2_full_boot, "Statistic (all CDAs)",
   show_legend = TRUE, alpha_side = "left", ac2_side = "right", x80_side = "left"
 )
-p_no0 <- make_panel(alpha_no0_boot, ac2_no0_boot, "Statistic (CDAs outside score class 0)",
+p_no0 <- make_panel(alpha_no0_boot, ac2_no0_boot, "Statistic (non-zero CDAs)",
   show_legend = FALSE, alpha_side = "right", ac2_side = "right", x80_side = "left"
 )
 
