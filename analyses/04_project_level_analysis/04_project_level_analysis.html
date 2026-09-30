@@ -1038,84 +1038,85 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">factor</span>(Folder, <span class="at">levels =</span> project_order))</span>
 <span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>zero_by_project <span class="ot">&lt;-</span> median_corrected <span class="sc">%&gt;%</span></span>
-<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Folder) <span class="sc">%&gt;%</span></span>
-<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="st">`</span><span class="at">Percent_0</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(Score <span class="sc">==</span> <span class="dv">0</span>), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">factor</span>(Folder, <span class="at">levels =</span> project_order))</span>
-<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a>project_n <span class="ot">&lt;-</span> image_stats_ordered <span class="sc">%&gt;%</span> <span class="fu">count</span>(Folder, <span class="at">name =</span> <span class="st">"N"</span>)</span>
-<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a>project_labels <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">paste0</span>(project_n<span class="sc">$</span>Folder, <span class="st">"</span><span class="sc">\n</span><span class="st">(n="</span>, project_n<span class="sc">$</span>N, <span class="st">")"</span>), project_n<span class="sc">$</span>Folder)</span>
-<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a>zero_col <span class="ot">&lt;-</span> <span class="st">"#01665e"</span></span>
-<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Panel A: per-image agreement (boxes) with the zero-proportion overlay ---</span></span>
-<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a><span class="co"># The zero-proportion overlay is a dashed teal line read against the right-hand</span></span>
-<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a><span class="co"># axis; that axis's title and labels are coloured the same teal, while the</span></span>
-<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a><span class="co"># boxplots are read against the default black left-hand axis. Colour-matching</span></span>
-<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a><span class="co"># the line to its axis makes it clear which series each axis belongs to. The</span></span>
-<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a><span class="co"># x-axis labels are dropped here because panel B below carries the shared axis.</span></span>
-<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a>p_top <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb32-38"><a href="#cb32-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(</span>
-<span id="cb32-39"><a href="#cb32-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> image_stats_ordered, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Avg_Percent_Agreement, <span class="at">fill =</span> Folder),</span>
-<span id="cb32-40"><a href="#cb32-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.6</span>, <span class="at">outlier.alpha =</span> <span class="fl">0.4</span></span>
-<span id="cb32-41"><a href="#cb32-41" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb32-42"><a href="#cb32-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
-<span id="cb32-43"><a href="#cb32-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> zero_by_project, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Percent_0, <span class="at">group =</span> <span class="dv">1</span>),</span>
-<span id="cb32-44"><a href="#cb32-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> zero_col, <span class="at">linewidth =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span></span>
-<span id="cb32-45"><a href="#cb32-45" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb32-46"><a href="#cb32-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(</span>
-<span id="cb32-47"><a href="#cb32-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> zero_by_project, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Percent_0),</span>
-<span id="cb32-48"><a href="#cb32-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> zero_col, <span class="at">size =</span> <span class="fl">2.5</span></span>
-<span id="cb32-49"><a href="#cb32-49" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb32-50"><a href="#cb32-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> project_labels) <span class="sc">+</span></span>
-<span id="cb32-51"><a href="#cb32-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
-<span id="cb32-52"><a href="#cb32-52" aria-hidden="true" tabindex="-1"></a>    <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>),</span>
-<span id="cb32-53"><a href="#cb32-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(<span class="sc">~</span>., <span class="at">name =</span> <span class="st">"% of Severity Scores that were 0"</span>)</span>
-<span id="cb32-54"><a href="#cb32-54" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb32-55"><a href="#cb32-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
-<span id="cb32-56"><a href="#cb32-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Corrected agreement"</span>) <span class="sc">+</span></span>
-<span id="cb32-57"><a href="#cb32-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb32-58"><a href="#cb32-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb32-59"><a href="#cb32-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb32-60"><a href="#cb32-60" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb32-61"><a href="#cb32-61" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
-<span id="cb32-62"><a href="#cb32-62" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y.right =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>, <span class="at">colour =</span> zero_col),</span>
-<span id="cb32-63"><a href="#cb32-63" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title.y.right =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>, <span class="at">colour =</span> zero_col)</span>
-<span id="cb32-64"><a href="#cb32-64" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb32-65"><a href="#cb32-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-66"><a href="#cb32-66" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Panel B: agreement recomputed on non-zero scores only ---</span></span>
-<span id="cb32-67"><a href="#cb32-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Per image, mean corrected agreement over just that image's non-zero severity</span></span>
-<span id="cb32-68"><a href="#cb32-68" aria-hidden="true" tabindex="-1"></a><span class="co"># scores (all-zero images have no non-zero scores and drop out). Same project</span></span>
-<span id="cb32-69"><a href="#cb32-69" aria-hidden="true" tabindex="-1"></a><span class="co"># order and fills as panel A, so the two rows line up. If the ranking flattens</span></span>
-<span id="cb32-70"><a href="#cb32-70" aria-hidden="true" tabindex="-1"></a><span class="co"># here, the between-project differences in panel A were driven by how many zeros</span></span>
-<span id="cb32-71"><a href="#cb32-71" aria-hidden="true" tabindex="-1"></a><span class="co"># each project had; if it persists, they were not.</span></span>
-<span id="cb32-72"><a href="#cb32-72" aria-hidden="true" tabindex="-1"></a>image_stats_nonzero <span class="ot">&lt;-</span> median_corrected <span class="sc">%&gt;%</span></span>
-<span id="cb32-73"><a href="#cb32-73" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Score <span class="sc">!=</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb32-74"><a href="#cb32-74" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Basename, Folder) <span class="sc">%&gt;%</span></span>
-<span id="cb32-75"><a href="#cb32-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Nonzero_Agreement =</span> <span class="fu">mean</span>(Exact_Match) <span class="sc">*</span> <span class="dv">100</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb32-76"><a href="#cb32-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">factor</span>(Folder, <span class="at">levels =</span> project_order))</span>
-<span id="cb32-77"><a href="#cb32-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-78"><a href="#cb32-78" aria-hidden="true" tabindex="-1"></a>p_bottom <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(image_stats_nonzero, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Nonzero_Agreement, <span class="at">fill =</span> Folder)) <span class="sc">+</span></span>
-<span id="cb32-79"><a href="#cb32-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">alpha =</span> <span class="fl">0.6</span>, <span class="at">outlier.alpha =</span> <span class="fl">0.4</span>) <span class="sc">+</span></span>
-<span id="cb32-80"><a href="#cb32-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> project_labels) <span class="sc">+</span></span>
-<span id="cb32-81"><a href="#cb32-81" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>)) <span class="sc">+</span></span>
-<span id="cb32-82"><a href="#cb32-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
-<span id="cb32-83"><a href="#cb32-83" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Corrected agreement (non-zero CDAs)"</span>) <span class="sc">+</span></span>
-<span id="cb32-84"><a href="#cb32-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb32-85"><a href="#cb32-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb32-86"><a href="#cb32-86" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
-<span id="cb32-87"><a href="#cb32-87" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
-<span id="cb32-88"><a href="#cb32-88" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>)</span>
-<span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack the panels; patchwork aligns the plotting regions so the shared x-axis</span></span>
-<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a><span class="co"># lines up even though only panel A has the right-hand secondary axis. The A/B</span></span>
-<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a><span class="co"># tags are styled to match the thesis's other multi-panel figures (Arial Bold,</span></span>
-<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a><span class="co"># 16 pt on the page): this 10in-wide plot is shown at the 155mm content width, a</span></span>
-<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a><span class="co"># ~0.61x scale, so 26 pt here renders at ~16 pt once placed.</span></span>
-<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p_top <span class="sc">/</span> p_bottom <span class="sc">+</span></span>
-<span id="cb32-97"><a href="#cb32-97" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(<span class="at">tag_levels =</span> <span class="st">"A"</span>) <span class="sc">&amp;</span></span>
-<span id="cb32-98"><a href="#cb32-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.tag =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">26</span>, <span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">family =</span> <span class="st">"Arial"</span>))</span>
-<span id="cb32-99"><a href="#cb32-99" aria-hidden="true" tabindex="-1"></a>p</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(Basename, Row, Col, Pos, Folder, Median_Score) <span class="sc">%&gt;%</span></span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Folder) <span class="sc">%&gt;%</span></span>
+<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="st">`</span><span class="at">Percent_0</span><span class="st">`</span> <span class="ot">=</span> <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(Median_Score <span class="sc">==</span> <span class="dv">0</span>), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">factor</span>(Folder, <span class="at">levels =</span> project_order))</span>
+<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a>project_n <span class="ot">&lt;-</span> image_stats_ordered <span class="sc">%&gt;%</span> <span class="fu">count</span>(Folder, <span class="at">name =</span> <span class="st">"N"</span>)</span>
+<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a>project_labels <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">paste0</span>(project_n<span class="sc">$</span>Folder, <span class="st">"</span><span class="sc">\n</span><span class="st">(n="</span>, project_n<span class="sc">$</span>N, <span class="st">")"</span>), project_n<span class="sc">$</span>Folder)</span>
+<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a>zero_col <span class="ot">&lt;-</span> <span class="st">"#01665e"</span></span>
+<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Panel A: per-image agreement (boxes) with the zero-proportion overlay ---</span></span>
+<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a><span class="co"># The zero-proportion overlay is a dashed teal line read against the right-hand</span></span>
+<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a><span class="co"># axis; that axis's title and labels are coloured the same teal, while the</span></span>
+<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a><span class="co"># boxplots are read against the default black left-hand axis. Colour-matching</span></span>
+<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a><span class="co"># the line to its axis makes it clear which series each axis belongs to. The</span></span>
+<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a><span class="co"># x-axis labels are dropped here because panel B below carries the shared axis.</span></span>
+<span id="cb32-38"><a href="#cb32-38" aria-hidden="true" tabindex="-1"></a>p_top <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb32-39"><a href="#cb32-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(</span>
+<span id="cb32-40"><a href="#cb32-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> image_stats_ordered, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Avg_Percent_Agreement, <span class="at">fill =</span> Folder),</span>
+<span id="cb32-41"><a href="#cb32-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.6</span>, <span class="at">outlier.alpha =</span> <span class="fl">0.4</span></span>
+<span id="cb32-42"><a href="#cb32-42" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb32-43"><a href="#cb32-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb32-44"><a href="#cb32-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> zero_by_project, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Percent_0, <span class="at">group =</span> <span class="dv">1</span>),</span>
+<span id="cb32-45"><a href="#cb32-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> zero_col, <span class="at">linewidth =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span></span>
+<span id="cb32-46"><a href="#cb32-46" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb32-47"><a href="#cb32-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(</span>
+<span id="cb32-48"><a href="#cb32-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> zero_by_project, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Percent_0),</span>
+<span id="cb32-49"><a href="#cb32-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> zero_col, <span class="at">size =</span> <span class="fl">2.5</span></span>
+<span id="cb32-50"><a href="#cb32-50" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb32-51"><a href="#cb32-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> project_labels) <span class="sc">+</span></span>
+<span id="cb32-52"><a href="#cb32-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb32-53"><a href="#cb32-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>),</span>
+<span id="cb32-54"><a href="#cb32-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(<span class="sc">~</span>., <span class="at">name =</span> <span class="st">"% of CDAs in score class 0"</span>)</span>
+<span id="cb32-55"><a href="#cb32-55" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb32-56"><a href="#cb32-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb32-57"><a href="#cb32-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Corrected agreement"</span>) <span class="sc">+</span></span>
+<span id="cb32-58"><a href="#cb32-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb32-59"><a href="#cb32-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb32-60"><a href="#cb32-60" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb32-61"><a href="#cb32-61" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb32-62"><a href="#cb32-62" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>),</span>
+<span id="cb32-63"><a href="#cb32-63" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y.right =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>, <span class="at">colour =</span> zero_col),</span>
+<span id="cb32-64"><a href="#cb32-64" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title.y.right =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>, <span class="at">colour =</span> zero_col)</span>
+<span id="cb32-65"><a href="#cb32-65" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb32-66"><a href="#cb32-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-67"><a href="#cb32-67" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Panel B: agreement recomputed on non-zero CDAs only ---</span></span>
+<span id="cb32-68"><a href="#cb32-68" aria-hidden="true" tabindex="-1"></a><span class="co"># Per image, mean corrected agreement over just that image's CDAs whose median</span></span>
+<span id="cb32-69"><a href="#cb32-69" aria-hidden="true" tabindex="-1"></a><span class="co"># score is not 0 (images with only score class 0 CDAs drop out). Same project</span></span>
+<span id="cb32-70"><a href="#cb32-70" aria-hidden="true" tabindex="-1"></a><span class="co"># order and fills as panel A, so the two rows line up. If the ranking flattens</span></span>
+<span id="cb32-71"><a href="#cb32-71" aria-hidden="true" tabindex="-1"></a><span class="co"># here, the between-project differences in panel A were driven by how many zeros</span></span>
+<span id="cb32-72"><a href="#cb32-72" aria-hidden="true" tabindex="-1"></a><span class="co"># each project had; if it persists, they were not.</span></span>
+<span id="cb32-73"><a href="#cb32-73" aria-hidden="true" tabindex="-1"></a>image_stats_nonzero <span class="ot">&lt;-</span> median_corrected <span class="sc">%&gt;%</span></span>
+<span id="cb32-74"><a href="#cb32-74" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Median_Score <span class="sc">!=</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb32-75"><a href="#cb32-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Basename, Folder) <span class="sc">%&gt;%</span></span>
+<span id="cb32-76"><a href="#cb32-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Nonzero_Agreement =</span> <span class="fu">mean</span>(Exact_Match) <span class="sc">*</span> <span class="dv">100</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb32-77"><a href="#cb32-77" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Folder =</span> <span class="fu">factor</span>(Folder, <span class="at">levels =</span> project_order))</span>
+<span id="cb32-78"><a href="#cb32-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-79"><a href="#cb32-79" aria-hidden="true" tabindex="-1"></a>p_bottom <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(image_stats_nonzero, <span class="fu">aes</span>(<span class="at">x =</span> Folder, <span class="at">y =</span> Nonzero_Agreement, <span class="at">fill =</span> Folder)) <span class="sc">+</span></span>
+<span id="cb32-80"><a href="#cb32-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">alpha =</span> <span class="fl">0.6</span>, <span class="at">outlier.alpha =</span> <span class="fl">0.4</span>) <span class="sc">+</span></span>
+<span id="cb32-81"><a href="#cb32-81" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> project_labels) <span class="sc">+</span></span>
+<span id="cb32-82"><a href="#cb32-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">100</span>)) <span class="sc">+</span></span>
+<span id="cb32-83"><a href="#cb32-83" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set1"</span>, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb32-84"><a href="#cb32-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="st">"Corrected agreement (non-zero CDAs)"</span>) <span class="sc">+</span></span>
+<span id="cb32-85"><a href="#cb32-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb32-86"><a href="#cb32-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb32-87"><a href="#cb32-87" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb32-88"><a href="#cb32-88" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>),</span>
+<span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>)</span>
+<span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack the panels; patchwork aligns the plotting regions so the shared x-axis</span></span>
+<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a><span class="co"># lines up even though only panel A has the right-hand secondary axis. The A/B</span></span>
+<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a><span class="co"># tags are styled to match the thesis's other multi-panel figures (Arial Bold,</span></span>
+<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a><span class="co"># 16 pt on the page): this 10in-wide plot is shown at the 155mm content width, a</span></span>
+<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a><span class="co"># ~0.61x scale, so 26 pt here renders at ~16 pt once placed.</span></span>
+<span id="cb32-97"><a href="#cb32-97" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p_top <span class="sc">/</span> p_bottom <span class="sc">+</span></span>
+<span id="cb32-98"><a href="#cb32-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(<span class="at">tag_levels =</span> <span class="st">"A"</span>) <span class="sc">&amp;</span></span>
+<span id="cb32-99"><a href="#cb32-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.tag =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">26</span>, <span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">family =</span> <span class="st">"Arial"</span>))</span>
+<span id="cb32-100"><a href="#cb32-100" aria-hidden="true" tabindex="-1"></a>p</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -1148,8 +1149,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
 <span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">Project =</span> <span class="fu">as.character</span>(Folder),</span>
 <span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">A: median agreement (%)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(A_median, <span class="dv">1</span>),</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">A: % scores = 0</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(Percent_0, <span class="dv">1</span>),</span>
-<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">B: median agreement, non-zero scores (%)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(B_median, <span class="dv">1</span>)</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">A: % CDAs in score class 0</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(Percent_0, <span class="dv">1</span>),</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">B: median agreement, non-zero CDAs (%)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(B_median, <span class="dv">1</span>)</span>
 <span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>panel_medians <span class="sc">%&gt;%</span></span>
@@ -1162,65 +1163,65 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <caption>Boxplot medians for panels A and B, and the panel A zero-proportion overlay, per project</caption>
 <colgroup>
 <col style="width: 10%">
-<col style="width: 26%">
-<col style="width: 17%">
-<col style="width: 45%">
+<col style="width: 24%">
+<col style="width: 27%">
+<col style="width: 39%">
 </colgroup>
 <thead>
 <tr class="header">
 <th style="text-align: left;">Project</th>
 <th style="text-align: right;">A: median agreement (%)</th>
-<th style="text-align: right;">A: % scores = 0</th>
-<th style="text-align: right;">B: median agreement, non-zero scores (%)</th>
+<th style="text-align: right;">A: % CDAs in score class 0</th>
+<th style="text-align: right;">B: median agreement, non-zero CDAs (%)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">Project G</td>
 <td style="text-align: right;">85.9</td>
-<td style="text-align: right;">66.4</td>
-<td style="text-align: right;">56.2</td>
+<td style="text-align: right;">70.1</td>
+<td style="text-align: right;">68.5</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project B</td>
 <td style="text-align: right;">85.3</td>
-<td style="text-align: right;">51.6</td>
-<td style="text-align: right;">69.6</td>
+<td style="text-align: right;">52.5</td>
+<td style="text-align: right;">71.1</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project A</td>
 <td style="text-align: right;">84.5</td>
-<td style="text-align: right;">49.8</td>
-<td style="text-align: right;">61.4</td>
+<td style="text-align: right;">52.4</td>
+<td style="text-align: right;">63.0</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project D</td>
 <td style="text-align: right;">82.1</td>
-<td style="text-align: right;">45.4</td>
-<td style="text-align: right;">66.7</td>
+<td style="text-align: right;">45.8</td>
+<td style="text-align: right;">67.2</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project E</td>
 <td style="text-align: right;">76.8</td>
-<td style="text-align: right;">31.5</td>
-<td style="text-align: right;">67.9</td>
+<td style="text-align: right;">32.0</td>
+<td style="text-align: right;">68.6</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project F</td>
 <td style="text-align: right;">67.2</td>
-<td style="text-align: right;">16.0</td>
-<td style="text-align: right;">60.3</td>
+<td style="text-align: right;">17.1</td>
+<td style="text-align: right;">61.7</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project C</td>
 <td style="text-align: right;">63.0</td>
-<td style="text-align: right;">13.5</td>
-<td style="text-align: right;">58.0</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">59.2</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project H</td>
 <td style="text-align: right;">40.5</td>
-<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">3.9</td>
 <td style="text-align: right;">37.2</td>
 </tr>
 </tbody>
@@ -1267,50 +1268,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td style="text-align: left;">Project G</td>
 <td style="text-align: right;">85.9</td>
-<td style="text-align: right;">66.4</td>
-<td style="text-align: right;">1.29</td>
+<td style="text-align: right;">70.1</td>
+<td style="text-align: right;">1.23</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project B</td>
 <td style="text-align: right;">85.3</td>
-<td style="text-align: right;">51.6</td>
-<td style="text-align: right;">1.65</td>
+<td style="text-align: right;">52.5</td>
+<td style="text-align: right;">1.63</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project A</td>
 <td style="text-align: right;">84.5</td>
-<td style="text-align: right;">49.8</td>
-<td style="text-align: right;">1.70</td>
+<td style="text-align: right;">52.4</td>
+<td style="text-align: right;">1.61</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project D</td>
 <td style="text-align: right;">82.1</td>
-<td style="text-align: right;">45.4</td>
-<td style="text-align: right;">1.81</td>
+<td style="text-align: right;">45.8</td>
+<td style="text-align: right;">1.79</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project E</td>
 <td style="text-align: right;">76.8</td>
-<td style="text-align: right;">31.5</td>
-<td style="text-align: right;">2.44</td>
+<td style="text-align: right;">32.0</td>
+<td style="text-align: right;">2.40</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project F</td>
 <td style="text-align: right;">67.2</td>
-<td style="text-align: right;">16.0</td>
-<td style="text-align: right;">4.20</td>
+<td style="text-align: right;">17.1</td>
+<td style="text-align: right;">3.92</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Project C</td>
 <td style="text-align: right;">63.0</td>
-<td style="text-align: right;">13.5</td>
-<td style="text-align: right;">4.68</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">4.71</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Project H</td>
 <td style="text-align: right;">40.5</td>
-<td style="text-align: right;">4.5</td>
-<td style="text-align: right;">9.08</td>
+<td style="text-align: right;">3.9</td>
+<td style="text-align: right;">10.49</td>
 </tr>
 </tbody>
 </table>

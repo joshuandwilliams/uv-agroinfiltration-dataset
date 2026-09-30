@@ -1180,6 +1180,16 @@ cat(sprintf(
 #| fig-width: 11
 #| fig-height: 5
 # 8.2
+# Score colours for this PCA only, matching 07_visual_complexity's raw-pixel PCA
+# so the two ordinations can be read side by side. Those are matplotlib's tab10
+# indexed as plt.cm.tab10(score / 6), which lands on tab10 entries 0, 1, 3, 5, 6,
+# 8 and 9. This is a qualitative palette, so unlike sev_pal used elsewhere in this
+# analysis it does not encode the severity ordering.
+pca_score_pal <- setNames(
+  c("#1f77b4", "#ff7f0e", "#d62728", "#8c564b", "#e377c2", "#bcbd22", "#17becf"),
+  as.character(0:6)
+)
+
 pca_panel <- function(pc, var, title) {
   data.frame(
     PC1 = pc[, 1], PC2 = pc[, 2],
@@ -1187,7 +1197,7 @@ pca_panel <- function(pc, var, title) {
   ) %>%
     ggplot(aes(PC1, PC2, colour = score)) +
     geom_point(alpha = 0.5, size = 0.8) +
-    scale_colour_manual(name = "Severity Score", values = sev_pal) +
+    scale_colour_manual(name = "Severity Score", values = pca_score_pal) +
     guides(colour = guide_legend(override.aes = list(alpha = 1, size = 2))) +
     labs(
       title = title, x = sprintf("PC1 (%.1f%%)", 100 * var[1]),

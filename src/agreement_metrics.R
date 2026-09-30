@@ -91,6 +91,62 @@ bootstrap_kripp_alpha <- function(matrix, method, n_boot = 1000, sample_size = n
   boot
 }
 
+#' Bootstrap Gwet's AC2 over repeated column resamples of a scorer matrix.
+#'
+#' The prevalence-robust counterpart to bootstrap_kripp_alpha(): same
+#' scorer x item matrix, same resampling and caching scheme, but each
+#' replicate computes Gwet's weighted AC2 (irrCAC::gwet.ac1.raw() with
+#' weights, which returns the "AC2" coefficient) instead of Krippendorff's
+#' alpha. AC2 uses a chance-agreement model that does not inflate expected
+#' agreement when one category dominates, so it does not suffer the kappa
+#' "high-agreement paradox" that a marginal-based coefficient like alpha can.
+#' Quadratic weights are the AC2 analogue of alpha's interval distance metric.
+#'
+#' irrCAC::gwet.ac1.raw() expects a subjects x raters table, so each resampled
+#' set of columns (items) is transposed before scoring. Missing scores (NA) are
+#' handled natively, exactly as in kripp.alpha().
+#'
+#' @param matrix A scorer x item matrix, as built by build_scorer_matrix()
+#'   (same orientation as bootstrap_kripp_alpha()'s input).
+#' @param weights Weighting scheme passed to irrCAC::gwet.ac1.raw(). Use
+#'   "quadratic" for the interval-alpha analogue; "unweighted" gives AC1.
+#' @param n_boot,sample_size,replace,seed,suppress_warnings,cache_path As in
+#'   bootstrap_kripp_alpha(); the cache key also incorporates `weights`.
+#' @return A numeric vector of length `n_boot`, the AC2 value from each replicate.
+bootstrap_gwet_ac2 <- function(matrix, weights = "quadratic", n_boot = 1000,
+                               sample_size = ncol(matrix), replace = FALSE, seed = 42,
+                               suppress_warnings = FALSE, cache_path = NULL) {
+  cache_key <- NULL
+  if (!is.null(cache_path)) {
+    cache_key <- digest::digest(list(matrix, weights, n_boot, sample_size, replace, seed))
+    if (file.exists(cache_path)) {
+      cached <- readRDS(cache_path)
+      if (identical(cached$key, cache_key)) {
+        return(cached$boot)
+      }
+    }
+  }
+
+  if (!is.null(seed)) set.seed(seed)
+  draw_once <- function() {
+    idx <- sample(ncol(matrix), sample_size, replace = replace)
+    ratings <- as.data.frame(t(matrix[, idx, drop = FALSE])) # subjects (items) x raters
+    irrCAC::gwet.ac1.raw(ratings, weights = weights)$est$coeff.val
+  }
+  boot <- if (suppress_warnings) {
+    replicate(n_boot, suppressWarnings(draw_once()))
+  } else {
+    replicate(n_boot, draw_once())
+  }
+
+  if (!is.null(cache_path)) {
+    dir.create(dirname(cache_path), showWarnings = FALSE, recursive = TRUE)
+    saveRDS(list(key = cache_key, boot = boot), cache_path)
+  }
+
+  boot
+}
+
 #' Compute pairwise scorer-vs-scorer agreement from a long score table.
 #'
 #' For every CDA, compares every pair of scorers who scored it and tallies

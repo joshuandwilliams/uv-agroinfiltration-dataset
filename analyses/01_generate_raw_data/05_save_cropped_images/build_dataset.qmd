@@ -43,7 +43,7 @@ for col in ['Scorer1', 'Scorer2', 'Scorer3']:
 ### 3. Create folders
 ```{python}
 # 3
-out_folder = str(repo_root / "data/cropped_images")
+out_folder = str(repo_root / "data/cropped_images_centre")
 
 os.makedirs(out_folder, exist_ok=True)
 for score in range(7):

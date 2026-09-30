@@ -1,0 +1,1012 @@
+---
+title: "Predicting cell death severity from hand-crafted image features"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 13/7/2026
+
+## GOHREP
+
+**Goal:**
+
+Test how well a CDA's 0-6 severity score can be predicted from twelve
+hand-crafted image features, and find which of those features carry the signal.
+
+**Hypothesis:**
+
+The features are summaries of colour, brightness, texture and lesion geometry
+that a human rater plausibly uses, and each one rises with severity, so a simple
+model over the twelve should recover the score far better than chance. But
+because no single feature separates neighbouring scores (adjacent-class AUC
+peaks at 0.68 in `10_segmentation_and_feature_extraction`), the models are
+expected to place a CDA in roughly the right region of the scale while failing
+to pin the exact score.
+
+**Rationale:**
+
+The features are extracted in `10_segmentation_and_feature_extraction` and
+written to `data/features/cda_image_features.csv`. This analysis starts from that
+table and does nothing but model it. Three model families are fitted so the
+result is not an artefact of one inductive bias: k-NN (local, no assumed form), a
+random forest (non-linear, interaction-capable) and proportional-odds ordinal
+regression (linear, and the only one that uses the fact the scale is ordered).
+Each is scored under the same source-grouped cross validation, compared against a
+majority-class baseline and a single-feature threshold rule, and the winner is
+attributed with Gini importance and SHAP.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+#| output: false
+# 1.1
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+library(here)
+library(RColorBrewer)
+# randomForest and MASS are called namespaced (randomForest::randomForest,
+# MASS::polr) rather than attached, so they do not mask dplyr::select etc.
+requireNamespace("randomForest", quietly = TRUE)
+requireNamespace("MASS", quietly = TRUE)
+```
+
+### 1.2 Helper functions and colour palettes
+
+```{r}
+# 1.2
+source(here("src", "plotting_helpers.R"))
+save_plot <- make_save_plot("10_segmentation_and_feature_extraction")
+```
+
+---
+
+## 2. Features, class balance and a leakage-safe cross-validation
+
+All modelling uses a class-balanced dataset, every score downsampled to the
+smallest class, so the abundant score-0 class cannot dominate. Because the classes
+are equal, a majority-class guess scores 1/7 and exact accuracy equals balanced
+accuracy. Accuracy is reported as exact (predicted = true), near-miss (within one
+point) and balanced (mean of the per-class exact accuracies).
+
+The input is one row per cropped CDA image, read from
+`data/features/cda_image_features.csv`. Each feature is a scalar summary of the
+raw crop computed with no per-image threshold tuning, defined in full by
+`10_segmentation_and_feature_extraction`. The "CDA" is the segmented cell-death
+region, the "leaf" is all non-black pixels, and "greenness" means G - R (green
+minus red channel).
+
+| Variable | Feature | Source |
+|---|---|---|
+| `cda_green` | mean greenness inside the CDA | segmentation |
+| `cda_bright` | mean brightness inside the CDA | segmentation |
+| `cda_green_sd` | greenness spread within the CDA | segmentation |
+| `cda_bright_sd` | brightness spread within the CDA | segmentation |
+| `green_gap` | CDA greenness minus healthy-leaf greenness | segmentation |
+| `ent_gap` | CDA Shannon entropy minus healthy-leaf entropy | segmentation |
+| `sep` | bimodality of the leaf-greenness distribution | segmentation |
+| `leaf_green_sd` | greenness spread over the whole leaf | segmentation |
+| `mean_green` | mean green-channel intensity over the leaf | `09_image_entropy` |
+| `log_gr` | log green-pixel to red-pixel count ratio | `09_image_entropy` |
+| `leaf_bright` | mean brightness over the leaf | `09_image_entropy` |
+| `entropy_raw` | Shannon entropy of the raw crop | `09_image_entropy` |
+
+Two further columns are not model features. `frac_g_gt_r` (CDA area over leaf
+area) is used only for the single-feature baseline, since Otsu splits every leaf
+whether or not a lesion is present, and `source` names the leaf each crop came
+from and groups the folds below.
+
+Crops from one leaf share lighting, plant and tissue, so they are not
+independent. Whole leaves are therefore assigned to folds, and no leaf ever
+appears in both the training and held-out folds.
+
+- Balancing leaves 436 crops per class and 3052 in total, so the majority-class
+  floor is 1/7 and exact accuracy equals balanced accuracy.
+- A shuffled-label run returns 0.146 against a 0.143 chance level, so the
+  pipeline carries no leakage of its own.
+
+```{r}
+# 2.1  Features and class balancing
+# All twelve features (plus the area baseline and the source leaf) come from the
+# table exported by 10_segmentation_and_feature_extraction.
+features <- read.csv(here("data", "features", "cda_image_features.csv"))
+
+seg_features <- c(
+  "ent_gap", "green_gap", "cda_green", "sep",
+  "cda_green_sd", "cda_bright", "cda_bright_sd", "leaf_green_sd",
+  "mean_green", "log_gr", "leaf_bright"
+)
+other_features <- c("entropy_raw")
+all_features <- c(seg_features, other_features)
+
+# frac_g_gt_r is not a model feature (its Otsu-artefact behaviour is discussed in
+# 10_segmentation_and_feature_extraction section 5.2); it is kept in the frame
+# only for the single-feature "Threshold: CDA area" baseline in section 6.
+feat_all <- features %>%
+  select(image_id, source, score, frac_g_gt_r, all_of(all_features))
+
+set.seed(42)
+min_n <- min(table(feat_all$score))
+bal_idx <- unlist(lapply(0:6, function(s) {
+  idx <- which(feat_all$score == s)
+  if (length(idx) > min_n) sample(idx, min_n) else idx
+}))
+feat <- feat_all[bal_idx, ]
+X <- as.matrix(feat[, all_features])
+y <- feat$score
+cat(sprintf(
+  "Balanced set: %d images per class, %d total, %d features\n",
+  min_n, nrow(feat), length(all_features)
+))
+```
+
+```{r}
+# 2.2  Source-grouped 5-fold assignment (a leaf's crops never split across folds)
+# `source` is the crop filename <SourceBasename>_<Row>_<Col>_<Pos> with the
+# trailing _Row_Col_Pos stripped, i.e. the source leaf image.
+K <- 5
+set.seed(42)
+usrc <- unique(feat$source)
+src_fold <- setNames(sample(rep(1:K, length.out = length(usrc))), usrc)
+fold <- unname(src_fold[feat$source])
+cat(sprintf(
+  "%d source leaves assigned across %d folds; fold sizes: %s\n",
+  length(usrc), K, paste(as.integer(table(fold)), collapse = ", ")
+))
+
+metric_row <- function(pred, name, tuning = "") {
+  per <- vapply(0:6, function(s) mean(pred[y == s] == s), numeric(1))
+  data.frame(
+    model = name, tuning = tuning,
+    exact = mean(pred == y), near_miss = mean(abs(pred - y) <= 1),
+    balanced = mean(per)
+  )
+}
+# Per-fold accuracy, so the cross-validation is fully transparent (reported
+# alongside the mean, not just pooled).
+per_fold <- function(pred, name) {
+  do.call(rbind, lapply(1:K, function(f) {
+    m <- fold == f
+    data.frame(
+      model = name, fold = as.character(f), n = sum(m),
+      exact = mean(pred[m] == y[m]),
+      near_miss = mean(abs(pred[m] - y[m]) <= 1)
+    )
+  }))
+}
+```
+
+```{r}
+# 2.3  Random-forest regressor under the grouped cross validation, plus a leakage sanity check.
+rf_reg_cv <- function(ntree, target = y) {
+  pred <- numeric(length(target))
+  for (f in 1:K) {
+    tr <- fold != f
+    te <- fold == f
+    m <- randomForest::randomForest(x = X[tr, , drop = FALSE], y = target[tr], ntree = ntree)
+    pred[te] <- predict(m, X[te, , drop = FALSE])
+  }
+  pmin(pmax(round(pred), 0), 6)
+}
+# Shuffle the labels: a correctly-built cross validation with no leakage MUST collapse to chance.
+set.seed(7)
+y_shuffled <- sample(y)
+shuffle_acc <- mean(rf_reg_cv(200, y_shuffled) == y_shuffled)
+cat(sprintf(
+  "Leakage check - shuffled-label cross validation exact accuracy = %.3f (chance = %.3f)\n",
+  shuffle_acc, 1 / 7
+))
+```
+
+---
+
+## 3. Choosing k for k-NN
+
+Only held-out accuracy is shown, since at k = 1 each training point is its own
+neighbour and scores 100% by construction.
+
+- Held-out accuracy climbs from 0.462 at k = 1 to 0.556 at k = 27, so single
+  nearest neighbours overfit the local noise and averaging fixes it.
+- Every k from 5 upward lands between 0.511 and 0.556, so the exact choice of k
+  matters far less than the ceiling the feature space imposes.
+
+```{r}
+# 3.1
+knn_cv <- function(ks) {
+  P <- matrix(0L, nrow(X), length(ks), dimnames = list(NULL, paste0("k", ks)))
+  for (f in 1:K) {
+    tr <- fold != f
+    te <- fold == f
+    mu <- colMeans(X[tr, ])
+    sdv <- apply(X[tr, ], 2, sd)
+    sdv[sdv == 0] <- 1
+    Xtr <- scale(X[tr, , drop = FALSE], mu, sdv)
+    Xte <- scale(X[te, , drop = FALSE], mu, sdv)
+    d <- outer(rowSums(Xte^2), rowSums(Xtr^2), "+") - 2 * Xte %*% t(Xtr)
+    ytr <- y[tr]
+    ord <- t(apply(d, 1, order))
+    for (j in seq_along(ks)) {
+      P[te, j] <- apply(ord[, 1:ks[j], drop = FALSE], 1, function(ix) {
+        tb <- table(ytr[ix])
+        as.integer(names(tb)[which.max(tb)])
+      })
+    }
+  }
+  P
+}
+kseq <- seq(1, 51, by = 2)
+knn_preds <- knn_cv(kseq)
+knn_curve <- data.frame(
+  k = kseq,
+  exact = apply(knn_preds, 2, function(p) mean(p == y)),
+  near_miss = apply(knn_preds, 2, function(p) mean(abs(p - y) <= 1))
+)
+best_k <- kseq[which.max(knn_curve$exact)]
+cat(sprintf(
+  "Best k = %d  (held-out exact = %.3f, near-miss = %.3f)\n",
+  best_k, max(knn_curve$exact), knn_curve$near_miss[knn_curve$k == best_k]
+))
+```
+
+```{r fig.width=8, fig.height=4.5}
+#| fig-width: 8
+#| fig-height: 4.5
+# 3.2
+p_ksweep <- ggplot(knn_curve, aes(k, exact)) +
+  geom_line(colour = "#2166AC") +
+  geom_point(colour = "#2166AC", size = 1.4) +
+  geom_vline(xintercept = best_k, linetype = "dashed", colour = "grey40") +
+  coord_cartesian(ylim = c(min(knn_curve$exact) - 0.02, max(knn_curve$exact) + 0.02)) +
+  labs(
+    x = "k (number of neighbours)", y = "Held-out exact accuracy (grouped 5-fold cross validation)",
+    title = sprintf("k-NN: held-out accuracy is flat beyond k ~ 5; chosen k = %d", best_k)
+  ) +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
+p_ksweep
+save_plot(p_ksweep, "seg_knn_k_sweep.png", width = 8, height = 4.5)
+```
+
+---
+
+## 4. Random forest: regularising to control overfitting
+
+The forest is fixed at 200 trees and tree size is capped with `maxnodes`, taking
+the largest held-out accuracy whose train-to-held-out gap stays within 15 points.
+Training accuracy is fit and scored on all the data, held-out is the grouped
+5-fold cross validation.
+
+- Capping trees at 128 leaf nodes reaches 0.562 held-out for a gap of 0.109,
+  while 256 nodes adds only 0.010 held-out accuracy for a 0.168 gap that breaks
+  the 15-point rule.
+- Training accuracy keeps climbing (0.370 to 0.741 across the sweep, and 0.924
+  fully grown) while held-out accuracy stalls near 0.57, so the extra capacity is
+  memorisation rather than signal.
+
+```{r}
+# 4.1
+NTREE <- 200
+rf_fit_cv <- function(maxnodes) { # grouped cross validation (held-out) predictions
+  pred <- numeric(length(y))
+  for (f in 1:K) {
+    tr <- fold != f
+    te <- fold == f
+    m <- randomForest::randomForest(
+      x = X[tr, , drop = FALSE], y = y[tr],
+      ntree = NTREE, maxnodes = maxnodes
+    )
+    pred[te] <- predict(m, X[te, , drop = FALSE])
+  }
+  pmin(pmax(round(pred), 0), 6)
+}
+rf_fit_train <- function(maxnodes) { # resubstitution (training) predictions
+  set.seed(1)
+  m <- randomForest::randomForest(x = X, y = y, ntree = NTREE, maxnodes = maxnodes)
+  pmin(pmax(round(predict(m, X)), 0), 6)
+}
+maxnodes_grid <- c(4, 8, 16, 32, 64, 128, 256)
+set.seed(42)
+reg_curve <- data.frame(
+  maxnodes = maxnodes_grid,
+  train = sapply(maxnodes_grid, function(mn) mean(rf_fit_train(mn) == y)),
+  cross_validation = sapply(maxnodes_grid, function(mn) mean(rf_fit_cv(mn) == y))
+)
+reg_curve$gap <- reg_curve$train - reg_curve$cross_validation
+best_maxnodes <- max(reg_curve$maxnodes[reg_curve$gap <= 0.15])
+cat(sprintf(
+  "Chosen maxnodes = %d: train = %.3f, cross validation = %.3f, gap = %.3f (<= 0.15)\n",
+  best_maxnodes,
+  reg_curve$train[reg_curve$maxnodes == best_maxnodes],
+  reg_curve$cross_validation[reg_curve$maxnodes == best_maxnodes],
+  reg_curve$gap[reg_curve$maxnodes == best_maxnodes]
+))
+rf_best <- rf_fit_cv(best_maxnodes) # held-out predictions of the chosen model
+```
+
+```{r fig.width=8, fig.height=4.5}
+#| fig-width: 8
+#| fig-height: 4.5
+# 4.2
+p_reg <- reg_curve %>%
+  pivot_longer(c(train, cross_validation), names_to = "set", values_to = "accuracy") %>%
+  ggplot(aes(maxnodes, accuracy, colour = set)) +
+  geom_line() +
+  geom_point(size = 1.6) +
+  geom_vline(xintercept = best_maxnodes, linetype = "dashed", colour = "grey40") +
+  scale_colour_manual(
+    values = c(train = "#B2182B", cross_validation = "#2166AC"),
+    labels = c(cross_validation = "held out (grouped 5-fold cross validation)", train = "training"),
+    name = NULL
+  ) +
+  scale_x_log10(breaks = maxnodes_grid) +
+  labs(
+    x = "max leaf nodes per tree (log scale)", y = "Exact accuracy",
+    title = sprintf("RF regularisation: train-cross-validation gap kept <= 15%%; maxnodes = %d", best_maxnodes)
+  ) +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
+p_reg
+save_plot(p_reg, "seg_rf_regularisation.png", width = 8, height = 4.5)
+```
+
+### 4.1 Does the tree count matter?
+
+The 200 trees above are asserted rather than tuned, so the sweep is repeated
+across tree counts. Unlike `maxnodes`, the number of trees is not a capacity
+parameter. A random forest averages independently grown trees, and its
+generalisation error converges as trees are added rather than degrading
+(Breiman 2001), so more trees should buy variance reduction and nothing else.
+If that holds, the table below is flat along its rows and the chosen `maxnodes`
+does not depend on the tree count.
+
+- Held-out accuracy climbs by up to 0.014 between 25 and 100 trees, then moves by
+  at most 0.007 out to 800, against a 0.005 spread from merely re-seeding a
+  single setting, so the plateau arrives by roughly 100 trees.
+- The best cap is 256 leaf nodes in all six columns, so the two settings do not
+  interact and the chosen `maxnodes` would be identical at any tree count.
+- 200 trees therefore sits comfortably past the plateau, and a full
+  two-dimensional search would cost six times the compute to return the same
+  model.
+
+```{r}
+# 4.3  ntree x maxnodes, under the same undersample and grouped folds as above.
+# Cached: the full grid is 42 cross-validated forests and takes a few minutes.
+ntree_cache <- here(
+  "analyses", "10_segmentation_and_feature_extraction", "model_cache",
+  "ntree_sweep.rds"
+)
+if (file.exists(ntree_cache)) {
+  nts <- readRDS(ntree_cache)
+} else {
+  rf_cv_at <- function(nt, mn) {
+    pred <- numeric(length(y))
+    for (f in 1:K) {
+      tr <- fold != f
+      te <- fold == f
+      m <- randomForest::randomForest(
+        x = X[tr, , drop = FALSE], y = y[tr], ntree = nt, maxnodes = mn
+      )
+      pred[te] <- predict(m, X[te, , drop = FALSE])
+    }
+    mean(pmin(pmax(round(pred), 0), 6) == y)
+  }
+  ntrees <- c(25, 50, 100, 200, 400, 800)
+  sweep <- matrix(NA_real_, length(maxnodes_grid), length(ntrees),
+    dimnames = list(maxnodes_grid, ntrees)
+  )
+  for (i in seq_along(maxnodes_grid)) {
+    for (j in seq_along(ntrees)) {
+      set.seed(42)
+      sweep[i, j] <- rf_cv_at(ntrees[j], maxnodes_grid[i])
+    }
+  }
+  # Repeat one cell across seeds to size the run-to-run noise, so the table's
+  # column-to-column differences can be judged against it.
+  reruns <- sapply(1:5, function(s) {
+    set.seed(s)
+    rf_cv_at(200, 128)
+  })
+  nts <- list(sweep = sweep, ntrees = ntrees, maxnodes = maxnodes_grid, reruns = reruns)
+  dir.create(dirname(ntree_cache), showWarnings = FALSE, recursive = TRUE)
+  saveRDS(nts, ntree_cache)
+}
+
+knitr::kable(
+  data.frame(maxnodes = nts$maxnodes, round(nts$sweep, 3), check.names = FALSE),
+  row.names = FALSE,
+  caption = "Held-out exact accuracy (grouped 5-fold). Columns are tree counts."
+)
+cat(sprintf(
+  "Best maxnodes per tree count: %s\n",
+  paste(unique(nts$maxnodes[apply(nts$sweep, 2, which.max)]), collapse = ", ")
+))
+cat(sprintf(
+  "Re-running ntree = 200, maxnodes = 128 across 5 seeds: sd = %.4f, range = %.3f\n",
+  sd(nts$reruns), diff(range(nts$reruns))
+))
+```
+
+---
+
+## 5. Ordinal regression
+
+Proportional-odds ordinal logistic regression fits one linear predictor to the 12
+features and six ordered cut-points that split it into the seven classes, so the
+model uses the ordering of the scale rather than treating the classes as
+unrelated labels. It has no hyperparameter, so there is no sweep.
+
+- Held-out exact accuracy is 0.615 against 0.616 training, a gap of 0.002, so
+  twelve coefficients plus six cut-points leave nothing to memorise.
+- Near-miss accuracy is 0.978, so all but 2% of crops land within one point of
+  the true score.
+
+```{r}
+# 5.1  Ordinal logistic regression (proportional odds, MASS::polr), scored under
+# the same source-grouped cross validation. Features are standardised with
+# training-fold statistics inside each fold, so nothing leaks into the scaling.
+ord_cv <- function() {
+  pred <- integer(length(y))
+  for (f in 1:K) {
+    tr <- fold != f
+    te <- fold == f
+    mu <- colMeans(X[tr, ])
+    sdv <- apply(X[tr, ], 2, sd)
+    sdv[sdv == 0] <- 1
+    dtr <- data.frame(scale(X[tr, , drop = FALSE], mu, sdv),
+      y = factor(y[tr], levels = 0:6, ordered = TRUE)
+    )
+    dte <- data.frame(scale(X[te, , drop = FALSE], mu, sdv))
+    fit <- suppressWarnings(MASS::polr(y ~ ., data = dtr, Hess = TRUE))
+    pred[te] <- as.integer(as.character(predict(fit, dte, type = "class")))
+  }
+  pred
+}
+ord_train <- function() {
+  mu <- colMeans(X)
+  sdv <- apply(X, 2, sd)
+  sdv[sdv == 0] <- 1
+  d <- data.frame(scale(X, mu, sdv), y = factor(y, levels = 0:6, ordered = TRUE))
+  fit <- suppressWarnings(MASS::polr(y ~ ., data = d, Hess = TRUE))
+  as.integer(as.character(predict(fit, data.frame(scale(X, mu, sdv)), type = "class")))
+}
+ord_best <- ord_cv()
+ord_tr <- ord_train()
+ord_fmt <- paste0(
+  "Ordinal regression: held-out (grouped cross validation) exact = %.3f, near-miss = %.3f; ",
+  "training = %.3f, gap = %.3f\n"
+)
+cat(sprintf(
+  ord_fmt,
+  mean(ord_best == y), mean(abs(ord_best - y) <= 1),
+  mean(ord_tr == y), mean(ord_tr == y) - mean(ord_best == y)
+))
+```
+
+### 5.1 Distribution over 1,000 undersamples
+
+Every accuracy above rests on one balanced undersample drawn at seed 42, which
+throws away 52% of the crops and could be lucky or unlucky. The whole experiment
+is therefore repeated 1,000 times, each iteration drawing a fresh undersample of
+436 crops per class and a fresh source-grouped fold assignment, then scoring the
+ordinal regression exactly as above. Both accuracies are held-out: every crop is
+predicted only while its leaf sits in the held-out fold, and the 3052 out-of-fold
+predictions are pooled once all five folds are done. This mirrors the repeat stratified
+undersampling used for the human scoring in `03_human_performance`, so the model
+and the raters are summarised the same way.
+
+- Across 1,000 undersamples exact accuracy averages 0.608 with a 95% interval of
+  0.597 to 0.619, so which crops are drawn moves the headline by about a point in
+  either direction.
+- The seed-42 draw used above scores 0.615, the 91st percentile of that
+  distribution, so the single figure quoted for it is mildly lucky rather than
+  typical.
+- Every one of the 1,000 draws still beats the random forest (0.565) and k-NN
+  (0.556), and near-miss accuracy varies by only sd 0.0018, so both the model
+  ranking and the one-point reliability survive resampling.
+
+```{r}
+# 5.2  1,000 undersamples, each scored by the same grouped 5-fold ordinal
+# regression. Cached: the loop takes about 15 minutes.
+ord_dist_cache <- here(
+  "analyses", "10_segmentation_and_feature_extraction", "model_cache",
+  "ordinal_undersample_dist.rds"
+)
+if (file.exists(ord_dist_cache)) {
+  ord_dist <- readRDS(ord_dist_cache)
+} else {
+  # Seed i drives both the undersample and the fold assignment, so each
+  # iteration is an independent repeat of the entire experiment.
+  ord_once <- function(seed) {
+    set.seed(seed)
+    b <- unlist(lapply(0:6, function(s) {
+      idx <- which(feat_all$score == s)
+      if (length(idx) > min_n) sample(idx, min_n) else idx
+    }))
+    f <- feat_all[b, ]
+    Xi <- as.matrix(f[, all_features])
+    yi <- f$score
+    u <- unique(f$source)
+    fo <- unname(setNames(sample(rep(1:K, length.out = length(u))), u)[f$source])
+    pred <- integer(length(yi))
+    for (k in 1:K) {
+      tr <- fo != k
+      te <- fo == k
+      mu <- colMeans(Xi[tr, ])
+      sdv <- apply(Xi[tr, ], 2, sd)
+      sdv[sdv == 0] <- 1
+      dtr <- data.frame(scale(Xi[tr, , drop = FALSE], mu, sdv),
+        y = factor(yi[tr], levels = 0:6, ordered = TRUE)
+      )
+      fit <- suppressWarnings(MASS::polr(y ~ ., data = dtr, Hess = TRUE))
+      pred[te] <- as.integer(as.character(
+        predict(fit, data.frame(scale(Xi[te, , drop = FALSE], mu, sdv)), type = "class")
+      ))
+    }
+    c(exact = mean(pred == yi), near_miss = mean(abs(pred - yi) <= 1))
+  }
+  res <- vapply(seq_len(1000), ord_once, numeric(2))
+  ord_dist <- data.frame(
+    iteration = seq_len(1000), exact = res["exact", ], near_miss = res["near_miss", ]
+  )
+  dir.create(dirname(ord_dist_cache), showWarnings = FALSE, recursive = TRUE)
+  saveRDS(ord_dist, ord_dist_cache)
+}
+
+ord_summary <- function(v) {
+  sprintf(
+    "mean = %.3f, sd = %.4f, 95%% interval [%.3f, %.3f]",
+    mean(v), sd(v), quantile(v, 0.025), quantile(v, 0.975)
+  )
+}
+cat(sprintf("Exact      : %s\n", ord_summary(ord_dist$exact)))
+cat(sprintf("Near-miss  : %s\n", ord_summary(ord_dist$near_miss)))
+cat(sprintf(
+  "Seed-42 undersample sits at the %.0fth percentile of the exact distribution.\n",
+  100 * mean(ord_dist$exact <= mean(ord_best == y))
+))
+```
+
+```{r fig.width=10, fig.height=4.5}
+#| fig-width: 10
+#| fig-height: 4.5
+# 5.3  Histograms matching 03_human_performance's distribution plots: sky-blue
+# bars with a dashed red mean line (red is kept for the mean so it cannot be
+# confused with the bars).
+#
+# Every iteration scores the same 3052 held-out predictions, so an accuracy can
+# only ever be an integer multiple of 1/3052. Bins that are not a whole number of
+# those steps wide therefore capture 3 attainable values in one bar and 2 in the
+# next, leaving a comb of empty gaps that is an artefact of the binning rather
+# than of the distribution. Bin width is fixed to `m` whole steps and the edges
+# are offset by half a step, so each bar covers exactly m attainable values.
+n_pred <- nrow(feat)
+dist_panel <- function(v, xlab, title, target_bins = 20) {
+  step <- 1 / n_pred
+  m <- max(1, round(diff(range(v)) / (target_bins * step)))
+  ggplot(data.frame(v = v), aes(v)) +
+    geom_histogram(
+      binwidth = m * step, boundary = min(v) - step / 2,
+      fill = "skyblue", colour = "grey30", linewidth = 0.2
+    ) +
+    geom_vline(
+      xintercept = mean(v), colour = "red", linetype = "dashed", linewidth = 0.8
+    ) +
+    labs(
+      x = xlab, y = "Frequency",
+      title = sprintf("%s (mean %.3f)", title, mean(v))
+    ) +
+    theme_minimal() +
+    theme(axis.text = element_text(size = 11), axis.title = element_text(size = 12))
+}
+p_dist <- dist_panel(ord_dist$exact, "Held-out exact accuracy", "Exact") |
+  dist_panel(ord_dist$near_miss, "Held-out near-miss accuracy", "Near-miss")
+p_dist
+save_plot(p_dist, "seg_ordinal_undersample_dist.png", width = 10, height = 4.5)
+```
+
+---
+
+## 6. Model comparison, with per-fold results
+
+- Ordinal regression leads at 0.615 held-out against 0.565 for the random forest
+  and 0.556 for k-NN, so the linear model that uses the ordering of the scale
+  beats both models that do not.
+- The single-feature CDA-area rule reaches 0.111, below the 0.143 majority-class
+  floor, confirming that lesion area carries no usable severity signal on its own.
+
+```{r}
+# 6.1
+# Held-out (grouped cross validation) predictors. The ordinal-regression
+# predictors (ord_best, ord_tr) are defined in section 5 above.
+thresh_cv <- function(x) {
+  pred <- integer(length(y))
+  for (f in 1:K) {
+    tr <- fold != f
+    te <- fold == f
+    med <- tapply(x[tr], y[tr], median)
+    sc <- as.integer(names(med))
+    o <- order(sc)
+    med <- med[o]
+    sc <- sc[o]
+    cuts <- cummax((head(med, -1) + tail(med, -1)) / 2)
+    pred[te] <- sc[findInterval(x[te], cuts) + 1]
+  }
+  pred
+}
+# Training (resubstitution) predictors, for the train-cross-validation gap
+thresh_train <- function(x) {
+  med <- tapply(x, y, median)
+  sc <- as.integer(names(med))
+  o <- order(sc)
+  med <- med[o]
+  sc <- sc[o]
+  cuts <- cummax((head(med, -1) + tail(med, -1)) / 2)
+  sc[findInterval(x, cuts) + 1]
+}
+knn_train_at <- function(k) { # self-inclusive; meaningful for k > 1
+  mu <- colMeans(X)
+  sdv <- apply(X, 2, sd)
+  sdv[sdv == 0] <- 1
+  Xs <- scale(X, mu, sdv)
+  d <- outer(rowSums(Xs^2), rowSums(Xs^2), "+") - 2 * Xs %*% t(Xs)
+  ord <- t(apply(d, 1, order))
+  apply(ord[, 1:k, drop = FALSE], 1, function(ix) {
+    tb <- table(y[ix])
+    as.integer(names(tb)[which.max(tb)])
+  })
+}
+
+knn_best <- knn_preds[, which(kseq == best_k)]
+maj <- rep(as.integer(names(which.max(table(y)))), length(y))
+
+cmp_row <- function(train_pred, test_pred, name, tuning) {
+  data.frame(
+    model = name, tuning = tuning,
+    train = mean(train_pred == y), cross_validation = mean(test_pred == y),
+    gap = mean(train_pred == y) - mean(test_pred == y),
+    near_miss = mean(abs(test_pred - y) <= 1)
+  )
+}
+results <- rbind(
+  cmp_row(maj, maj, "Majority class", ""),
+  cmp_row(thresh_train(feat$frac_g_gt_r), thresh_cv(feat$frac_g_gt_r), "Threshold: CDA area", "1 feature"),
+  cmp_row(ord_tr, ord_best, "Ordinal regression", "12 features"),
+  cmp_row(knn_train_at(best_k), knn_best, "k-NN", sprintf("k = %d", best_k)),
+  cmp_row(rf_fit_train(best_maxnodes), rf_best, "Random forest", sprintf("%d nodes", best_maxnodes))
+)
+
+results %>%
+  mutate(across(c(train, cross_validation, gap, near_miss), ~ round(., 3)),
+    overfit = ifelse(gap > 0.15, "DISCARD", "ok")
+  ) %>%
+  arrange(desc(cross_validation)) %>%
+  as.data.frame()
+```
+
+```{r}
+# 6.2  Per-fold breakdown of the best model (chosen by held-out accuracy).
+cv_preds <- list("Random forest" = rf_best, "k-NN" = knn_best, "Ordinal regression" = ord_best)
+best_cv_name <- names(cv_preds)[which.max(vapply(cv_preds, function(p) mean(p == y), numeric(1)))]
+pf <- per_fold(cv_preds[[best_cv_name]], best_cv_name)
+print(transform(pf, exact = round(exact, 3), near_miss = round(near_miss, 3)))
+cat(sprintf(
+  "MEAN across folds: exact = %.3f (fold range %.3f-%.3f); near-miss = %.3f\n",
+  mean(pf$exact), min(pf$exact), max(pf$exact), mean(pf$near_miss)
+))
+```
+
+- Per-fold exact accuracy spans 0.592 to 0.634 across the five folds, so the
+  headline 0.615 is not the product of one lucky split.
+- For reference, and not a like-for-like comparison, the project's deep-learning
+  models reach 60-67% held-out test accuracy against 61.5% here, so twelve
+  hand-crafted features land in the same range as a learned representation.
+
+---
+
+## 7. Confusion matrix of the best model
+
+Everything from here on is fitted on the single seed-42 undersample used
+throughout, not on any of the 1,000 draws above and not on the best of them.
+Picking the best draw would select the top of a distribution and bias every
+figure downstream, but the fixed draw is not neutral either: it reports 61.5%
+exact against a resampled mean of 60.8%, so the percentages below sit at the
+optimistic end by roughly a point.
+
+- Errors are almost all off-by-one: 36.3% of crops land exactly one class away
+  and only 2.2% two or more, which is the tight band diagonal.
+- The ends of the scale are recovered best (79.8% at score 0 and 71.1% at score
+  6) while every interior class sits near 55%, so the middle of the scale is
+  where the features run out.
+
+```{r fig.width=7, fig.height=6}
+#| fig-width: 7
+#| fig-height: 6
+# 7.1
+model_preds <- list(
+  "Random forest" = rf_best, "k-NN" = knn_best,
+  "Ordinal regression" = ord_best
+)
+best_name <- names(model_preds)[which.max(vapply(
+  model_preds,
+  function(p) mean(p == y), numeric(1)
+))]
+best_pred <- model_preds[[best_name]]
+
+cm <- as.data.frame(table(true = factor(y, 0:6), pred = factor(best_pred, 0:6)))
+p_cm <- ggplot(cm, aes(x = pred, y = true, fill = Freq)) +
+  geom_tile(colour = "grey90") +
+  geom_text(aes(label = Freq), size = 3.5) +
+  scale_fill_gradient(low = "white", high = "#B2182B", guide = "none") +
+  scale_y_discrete(limits = rev) +
+  labs(
+    x = "Predicted score", y = "True score",
+    title = sprintf(
+      "%s (grouped cross validation): exact %.1f%%, near-miss %.1f%%",
+      best_name, 100 * mean(best_pred == y),
+      100 * mean(abs(best_pred - y) <= 1)
+    )
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 12), axis.title = element_text(size = 14),
+    plot.title = element_text(size = 12), panel.grid = element_blank()
+  )
+p_cm
+save_plot(p_cm, "seg_confusion_matrix.png", width = 7, height = 6)
+```
+
+---
+
+## 8. Gini importance
+
+- CDA greenness (234) and the log green-to-red ratio (198) lead, with within-CDA
+  greenness variation last at 37, so lesion colour dominates the splits.
+- The top five span only 234 to 139 and several of them are near duplicates, so
+  the ranking should be read as blocks rather than a strict per-feature order.
+
+```{r fig.width=7, fig.height=5}
+#| fig-width: 7
+#| fig-height: 5
+# 8.1
+set.seed(1)
+rf_clf <- randomForest::randomForest(
+  x = X, y = factor(y, levels = 0:6),
+  ntree = NTREE, maxnodes = best_maxnodes,
+  importance = TRUE
+)
+imp_df <- data.frame(
+  feature = rownames(randomForest::importance(rf_clf)),
+  importance = randomForest::importance(rf_clf)[, "MeanDecreaseGini"]
+)
+p_imp <- ggplot(imp_df, aes(x = reorder(feature, importance), y = importance)) +
+  geom_col(fill = "#2166AC") +
+  coord_flip() +
+  labs(x = NULL, y = "Random-forest importance (mean decrease in Gini)") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 13))
+p_imp
+save_plot(p_imp, "seg_feature_importance.png", width = 7, height = 5)
+```
+
+---
+
+## 9. SHAP analysis
+
+Gini importance is global and directionless. SHAP attributes each prediction to
+its features, showing magnitude and direction, computed here on the random forest
+regressor with an interventional, class-balanced background set.
+
+- The log green-to-red ratio and CDA greenness dominate, and high values of both
+  push the prediction upward across the whole explanation set, so the model reads
+  severity mainly off lesion colour.
+- The four weakest features stay within 0.05 of zero, and within-CDA greenness
+  variation contributes a mean absolute SHAP of 0.01, so lesion mottling barely
+  moves a prediction.
+
+```{r}
+#| output: false
+# 9.1
+library(kernelshap)
+library(shapviz)
+
+set.seed(1)
+rf_reg <- randomForest::randomForest(x = X, y = y, ntree = NTREE, maxnodes = best_maxnodes)
+
+# Class-balanced background (~14/class) and a class-balanced explanation set.
+Xdf <- as.data.frame(X)
+bg_idx <- unlist(lapply(0:6, function(s) sample(which(y == s), 14)))
+ex_idx <- unlist(lapply(0:6, function(s) sample(which(y == s), 20)))
+shp <- shapviz(suppressWarnings(
+  permshap(rf_reg, X = Xdf[ex_idx, ], bg_X = Xdf[bg_idx, ])
+))
+y_ex <- y[ex_idx]
+```
+
+```{r fig.width=8, fig.height=6}
+#| fig-width: 8
+#| fig-height: 6
+# 9.2 Beeswarm: global importance + direction of each feature's effect.
+p_bee <- sv_importance(shp, kind = "beeswarm", max_display = length(all_features)) +
+  theme_minimal() + theme(axis.text = element_text(size = 11))
+p_bee
+save_plot(p_bee, "seg_shap_beeswarm.png", width = 8, height = 6)
+```
+
+- All three leading features have monotonic effects, but CDA brightness is flat
+  below about 100 and only then climbs from -0.25 to +0.6, so once a lesion is
+  dark enough the model stops distinguishing further dimming.
+- The log green-to-red ratio saturates at both ends, sitting near -0.7 below -8
+  and near +0.5 above 0, so extreme values add nothing beyond the threshold.
+
+```{r fig.width=11, fig.height=4}
+#| fig-width: 11
+#| fig-height: 4
+# 9.3 Dependence plots for the three most important features (by mean |SHAP|).
+mean_abs <- sort(colMeans(abs(get_shap_values(shp))), decreasing = TRUE)
+top3 <- names(mean_abs)[1:3]
+p_dep <- patchwork::wrap_plots(lapply(top3, function(v) {
+  sv_dependence(shp, v = v, color_var = NULL) + theme_minimal()
+}), nrow = 1)
+p_dep
+save_plot(p_dep, "seg_shap_dependence.png", width = 11, height = 4)
+```
+
+- The top two features are the same at both ends of the scale, so the model is
+  not running on separate low- and high-severity specialists.
+- Greenness bimodality matters more at low severity (0.30 against 0.19) while CDA
+  brightness rises from fifth to third, which fits bimodality's role in telling a
+  faint lesion from none at all.
+
+```{r}
+# 9.4 Does the feature ranking reshuffle between low (0-1) and high (5-6)
+# severity? (mean |SHAP| per feature, matching the AutoCDAScorer MSHAP table.)
+S <- abs(get_shap_values(shp))
+mshap <- data.frame(
+  feature = colnames(S),
+  low_severity = colMeans(S[y_ex %in% 0:1, , drop = FALSE]),
+  high_severity = colMeans(S[y_ex %in% 5:6, , drop = FALSE])
+)
+mshap$rank_low <- rank(-mshap$low_severity)
+mshap$rank_high <- rank(-mshap$high_severity)
+mshap %>%
+  mutate(across(c(low_severity, high_severity), ~ round(., 3))) %>%
+  arrange(desc(high_severity)) %>%
+  as.data.frame()
+```
+
+- For this mid-severity crop no single feature dominates, the largest push being
+  -0.28 from the log green-to-red ratio.
+- Those small contributions carry the prediction from a 3.05 baseline to 2.42,
+  which rounds to 2 and lands one class below the truth, the off-by-one error the
+  confusion matrix is full of.
+
+```{r fig.width=8, fig.height=5}
+#| fig-width: 8
+#| fig-height: 5
+# 9.5 Waterfall: how the features add up to the prediction for one CDA
+# (a mid-severity example, where the models struggle most).
+wf_row <- which(y_ex == 3)[1]
+p_wf <- sv_waterfall(shp, row_id = wf_row) +
+  labs(title = sprintf("SHAP waterfall for one score-%d CDA", y_ex[wf_row]))
+p_wf
+save_plot(p_wf, "seg_shap_waterfall.png", width = 8, height = 5)
+```
+
+---
+
+
+## 10. Importance against univariate separability
+
+Gini and SHAP both rank features by how much a fitted model leans on them, which
+is not the same as how well a feature separates severity on its own. The
+univariate measure is the mean adjacent-class AUC from
+`10_segmentation_and_feature_extraction`: for each neighbouring score pair
+(0-1, 1-2, and so on) the probability that a CDA from the higher score has the
+larger feature value, averaged over the six pairs, where 0.5 is no separation.
+Plotting one against the other shows whether the models are simply recovering the
+univariate ranking or exploiting something a single feature cannot see.
+
+- Both rankings track separability almost exactly, at Spearman 0.95 for Gini and
+  0.94 for SHAP, so neither model is finding much beyond what each feature
+  already does on its own.
+- `mean_green` is the clearest exception, separating adjacent classes at AUC 0.63
+  yet drawing a mean absolute SHAP of only 0.07, because its signal is already
+  carried by `cda_green` and `log_gr`, which it correlates with strongly.
+- `cda_green_sd` sits at AUC 0.49 with the lowest score on both measures, so the
+  models agree with the univariate view that lesion mottling is uninformative.
+
+```{r fig.width=11, fig.height=5}
+#| fig-width: 11
+#| fig-height: 5
+# 10.1  Mean adjacent-class AUC per feature, recomputed here from the exported
+# table so this analysis stays self-contained. Definition matches
+# 10_segmentation_and_feature_extraction, and it is measured on the full
+# unbalanced dataset, since separability is a property of the feature rather
+# than of the balanced sample the models are fitted on.
+auc_pair <- function(hi, lo) {
+  r <- rank(c(hi, lo))
+  (sum(r[seq_along(hi)]) - length(hi) * (length(hi) + 1) / 2) /
+    (length(hi) * length(lo))
+}
+adjacent_auc <- function(x, score) {
+  ok <- is.finite(x)
+  x <- x[ok]
+  score <- score[ok]
+  cls <- sort(unique(score))
+  mean(vapply(seq_len(length(cls) - 1), function(k) {
+    auc_pair(x[score == cls[k + 1]], x[score == cls[k]])
+  }, numeric(1)))
+}
+
+# One scalar per feature for each importance measure: mean decrease in Gini from
+# the classifier, and mean |SHAP| over the explanation set.
+imp_cmp <- data.frame(
+  feature = all_features,
+  adj_auc = vapply(all_features, function(v) adjacent_auc(features[[v]], features$score), numeric(1)),
+  gini = imp_df$importance[match(all_features, imp_df$feature)],
+  mean_abs_shap = colMeans(abs(get_shap_values(shp)))[all_features]
+)
+
+imp_panel <- function(yvar, ylab, title) {
+  rho <- cor(imp_cmp$adj_auc, imp_cmp[[yvar]], method = "spearman")
+  ggplot(imp_cmp, aes(adj_auc, .data[[yvar]])) +
+    geom_vline(xintercept = 0.5, linetype = "dashed", colour = "grey60") +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE, colour = "grey75", linewidth = 0.6) +
+    geom_point(colour = "#2166AC", size = 2.4) +
+    ggrepel::geom_text_repel(aes(label = feature), size = 3.1, max.overlaps = 20) +
+    labs(
+      x = "Mean adjacent-class AUC (0.5 = no separation)", y = ylab,
+      title = sprintf("%s (Spearman rho = %.2f)", title, rho)
+    ) +
+    theme_minimal() +
+    theme(axis.text = element_text(size = 11), axis.title = element_text(size = 12))
+}
+p_imp_cmp <- imp_panel("gini", "Mean decrease in Gini", "Gini importance") |
+  imp_panel("mean_abs_shap", "Mean |SHAP|", "SHAP importance")
+p_imp_cmp
+save_plot(p_imp_cmp, "seg_importance_vs_separability.png", width = 11, height = 5)
+
+cat(sprintf(
+  "Spearman vs adjacent-class AUC:  Gini = %.3f  |  mean |SHAP| = %.3f\n",
+  cor(imp_cmp$adj_auc, imp_cmp$gini, method = "spearman"),
+  cor(imp_cmp$adj_auc, imp_cmp$mean_abs_shap, method = "spearman")
+))
+print(imp_cmp[order(-imp_cmp$adj_auc), ], row.names = FALSE, digits = 3)
+```
+
+---
+
+## 11. Interpretation and Discussion
+
+- The features place a CDA within one point of its score almost always but pin
+  the exact score only about 60% of the time. Ordinal regression averages 60.8%
+  exact across 1,000 balanced undersamples (95% interval 59.7 to 61.9) and 97.7%
+  near-miss, so the ordering is recoverable while the exact class is not.
+- A linear model on an ordered scale is enough, and the margin is real. Ordinal
+  regression beats the random forest (56.5%) and k-NN (55.6%) with only twelve
+  coefficients and six cut-points, and every one of the 1,000 undersamples clears
+  both, so there is little non-linear structure left for a tree ensemble to find.
+- Single-undersample figures should be read with care. The seed-42 draw reports
+  61.5% exact, the 91st percentile of the resampled distribution, so any headline
+  resting on one balanced sample can be a point optimistic.
+- Regularising the forest costs almost nothing. A fully grown forest hits 92.4%
+  training accuracy against 57.0% held-out, and capping it at 128 leaf nodes
+  gives up 0.8 points of held-out accuracy to close a 35-point gap.
+- Gini importance and SHAP agree on what matters. CDA greenness and the log
+  green-to-red ratio lead both rankings, while the two within-CDA texture
+  features contribute a mean absolute SHAP of 0.01, so how mottled a lesion is
+  matters far less than how green and bright it is.
+- Grouping folds by leaf changes less than expected. It costs the fully grown
+  forest 1.9 points and the regularised forest 0.9, and leaves ordinal regression
+  unchanged at 61.5% against 60.9% ungrouped, so the headline result was never
+  resting on leaked leaf identity.
+- Low scores remain hard. Every interior class sits near 55% exact against 79.8%
+  at score 0, so mild cell death is genuinely close to healthy tissue and to its
+  neighbours, which is why a learned model is needed for the fine-grained scores.

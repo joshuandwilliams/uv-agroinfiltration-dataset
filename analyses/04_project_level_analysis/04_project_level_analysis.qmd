@@ -548,8 +548,9 @@ image_stats_ordered <- image_stats %>%
   mutate(Folder = factor(Folder, levels = project_order))
 
 zero_by_project <- median_corrected %>%
+  distinct(Basename, Row, Col, Pos, Folder, Median_Score) %>%
   group_by(Folder) %>%
-  summarise(`Percent_0` = 100 * mean(Score == 0), .groups = "drop") %>%
+  summarise(`Percent_0` = 100 * mean(Median_Score == 0), .groups = "drop") %>%
   mutate(Folder = factor(Folder, levels = project_order))
 
 project_n <- image_stats_ordered %>% count(Folder, name = "N")
@@ -579,7 +580,7 @@ p_top <- ggplot() +
   scale_x_discrete(labels = project_labels) +
   scale_y_continuous(
     limits = c(0, 100),
-    sec.axis = sec_axis(~., name = "% of Severity Scores that were 0")
+    sec.axis = sec_axis(~., name = "% of CDAs in score class 0")
   ) +
   scale_fill_brewer(palette = "Set1", guide = "none") +
   labs(x = NULL, y = "Corrected agreement") +
@@ -592,14 +593,14 @@ p_top <- ggplot() +
     axis.title.y.right = element_text(size = 15, colour = zero_col)
   )
 
-# --- Panel B: agreement recomputed on non-zero scores only ---
-# Per image, mean corrected agreement over just that image's non-zero severity
-# scores (all-zero images have no non-zero scores and drop out). Same project
+# --- Panel B: agreement recomputed on non-zero CDAs only ---
+# Per image, mean corrected agreement over just that image's CDAs whose median
+# score is not 0 (images with only score class 0 CDAs drop out). Same project
 # order and fills as panel A, so the two rows line up. If the ranking flattens
 # here, the between-project differences in panel A were driven by how many zeros
 # each project had; if it persists, they were not.
 image_stats_nonzero <- median_corrected %>%
-  filter(Score != 0) %>%
+  filter(Median_Score != 0) %>%
   group_by(Basename, Folder) %>%
   summarise(Nonzero_Agreement = mean(Exact_Match) * 100, .groups = "drop") %>%
   mutate(Folder = factor(Folder, levels = project_order))
@@ -649,8 +650,8 @@ panel_medians <- image_stats_ordered %>%
   transmute(
     Project = as.character(Folder),
     `A: median agreement (%)` = round(A_median, 1),
-    `A: % scores = 0` = round(Percent_0, 1),
-    `B: median agreement, non-zero scores (%)` = round(B_median, 1)
+    `A: % CDAs in score class 0` = round(Percent_0, 1),
+    `B: median agreement, non-zero CDAs (%)` = round(B_median, 1)
   )
 
 panel_medians %>%

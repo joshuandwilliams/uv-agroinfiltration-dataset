@@ -471,6 +471,70 @@ def get_central_scorer(row: pd.Series) -> int | None:
             return index
 
 
+def _pairwise_iou(rect1: list[float], rect2: list[float]) -> float:
+    """
+    Intersection-over-union of two rectangles [x1, x2, y1, y2]. Returns 0 if they
+    do not overlap.
+    """
+    ix = max(0.0, min(rect1[1], rect2[1]) - max(rect1[0], rect2[0]))
+    iy = max(0.0, min(rect1[3], rect2[3]) - max(rect1[2], rect2[2]))
+    intersection = ix * iy
+    union = (
+        (rect1[1] - rect1[0]) * (rect1[3] - rect1[2])
+        + (rect2[1] - rect2[0]) * (rect2[3] - rect2[2])
+        - intersection
+    )
+    return intersection / union if union > 0 else 0.0
+
+
+def get_iou_medoid_scorer(row: pd.Series) -> int | None:
+    """
+    Find the index (1, 2 or 3) of the box with the highest mean IoU to the other
+    boxes for that CDA - the "most agreed-with" box.
+
+    Unlike get_central_scorer (centre-of-overlap), which tends to pick the
+    smallest box because a small box sits more centrally on the overlap, the
+    medoid is robust to a single outlier box (tiny or misplaced), since an
+    outlier has low IoU with the consensus. Ties are broken by largest area.
+
+    Parameters:
+    -----------
+    row : pd.Series
+            A row with rectangle coordinates "X1_1".."Y2_3".
+
+    Returns:
+    --------
+    Optional[int]
+            The index (1, 2 or 3) of the medoid box, or None if fewer than two
+            boxes overlap (matching get_central_scorer, so the same CDAs stay
+            valid).
+    """
+    coord1 = [row["X1_1"], row["X2_1"], row["Y1_1"], row["Y2_1"]]
+    coord2 = [row["X1_2"], row["X2_2"], row["Y1_2"], row["Y2_2"]]
+    coord3 = [row["X1_3"], row["X2_3"], row["Y1_3"], row["Y2_3"]]
+    valid = [
+        (index, coord)
+        for index, coord in zip([1, 2, 3], [coord1, coord2, coord3], strict=False)
+        if all(pd.notna(c) for c in coord)
+    ]
+
+    if len(valid) < 2 or _find_overlapping_coordinates([c for _, c in valid]) is None:
+        return None
+
+    best_index = None
+    best_iou = -1.0
+    best_area = -1.0
+    for index, coord in valid:
+        others = [other for j, other in valid if j != index]
+        mean_iou = sum(_pairwise_iou(coord, other) for other in others) / len(others)
+        area = (coord[1] - coord[0]) * (coord[3] - coord[2])
+        if mean_iou > best_iou or (mean_iou == best_iou and area > best_area):
+            best_index = index
+            best_iou = mean_iou
+            best_area = area
+    return best_index
+
+
 def save_cropped_images(data: pd.DataFrame, out_folder: Path) -> None:
     """
     Saves cropped images from the input DataFrame based on given coordinates and

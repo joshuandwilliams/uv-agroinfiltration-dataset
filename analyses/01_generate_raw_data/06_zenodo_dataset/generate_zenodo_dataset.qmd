@@ -39,8 +39,8 @@ from coco_export import generate_multi_rater_csv
 ```{python}
 # 2
 combined_dir      = repo_root / "analyses/01_generate_raw_data/02_combining_cdascorer_outputs"
-median_path       = repo_root / "analyses/01_generate_raw_data/04_median_and_centre_coords/combined_cda_data_median.csv"
-images_dir        = repo_root / "data/cropped_images"
+median_path       = repo_root / "analyses/01_generate_raw_data/04_representative_bounding_box_and_score/combined_cda_data_medoid.csv"
+images_dir        = repo_root / "data/cropped_images_medoid"
 raw_rotated_dir   = repo_root / "data/raw_images_rotated"
 annotations_dir   = repo_root / "data/annotations"
 output_dir        = repo_root / "data/zenodo"
