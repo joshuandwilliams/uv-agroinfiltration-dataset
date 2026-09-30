@@ -31,7 +31,7 @@ def generate_coco_json(
         combined_cda_data_median.csv — must have Basename, Row, Col, Pos,
         Median_Score columns.
     images_dir : Path
-        Root of the cropped image directory (data/cropped_images/).
+        Root of the cropped image directory (data/cropped_images_centre/).
         Images are expected at images_dir/<score>/<stem>_<row>_<col>_<pos>.tif
     output_path : Path
         Destination path for the JSON file.
@@ -135,7 +135,9 @@ def generate_multi_rater_csv(
 
     long_df = (
         pd.concat(chunks, ignore_index=True)
-        .dropna(subset=["Scorer_ID"])
+        # Drop on Score, not Scorer_ID: allocated-but-skipped scorers appear with a
+        # Scorer_ID but no score or coordinates, and are not real annotations.
+        .dropna(subset=["Score"])
         .sort_values(["Basename", "Row", "Col", "Pos", "Scorer_ID"])
         .reset_index(drop=True)
     )

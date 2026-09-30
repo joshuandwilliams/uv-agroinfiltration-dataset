@@ -1,0 +1,143 @@
+---
+title: "Find median score and IoU-medoid representative box"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Date: 21/07/2026
+
+## GOHREP
+**Goal:**
+
+Partner to `median_and_centre_coords.qmd`. Same cleaning and median-score steps,
+but the single representative box per CDA is chosen by **IoU-medoid** (the box
+with the highest mean intersection-over-union to the others) instead of the
+centre-of-overlap. The centre-of-overlap rule tends to pick the *smallest* box
+(a small box sits more centrally on the overlap), which occasionally selects a
+tiny/misplaced outlier; the medoid is the most-agreed-with box and is robust to
+one outlier. Cropped images are written to `data/cropped_images_medoid/`.
+
+### 1. Required packages
+```{python}
+# 1
+# Public packages
+import os
+import cv2
+import pandas as pd
+from pathlib import Path
+
+# Custom functions
+repo_root = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / '.git').exists())
+import dataset_preparation
+```
+
+### 2. Load and combine data
+```{python}
+# 2
+data1 = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords/combined_cda_data_checked_1.csv"))
+data2 = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/03_checking_collected_coords/combined_cda_data_checked_2.csv"))
+data_combined = pd.concat([data1, data2]).reset_index(drop=True)
+```
+
+### 3. Clean the coordinate and score data
+```{python}
+# 3
+SCORE_COLS = ["Score1", "Score2", "Score3"]
+
+# Step a) clean_coordinates nulls an individual rater's coordinates + score if the
+# bounding box is degenerate (zero width/height) or has a missing coordinate. This
+# removes annotations, not whole CDA rows.
+cleaned_coords = data_combined.apply(dataset_preparation.clean_coordinates, axis=1)
+n_coords_nulled = (
+    data_combined[SCORE_COLS].notna().sum().sum()
+    - cleaned_coords[SCORE_COLS].notna().sum().sum()
+)
+
+# Step b) clean_scores drops a whole CDA row if:
+#   - >=2 of the 3 scores are missing, or
+#   - exactly 1 score is missing and the remaining 2 disagree (no median possible).
+n_missing = cleaned_coords[SCORE_COLS].isnull().sum(axis=1)
+n_dropped_insufficient = int((n_missing >= 2).sum())
+n_dropped_disagree = int(
+    (
+        (n_missing == 1)
+        & cleaned_coords[SCORE_COLS].apply(lambda r: len(set(r.dropna())) > 1, axis=1)
+    ).sum()
+)
+
+cleaned_data = dataset_preparation.clean_scores(cleaned_coords)
+
+print(f"Original Data Length: {len(data_combined)}")
+print(f"  Step a - annotations nulled (degenerate/missing bounding box): {n_coords_nulled}")
+print(f"  Step b - CDAs dropped (fewer than 2 scores):                   {n_dropped_insufficient}")
+print(f"  Step b - CDAs dropped (2 scores but they disagree):            {n_dropped_disagree}")
+print(f"Cleaned Data Length: {len(cleaned_data)}")
+```
+
+### 4. Add median column
+```{python}
+# 4
+cleaned_data = dataset_preparation.add_median_column(cleaned_data)
+print(f"Class Sizes:\n{cleaned_data['Median_Score'].value_counts().sort_index()}")
+```
+
+### 5. Add IoU-medoid representative box column
+```{python}
+# 5
+cleaned_data["Medoid_Coords"] = cleaned_data.apply(dataset_preparation.get_iou_medoid_scorer, axis=1)
+# Centre_Coords is kept alongside for comparison only (crops use Medoid_Coords).
+cleaned_data["Centre_Coords"] = cleaned_data.apply(dataset_preparation.get_central_scorer, axis=1)
+
+both = cleaned_data.dropna(subset=["Medoid_Coords", "Centre_Coords"])
+n_diff = int((both["Medoid_Coords"] != both["Centre_Coords"]).sum())
+print(f"Missing Medoid_Coords values: {cleaned_data['Medoid_Coords'].isna().sum()}")
+print(f"CDAs where medoid differs from centre-of-overlap: {n_diff} ({100 * n_diff / len(both):.1f}%)")
+
+cleaned_data.to_csv(
+    repo_root / "analyses/01_generate_raw_data/04_representative_bounding_box_and_score/combined_cda_data_medoid.csv",
+    index=False,
+)
+```
+
+### 6. Save cropped images (medoid box)
+```{python}
+# 6
+# Source images are read from data/raw_images_rotated/ (the shared-drive path used
+# by save_cropped_images() in 05_save_cropped_images is offline; the rotated
+# repo copies are coordinate-identical to the originals). Crop = raw[y1:y2, x1:x2]
+# of the medoid box, saved to data/cropped_images_medoid/<Median_Score>/ with the
+# same <Basename>_<Row>_<Col>_<Pos>.tif naming as the centre-of-overlap crops.
+out_root = repo_root / "data" / "cropped_images_medoid"
+raw_dir = repo_root / "data" / "raw_images_rotated"
+
+to_crop = cleaned_data.dropna(subset=["Medoid_Coords", "Median_Score"]).copy()
+to_crop["Medoid_Coords"] = to_crop["Medoid_Coords"].astype(int)
+
+n_saved = 0
+n_missing_src = 0
+for basename, grp in to_crop.groupby("Basename"):
+    src = raw_dir / basename
+    raw_img = cv2.imread(str(src)) if src.exists() else None
+    if raw_img is None:
+        n_missing_src += len(grp)
+        continue
+    for _, row in grp.iterrows():
+        m = int(row["Medoid_Coords"])
+        x1, x2 = int(row[f"X1_{m}"]), int(row[f"X2_{m}"])
+        y1, y2 = int(row[f"Y1_{m}"]), int(row[f"Y2_{m}"])
+        crop = raw_img[y1:y2, x1:x2]
+        score_dir = out_root / str(int(row["Median_Score"]))
+        score_dir.mkdir(parents=True, exist_ok=True)
+        fname = f"{os.path.splitext(row['Basename'])[0]}_{row['Row']}_{row['Col']}_{row['Pos']}.tif"
+        cv2.imwrite(str(score_dir / fname), crop)
+        n_saved += 1
+
+print(f"Saved {n_saved} cropped images to {out_root}")
+print(f"CDAs skipped (source image unavailable): {n_missing_src}")
+```
+
+## Discussion
+
+_Add notes here._

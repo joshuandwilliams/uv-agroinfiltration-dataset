@@ -45,7 +45,10 @@ library(here)
 
 ```{r}
 # 1.2
-path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+path_data <- here(
+  "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+  "combined_cda_data_medoid.csv"
+)
 score_data <- read_csv(path_data, show_col_types = FALSE)
 
 source(here("src", "plotting_helpers.R"))

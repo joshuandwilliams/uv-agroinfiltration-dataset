@@ -66,7 +66,7 @@ thesis_plots_dir = repo_root / "analyses" / "07_visual_complexity" / "thesis_plo
 # 2s), the closest neighbouring points to any given point in that region
 # will likely be from the larger group, biasing the predictions towards that
 # larger group.
-data_dir = str(repo_root / "data" / "cropped_images")
+data_dir = str(repo_root / "data" / "cropped_images_medoid")
 image_size = 64
 def load_images_and_labels() -> Tuple[List[Any], List[int], List[Any]]:
     # List the possible labels (0-6)

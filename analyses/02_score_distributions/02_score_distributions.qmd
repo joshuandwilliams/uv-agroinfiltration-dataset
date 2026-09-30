@@ -37,9 +37,12 @@ library(tiff)
 
 ```{r}
 # 1.2
-# Loaded from the output of 01_generate_raw_data/04_median_and_centre_coords.
+# Loaded from the output of 01_generate_raw_data/04_representative_bounding_box_and_score.
 # Rater IDs are already anonymised (1-10).
-path_data <- here("analyses", "01_generate_raw_data", "04_median_and_centre_coords", "combined_cda_data_median.csv")
+path_data <- here(
+  "analyses", "01_generate_raw_data", "04_representative_bounding_box_and_score",
+  "combined_cda_data_medoid.csv"
+)
 
 raw_data <- read_csv(path_data, show_col_types = FALSE)
 
@@ -104,7 +107,7 @@ cen <- (L + R) / 2
 set.seed(42)
 n_per <- 4
 thumbs <- lapply(0:6, function(sc) {
-  files <- list.files(here("data", "cropped_images", sc), full.names = TRUE, pattern = "\\.tif$")
+  files <- list.files(here("data", "cropped_images_medoid", sc), full.names = TRUE, pattern = "\\.tif$")
   lapply(sample(files, n_per), function(f) as.raster(readTIFF(f)))
 })
 

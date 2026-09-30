@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Do the hand-crafted features differ between projects?</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="11_project_feature_differences_files/libs/clipboard/clipboard.min.js"></script>
+<script src="11_project_feature_differences_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="11_project_feature_differences_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="11_project_feature_differences_files/libs/quarto-html/popper.min.js"></script>
+<script src="11_project_feature_differences_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="11_project_feature_differences_files/libs/quarto-html/anchor.min.js"></script>
+<link href="11_project_feature_differences_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="11_project_feature_differences_files/libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="11_project_feature_differences_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="11_project_feature_differences_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="11_project_feature_differences_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Do the hand-crafted features differ between projects?</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Date: 07/08/2026</p>
+<section id="gohrep" class="level2">
+<h2 class="anchored" data-anchor-id="gohrep">GOHREP</h2>
+<p><strong>Goal:</strong></p>
+<p>Test whether the twelve hand-crafted image features computed in <code>10_segmentation_and_feature_extraction</code> differ significantly between the eight source projects that contributed images to the dataset, and quantify how large any differences are.</p>
+<p><strong>Hypothesis:</strong></p>
+<p>The features will differ between projects. The dataset is pooled from independent experiments run by different people, on different plants, with different cameras, exposures and imaging geometry, so the whole-leaf brightness/colour features (<code>leaf_bright</code>, <code>mean_green</code>, <code>log_gr</code>) should carry a clear project signature. The contrast-type features that compare the CDA against its own leaf (<code>green_gap</code>, <code>ent_gap</code>) are internally normalised by the leaf they came from, so they were expected to be more stable across projects.</p>
+<p><strong>Rationale:</strong></p>
+<p>Two things ride on this. First, if features carry a project signature, then a model trained on the pooled dataset can partly key on imaging batch rather than on cell death, and any accuracy estimate that does not hold out whole projects is optimistic about generalisation to a new lab or camera. Second, project is confounded with severity in this dataset (projects differ strongly in their score-class mix, <code>04_project_level_analysis</code> §5), so a raw project difference in a feature could simply reflect that one project’s leaves are more diseased. Every test here is therefore run twice, once raw and once after removing the severity score’s effect, so genuine imaging-batch differences are separated from severity composition.</p>
+<p>Two structural facts constrain the analysis. Crops from the same source leaf share lighting, plant and tissue, so crops are not independent, and the independent unit is the source leaf (<code>10_segmentation_and_feature_extraction/10b_score_prediction</code> §2 makes the same argument for cross-validation). And the projects are very unequal in size, from 4 to 89 leaves. The primary test is therefore a leaf-level permutation ANOVA, which needs no distributional assumption and permutes whole leaves, with a mixed model (crops nested in leaves) as a parametric companion.</p>
+<hr>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">1. Setup</h2>
+<section id="load-required-packages" class="level3">
+<h3 class="anchored" data-anchor-id="load-required-packages">1.1 Load required packages</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.1</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># lme4 and randomForest are called namespaced (lme4::lmer,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># randomForest::randomForest) rather than attached, so they do not mask</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># dplyr::select etc.</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">requireNamespace</span>(<span class="st">"lme4"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">requireNamespace</span>(<span class="st">"randomForest"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="helper-functions-and-output-folder" class="level3">
+<h3 class="anchored" data-anchor-id="helper-functions-and-output-folder">1.2 Helper functions and output folder</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.2</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"src"</span>, <span class="st">"data_helpers.R"</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"src"</span>, <span class="st">"plotting_helpers.R"</span>))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>save_plot <span class="ot">&lt;-</span> <span class="fu">make_save_plot</span>(<span class="st">"11_project_feature_differences"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="load-the-twelve-features-and-attach-project-labels" class="level3">
+<h3 class="anchored" data-anchor-id="load-the-twelve-features-and-attach-project-labels">1.3 Load the twelve features and attach project labels</h3>
+<p>The features are not recomputed here. The eleven region features come from the segmentation cache written by <code>10_segmentation_and_feature_extraction</code> (§4), and Shannon entropy comes from <code>09_image_entropy</code>, joined exactly as in the exported feature table (<code>data/features/cda_image_features.csv</code>, §4.1 there). <code>frac_g_gt_r</code> is excluded, matching the model feature set in <code>10b_score_prediction</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.3.1</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>seg <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"analyses"</span>, <span class="st">"10_segmentation_and_feature_extraction"</span>, <span class="st">"segmentation_cache"</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"cda_segmentation_metrics.rds"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>entropy_raw <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"analyses"</span>, <span class="st">"09_image_entropy"</span>, <span class="st">"entropy_cache"</span>, <span class="st">"cda_metrics.rds"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>)) <span class="sc">%&gt;%</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(size <span class="sc">==</span> <span class="st">"Raw"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(image_id, <span class="at">entropy_raw =</span> entropy)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Feature order and labels are kept identical to</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 10_segmentation_and_feature_extraction §5, so the two analyses' figures can be</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># read side by side: CDA (lesion) measures, then whole-leaf measures, then the</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># CDA-vs-leaf contrasts and global measures.</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>feat_order <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">"cda_green"</span>, <span class="st">"cda_bright"</span>, <span class="st">"cda_green_sd"</span>, <span class="st">"cda_bright_sd"</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="st">"mean_green"</span>, <span class="st">"leaf_bright"</span>, <span class="st">"leaf_green_sd"</span>, <span class="st">"sep"</span>, <span class="st">"log_gr"</span>,</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">"green_gap"</span>, <span class="st">"ent_gap"</span>, <span class="st">"entropy_raw"</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>feat_labels <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CDA greenness"</span>, <span class="st">"CDA brightness"</span>, <span class="st">"Within-CDA greenness variation"</span>,</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Within-CDA brightness variation"</span>, <span class="st">"Whole-leaf mean green level"</span>,</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Whole-leaf brightness"</span>, <span class="st">"Whole-leaf greenness spread"</span>,</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Whole-leaf greenness bimodality"</span>, <span class="st">"Log green-to-red ratio"</span>,</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CDA-leaf greenness contrast"</span>, <span class="st">"CDA-leaf entropy difference"</span>, <span class="st">"Shannon entropy"</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(feat_labels) <span class="ot">&lt;-</span> feat_order</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Each crop’s filename is <code>&lt;SourceBasename&gt;_&lt;Row&gt;_&lt;Col&gt;_&lt;Pos&gt;</code>, so stripping the trailing <code>_Row_Col_Pos</code> recovers the source leaf. <code>image_info.csv</code> gives each source leaf’s folder, whose top level is the project, mapped to its anonymised label (<code>Project A</code>, <code>Project B</code>, …) with the shared key. This is the same authoritative mapping used in <code>04_project_level_analysis</code> §1.5.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1.3.2</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>project_key <span class="ot">&lt;-</span> <span class="fu">load_project_key</span>()</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>project_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_key<span class="sc">$</span>Anon_Label, project_key<span class="sc">$</span>Project)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Path is recorded once per folder in image_info.csv, so it is filled downwards.</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Extensions differ in case between image_info.csv (.TIF) and the crop</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># filenames, so the join is on the extension-stripped stem.</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>leaf_project <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"analyses"</span>, <span class="st">"01_generate_raw_data"</span>, <span class="st">"01_allocation_info"</span>, <span class="st">"image_info.csv"</span>),</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fill</span>(Path, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">stem =</span> tools<span class="sc">::</span><span class="fu">file_path_sans_ext</span>(Image),</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">Project =</span> <span class="fu">unname</span>(project_lookup[<span class="fu">sub</span>(<span class="st">"/.*"</span>, <span class="st">""</span>, Path)])</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>feat <span class="ot">&lt;-</span> seg <span class="sc">%&gt;%</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(image_id, score, <span class="fu">all_of</span>(<span class="fu">setdiff</span>(feat_order, <span class="st">"entropy_raw"</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(entropy_raw, <span class="at">by =</span> <span class="st">"image_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="fu">sub</span>(<span class="st">"_[0-9]+_[0-9]+_[0-9]+$"</span>, <span class="st">""</span>, image_id)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(leaf_project, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"source"</span> <span class="ot">=</span> <span class="st">"stem"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">Project =</span> <span class="fu">factor</span>(Project),</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="fu">factor</span>(source),</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">score_f =</span> <span class="fu">factor</span>(score, <span class="at">levels =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">6</span>)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="sc">!</span><span class="fu">anyNA</span>(feat<span class="sc">$</span>Project))</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">"%d crops from %d source leaves across %d projects; %d features.</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nrow</span>(feat), <span class="fu">nlevels</span>(feat<span class="sc">$</span>source), <span class="fu">nlevels</span>(feat<span class="sc">$</span>Project), <span class="fu">length</span>(feat_order)</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>6364 crops from 212 source leaves across 8 projects; 12 features.</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="what-is-being-compared" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-being-compared">2. What is being compared</h2>
+<section id="crops-and-leaves-per-project" class="level3">
+<h3 class="anchored" data-anchor-id="crops-and-leaves-per-project">2.1 Crops and leaves per project</h3>
+<p>Project sizes are highly unequal. Project B alone contributes 42% of the crops, while Projects A and F contribute four source leaves each. Because the leaf is the independent unit, the effective sample size is the leaf count, not the crop count, and the small projects are estimated from very few leaves.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.1</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>project_sizes <span class="ot">&lt;-</span> feat <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Project) <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Leaves =</span> <span class="fu">n_distinct</span>(source), <span class="at">Crops =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="st">`</span><span class="at">Crops (%)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> Crops <span class="sc">/</span> <span class="fu">sum</span>(Crops), <span class="dv">1</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(Crops))</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(project_sizes, <span class="at">caption =</span> <span class="st">"Source leaves and crops per project"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Source leaves and crops per project</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Project</th>
+<th style="text-align: right;">Leaves</th>
+<th style="text-align: right;">Crops</th>
+<th style="text-align: right;">Crops (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Project B</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: right;">2716</td>
+<td style="text-align: right;">42.7</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project D</td>
+<td style="text-align: right;">34</td>
+<td style="text-align: right;">974</td>
+<td style="text-align: right;">15.3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project C</td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">710</td>
+<td style="text-align: right;">11.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project E</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">693</td>
+<td style="text-align: right;">10.9</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project G</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">471</td>
+<td style="text-align: right;">7.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project F</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">321</td>
+<td style="text-align: right;">5.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project A</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">246</td>
+<td style="text-align: right;">3.9</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project H</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">233</td>
+<td style="text-align: right;">3.7</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Project colours, shared with 07_visual_complexity's raw-pixel PCA so a project</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># keeps its colour across the two ordinations. Those are matplotlib's tab10</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># sampled at 8 points (plt.cm.tab10(np.linspace(0, 1, 8)), which skips tab10's</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># red and pink), assigned in the same descending crop-count order used there.</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>project_pal <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"#1f77b4"</span>, <span class="st">"#ff7f0e"</span>, <span class="st">"#2ca02c"</span>, <span class="st">"#9467bd"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"#8c564b"</span>, <span class="st">"#7f7f7f"</span>, <span class="st">"#bcbd22"</span>, <span class="st">"#17becf"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">nrow</span>(project_sizes) <span class="sc">==</span> <span class="fu">length</span>(project_pal))</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>project_pal <span class="ot">&lt;-</span> <span class="fu">setNames</span>(project_pal, <span class="fu">as.character</span>(project_sizes<span class="sc">$</span>Project))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="severity-mix-per-project-the-confound" class="level3">
+<h3 class="anchored" data-anchor-id="severity-mix-per-project-the-confound">2.2 Severity mix per project (the confound)</h3>
+<p>Projects differ strongly in severity composition. Project B is 52% score-0 while Project H has almost no score-0 crops, so a project difference in any score-sensitive feature is partly a difference in how diseased that project’s leaves are. This is why every test below is also run on score-adjusted values.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.2</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>feat <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(Project, score_f) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Project) <span class="sc">%&gt;%</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">pct =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> n <span class="sc">/</span> <span class="fu">sum</span>(n), <span class="dv">1</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>n) <span class="sc">%&gt;%</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> score_f, <span class="at">values_from =</span> pct, <span class="at">values_fill =</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Percent of each project's crops in each severity score class"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Percent of each project’s crops in each severity score class</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Project</th>
+<th style="text-align: right;">0</th>
+<th style="text-align: right;">1</th>
+<th style="text-align: right;">2</th>
+<th style="text-align: right;">3</th>
+<th style="text-align: right;">4</th>
+<th style="text-align: right;">5</th>
+<th style="text-align: right;">6</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Project A</td>
+<td style="text-align: right;">52.4</td>
+<td style="text-align: right;">9.8</td>
+<td style="text-align: right;">11.0</td>
+<td style="text-align: right;">11.0</td>
+<td style="text-align: right;">10.2</td>
+<td style="text-align: right;">4.9</td>
+<td style="text-align: right;">0.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project B</td>
+<td style="text-align: right;">52.5</td>
+<td style="text-align: right;">3.6</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">7.0</td>
+<td style="text-align: right;">10.8</td>
+<td style="text-align: right;">12.0</td>
+<td style="text-align: right;">11.3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project C</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">13.0</td>
+<td style="text-align: right;">12.7</td>
+<td style="text-align: right;">24.4</td>
+<td style="text-align: right;">20.0</td>
+<td style="text-align: right;">10.7</td>
+<td style="text-align: right;">5.9</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project D</td>
+<td style="text-align: right;">45.8</td>
+<td style="text-align: right;">10.2</td>
+<td style="text-align: right;">8.5</td>
+<td style="text-align: right;">9.0</td>
+<td style="text-align: right;">10.8</td>
+<td style="text-align: right;">9.0</td>
+<td style="text-align: right;">6.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project E</td>
+<td style="text-align: right;">32.0</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">6.6</td>
+<td style="text-align: right;">10.4</td>
+<td style="text-align: right;">15.7</td>
+<td style="text-align: right;">17.5</td>
+<td style="text-align: right;">13.3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project F</td>
+<td style="text-align: right;">17.1</td>
+<td style="text-align: right;">4.4</td>
+<td style="text-align: right;">7.8</td>
+<td style="text-align: right;">18.1</td>
+<td style="text-align: right;">29.3</td>
+<td style="text-align: right;">18.4</td>
+<td style="text-align: right;">5.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project G</td>
+<td style="text-align: right;">70.1</td>
+<td style="text-align: right;">8.7</td>
+<td style="text-align: right;">5.3</td>
+<td style="text-align: right;">5.9</td>
+<td style="text-align: right;">6.2</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">1.1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project H</td>
+<td style="text-align: right;">3.9</td>
+<td style="text-align: right;">15.9</td>
+<td style="text-align: right;">27.9</td>
+<td style="text-align: right;">29.2</td>
+<td style="text-align: right;">21.0</td>
+<td style="text-align: right;">2.1</td>
+<td style="text-align: right;">0.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="score-adjustment" class="level3">
+<h3 class="anchored" data-anchor-id="score-adjustment">2.3 Score adjustment</h3>
+<p>Score adjustment removes each severity class’s mean from a feature, pooled over the whole dataset, and keeps the residual. A project difference that survives this is a difference between projects <em>at matched severity</em>, which is the imaging-batch effect of interest rather than a difference in disease mix.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.3.1</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Residual of each feature after removing the per-score-class mean (a one-way</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># fit on score_f). Residuals are formed on the full crop-level data, then</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># averaged per leaf below, so a leaf's residual mean is its typical departure</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># from what its severity classes alone would predict.</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>adj_names <span class="ot">&lt;-</span> <span class="fu">paste0</span>(feat_order, <span class="st">"_adj"</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(feat_order)) {</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  feat[[adj_names[i]]] <span class="ot">&lt;-</span> <span class="fu">residuals</span>(<span class="fu">lm</span>(feat[[feat_order[i]]] <span class="sc">~</span> feat<span class="sc">$</span>score_f))</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2.3.2</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Leaf-level tables: one row per source leaf, the independent unit. Raw means</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># for the unadjusted tests, score-adjusted residual means for the adjusted ones.</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>leaf_raw <span class="ot">&lt;-</span> feat <span class="sc">%&gt;%</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(source, Project) <span class="sc">%&gt;%</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(feat_order), mean), <span class="at">n_crops =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>leaf_adj <span class="ot">&lt;-</span> feat <span class="sc">%&gt;%</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(source, Project) <span class="sc">%&gt;%</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(adj_names), mean), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Leaf-level tables: %d leaves, median %d crops per leaf.</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nrow</span>(leaf_raw), <span class="fu">median</span>(leaf_raw<span class="sc">$</span>n_crops)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Leaf-level tables: 212 leaves, median 29 crops per leaf.</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="does-each-feature-differ-between-projects" class="level2">
+<h2 class="anchored" data-anchor-id="does-each-feature-differ-between-projects">3. Does each feature differ between projects?</h2>
+<section id="leaf-level-permutation-anova-primary-test" class="level3">
+<h3 class="anchored" data-anchor-id="leaf-level-permutation-anova-primary-test">3.1 Leaf-level permutation ANOVA (primary test)</h3>
+<p>For each feature, the one-way ANOVA F statistic across projects is computed on the leaf means, then the null distribution is built by randomly reassigning the project labels <em>of whole leaves</em> 9,999 times. Permuting leaves rather than crops is what keeps the test honest, since crops within a leaf are correlated. Permutation also avoids assuming normality or equal variances, both of which are doubtful with project sizes from 4 to 89 leaves. Effect size is η², the share of between-leaf variance in the feature attributable to project. The twelve p-values are Benjamini-Hochberg corrected.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.1.1</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>f_stat <span class="ot">&lt;-</span> <span class="cf">function</span>(y, g) {</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">factor</span>(g)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  group_mean <span class="ot">&lt;-</span> <span class="fu">tapply</span>(y, g, mean)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  group_n <span class="ot">&lt;-</span> <span class="fu">tapply</span>(y, g, length)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  ss_between <span class="ot">&lt;-</span> <span class="fu">sum</span>(group_n <span class="sc">*</span> (group_mean <span class="sc">-</span> <span class="fu">mean</span>(y))<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  ss_within <span class="ot">&lt;-</span> <span class="fu">sum</span>((y <span class="sc">-</span> group_mean[g])<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">F =</span> (ss_between <span class="sc">/</span> (<span class="fu">nlevels</span>(g) <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">/</span> (ss_within <span class="sc">/</span> (<span class="fu">length</span>(y) <span class="sc">-</span> <span class="fu">nlevels</span>(g))),</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">eta2 =</span> ss_between <span class="sc">/</span> (ss_between <span class="sc">+</span> ss_within)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>n_perm <span class="ot">&lt;-</span> <span class="dv">9999</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>perm_test <span class="ot">&lt;-</span> <span class="cf">function</span>(y, g, seed) {</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  observed <span class="ot">&lt;-</span> <span class="fu">f_stat</span>(y, g)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  null_f <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_perm, <span class="fu">f_stat</span>(y, <span class="fu">sample</span>(g))[<span class="st">"F"</span>])</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># +1 in both numerator and denominator: the observed labelling is itself one</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># of the permutations, so p can never be 0.</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(observed, <span class="at">p =</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(null_f <span class="sc">&gt;=</span> observed[<span class="st">"F"</span>])) <span class="sc">/</span> (n_perm <span class="sc">+</span> <span class="dv">1</span>))</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.1.2</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>perm_results <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">seq_along</span>(feat_order), <span class="cf">function</span>(i) {</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  raw <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(leaf_raw[[feat_order[i]]], leaf_raw<span class="sc">$</span>Project, <span class="at">seed =</span> <span class="dv">100</span> <span class="sc">+</span> i)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  adj <span class="ot">&lt;-</span> <span class="fu">perm_test</span>(leaf_adj[[adj_names[i]]], leaf_adj<span class="sc">$</span>Project, <span class="at">seed =</span> <span class="dv">200</span> <span class="sc">+</span> i)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">feature =</span> feat_order[i], <span class="at">Feature =</span> <span class="fu">unname</span>(feat_labels[i]),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">F_raw =</span> raw[<span class="st">"F"</span>], <span class="at">eta2_raw =</span> raw[<span class="st">"eta2"</span>], <span class="at">p_raw =</span> raw[<span class="st">"p"</span>],</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">F_adj =</span> adj[<span class="st">"F"</span>], <span class="at">eta2_adj =</span> adj[<span class="st">"eta2"</span>], <span class="at">p_adj =</span> adj[<span class="st">"p"</span>],</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">row.names =</span> <span class="cn">NULL</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>})) <span class="sc">%&gt;%</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">q_raw =</span> <span class="fu">p.adjust</span>(p_raw, <span class="st">"BH"</span>),</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">q_adj =</span> <span class="fu">p.adjust</span>(p_adj, <span class="st">"BH"</span>)</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>perm_results <span class="sc">%&gt;%</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    Feature,</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">F (raw)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(F_raw, <span class="dv">2</span>), <span class="st">`</span><span class="at">eta2 (raw)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(eta2_raw, <span class="dv">3</span>),</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">q (raw)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">signif</span>(q_raw, <span class="dv">2</span>),</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">F (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(F_adj, <span class="dv">2</span>), <span class="st">`</span><span class="at">eta2 (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(eta2_adj, <span class="dv">3</span>),</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">q (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">signif</span>(q_adj, <span class="dv">2</span>)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(<span class="st">`</span><span class="at">eta2 (score-adj)</span><span class="st">`</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="fu">paste</span>(</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Leaf-level permutation ANOVA of each feature across projects"</span>,</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>      <span class="st">"(9,999 permutations of whole-leaf project labels; q = BH-corrected p)."</span></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Leaf-level permutation ANOVA of each feature across projects (9,999 permutations of whole-leaf project labels; q = BH-corrected p).</caption>
+<colgroup>
+<col style="width: 30%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 13%">
+<col style="width: 16%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Feature</th>
+<th style="text-align: right;">F (raw)</th>
+<th style="text-align: right;">eta2 (raw)</th>
+<th style="text-align: right;">q (raw)</th>
+<th style="text-align: right;">F (score-adj)</th>
+<th style="text-align: right;">eta2 (score-adj)</th>
+<th style="text-align: right;">q (score-adj)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Within-CDA greenness variation</td>
+<td style="text-align: right;">11.48</td>
+<td style="text-align: right;">0.283</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">15.90</td>
+<td style="text-align: right;">0.353</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Whole-leaf greenness spread</td>
+<td style="text-align: right;">6.56</td>
+<td style="text-align: right;">0.184</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">12.87</td>
+<td style="text-align: right;">0.306</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf brightness</td>
+<td style="text-align: right;">10.58</td>
+<td style="text-align: right;">0.266</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">11.54</td>
+<td style="text-align: right;">0.284</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA-leaf greenness contrast</td>
+<td style="text-align: right;">6.19</td>
+<td style="text-align: right;">0.175</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">11.47</td>
+<td style="text-align: right;">0.282</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf mean green level</td>
+<td style="text-align: right;">10.70</td>
+<td style="text-align: right;">0.269</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">11.40</td>
+<td style="text-align: right;">0.281</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA brightness</td>
+<td style="text-align: right;">7.90</td>
+<td style="text-align: right;">0.213</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">10.54</td>
+<td style="text-align: right;">0.266</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CDA-leaf entropy difference</td>
+<td style="text-align: right;">11.93</td>
+<td style="text-align: right;">0.291</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">10.02</td>
+<td style="text-align: right;">0.256</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Within-CDA brightness variation</td>
+<td style="text-align: right;">1.72</td>
+<td style="text-align: right;">0.056</td>
+<td style="text-align: right;">0.11000</td>
+<td style="text-align: right;">7.84</td>
+<td style="text-align: right;">0.212</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CDA greenness</td>
+<td style="text-align: right;">13.77</td>
+<td style="text-align: right;">0.321</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">7.71</td>
+<td style="text-align: right;">0.209</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Log green-to-red ratio</td>
+<td style="text-align: right;">14.37</td>
+<td style="text-align: right;">0.330</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">5.85</td>
+<td style="text-align: right;">0.167</td>
+<td style="text-align: right;">0.00012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf greenness bimodality</td>
+<td style="text-align: right;">10.72</td>
+<td style="text-align: right;">0.269</td>
+<td style="text-align: right;">0.00012</td>
+<td style="text-align: right;">2.63</td>
+<td style="text-align: right;">0.083</td>
+<td style="text-align: right;">0.01300</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Shannon entropy</td>
+<td style="text-align: right;">2.94</td>
+<td style="text-align: right;">0.092</td>
+<td style="text-align: right;">0.01300</td>
+<td style="text-align: right;">2.37</td>
+<td style="text-align: right;">0.075</td>
+<td style="text-align: right;">0.03400</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Significant at q &lt; 0.05: %d/%d features raw, %d/%d score-adjusted.</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(perm_results<span class="sc">$</span>q_raw <span class="sc">&lt;</span> <span class="fl">0.05</span>), <span class="fu">nrow</span>(perm_results),</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(perm_results<span class="sc">$</span>q_adj <span class="sc">&lt;</span> <span class="fl">0.05</span>), <span class="fu">nrow</span>(perm_results)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Significant at q &lt; 0.05: 11/12 features raw, 12/12 score-adjusted.</code></pre>
+</div>
+</div>
+</section>
+<section id="mixed-model-likelihood-ratio-tests-parametric-companion" class="level3">
+<h3 class="anchored" data-anchor-id="mixed-model-likelihood-ratio-tests-parametric-companion">3.2 Mixed-model likelihood-ratio tests (parametric companion)</h3>
+<p>The same question asked a second way, at crop level, with the leaf as a random intercept so within-leaf correlation is modelled rather than averaged away. Project is tested by a likelihood-ratio test against the same model without project, and the score-adjusted version adds severity class as a fixed effect (<code>value ~ score_f + Project + (1 | leaf)</code> against <code>value ~ score_f + (1 | leaf)</code>). Effect size is the increase in marginal R² when project is added, which is the share of total variance the project term explains. This is a companion rather than the primary test, because the likelihood-ratio chi-square is anticonservative with only eight groups.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.2.1</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Marginal R^2 (Nakagawa): variance of the fixed-effect predictions over the</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># total of fixed, random-intercept, and residual variance.</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>r2_marginal <span class="ot">&lt;-</span> <span class="cf">function</span>(model) {</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  var_fixed <span class="ot">&lt;-</span> <span class="fu">var</span>(<span class="fu">as.vector</span>(<span class="fu">model.matrix</span>(model) <span class="sc">%*%</span> lme4<span class="sc">::</span><span class="fu">fixef</span>(model)))</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  var_random <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">as.numeric</span>(lme4<span class="sc">::</span><span class="fu">VarCorr</span>(model)))</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  var_fixed <span class="sc">/</span> (var_fixed <span class="sc">+</span> var_random <span class="sc">+</span> <span class="fu">sigma</span>(model)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co"># ML (not REML) fits, since the likelihood-ratio test compares fixed-effect</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co"># structures.</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>lrt_project <span class="ot">&lt;-</span> <span class="cf">function</span>(value, with_score) {</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> value, <span class="at">Project =</span> feat<span class="sc">$</span>Project, <span class="at">source =</span> feat<span class="sc">$</span>source, <span class="at">score_f =</span> feat<span class="sc">$</span>score_f</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  form_full <span class="ot">&lt;-</span> <span class="cf">if</span> (with_score) value <span class="sc">~</span> score_f <span class="sc">+</span> Project <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> source) <span class="cf">else</span> value <span class="sc">~</span> Project <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> source)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>  form_null <span class="ot">&lt;-</span> <span class="cf">if</span> (with_score) value <span class="sc">~</span> score_f <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> source) <span class="cf">else</span> value <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> source)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>  m_full <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">lmer</span>(form_full, dat, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>  m_null <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">lmer</span>(form_null, dat, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>  comparison <span class="ot">&lt;-</span> <span class="fu">anova</span>(m_null, m_full)</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">chisq =</span> comparison<span class="sc">$</span>Chisq[<span class="dv">2</span>], <span class="at">df =</span> comparison<span class="sc">$</span>Df[<span class="dv">2</span>],</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">p =</span> comparison<span class="sc">$</span><span class="st">`</span><span class="at">Pr(&gt;Chisq)</span><span class="st">`</span>[<span class="dv">2</span>],</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">dR2 =</span> <span class="fu">r2_marginal</span>(m_full) <span class="sc">-</span> <span class="fu">r2_marginal</span>(m_null)</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>lmm_results <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">seq_along</span>(feat_order), <span class="cf">function</span>(i) {</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>  raw <span class="ot">&lt;-</span> <span class="fu">lrt_project</span>(feat[[feat_order[i]]], <span class="at">with_score =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>  adj <span class="ot">&lt;-</span> <span class="fu">lrt_project</span>(feat[[feat_order[i]]], <span class="at">with_score =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">feature =</span> feat_order[i], <span class="at">Feature =</span> <span class="fu">unname</span>(feat_labels[i]),</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">chisq_raw =</span> raw[<span class="st">"chisq"</span>], <span class="at">df =</span> raw[<span class="st">"df"</span>], <span class="at">p_raw =</span> raw[<span class="st">"p"</span>], <span class="at">dR2_raw =</span> raw[<span class="st">"dR2"</span>],</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">chisq_adj =</span> adj[<span class="st">"chisq"</span>], <span class="at">p_adj =</span> adj[<span class="st">"p"</span>], <span class="at">dR2_adj =</span> adj[<span class="st">"dR2"</span>],</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">row.names =</span> <span class="cn">NULL</span></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>})) <span class="sc">%&gt;%</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">q_raw =</span> <span class="fu">p.adjust</span>(p_raw, <span class="st">"BH"</span>), <span class="at">q_adj =</span> <span class="fu">p.adjust</span>(p_adj, <span class="st">"BH"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.2.2</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>lmm_results <span class="sc">%&gt;%</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    Feature,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">chi2 (raw)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(chisq_raw, <span class="dv">1</span>), <span class="st">`</span><span class="at">q (raw)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">signif</span>(q_raw, <span class="dv">2</span>),</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">chi2 (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(chisq_adj, <span class="dv">1</span>), <span class="st">`</span><span class="at">q (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">signif</span>(q_adj, <span class="dv">2</span>),</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">dR2 (score-adj)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(dR2_adj, <span class="dv">3</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(<span class="st">`</span><span class="at">chi2 (score-adj)</span><span class="st">`</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Mixed-model likelihood-ratio tests of the project term (7 df)."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Mixed-model likelihood-ratio tests of the project term (7 df).</caption>
+<colgroup>
+<col style="width: 32%">
+<col style="width: 11%">
+<col style="width: 8%">
+<col style="width: 17%">
+<col style="width: 14%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Feature</th>
+<th style="text-align: right;">chi2 (raw)</th>
+<th style="text-align: right;">q (raw)</th>
+<th style="text-align: right;">chi2 (score-adj)</th>
+<th style="text-align: right;">q (score-adj)</th>
+<th style="text-align: right;">dR2 (score-adj)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Within-CDA greenness variation</td>
+<td style="text-align: right;">67.9</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">93.9</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.074</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Whole-leaf greenness spread</td>
+<td style="text-align: right;">41.7</td>
+<td style="text-align: right;">8.0e-07</td>
+<td style="text-align: right;">76.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.046</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf brightness</td>
+<td style="text-align: right;">65.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">70.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.203</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Whole-leaf mean green level</td>
+<td style="text-align: right;">66.5</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">69.0</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.126</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CDA-leaf greenness contrast</td>
+<td style="text-align: right;">39.9</td>
+<td style="text-align: right;">1.6e-06</td>
+<td style="text-align: right;">68.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.036</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA brightness</td>
+<td style="text-align: right;">51.1</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">65.7</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.089</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CDA-leaf entropy difference</td>
+<td style="text-align: right;">73.7</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">65.0</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.173</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Within-CDA brightness variation</td>
+<td style="text-align: right;">12.1</td>
+<td style="text-align: right;">9.8e-02</td>
+<td style="text-align: right;">55.6</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.018</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CDA greenness</td>
+<td style="text-align: right;">79.6</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">50.5</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">0.044</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Log green-to-red ratio</td>
+<td style="text-align: right;">84.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">39.1</td>
+<td style="text-align: right;">2.3e-06</td>
+<td style="text-align: right;">0.024</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf greenness bimodality</td>
+<td style="text-align: right;">68.4</td>
+<td style="text-align: right;">0.0e+00</td>
+<td style="text-align: right;">21.4</td>
+<td style="text-align: right;">3.5e-03</td>
+<td style="text-align: right;">0.015</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Shannon entropy</td>
+<td style="text-align: right;">20.6</td>
+<td style="text-align: right;">4.8e-03</td>
+<td style="text-align: right;">19.5</td>
+<td style="text-align: right;">6.8e-03</td>
+<td style="text-align: right;">0.067</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>agree <span class="ot">&lt;-</span> <span class="fu">sum</span>((perm_results<span class="sc">$</span>q_adj <span class="sc">&lt;</span> <span class="fl">0.05</span>) <span class="sc">==</span> (lmm_results<span class="sc">$</span>q_adj <span class="sc">&lt;</span> <span class="fl">0.05</span>))</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Permutation and mixed-model tests agree on %d/%d features (score-adjusted, q &lt; 0.05).</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  agree, <span class="fu">nrow</span>(perm_results)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Permutation and mixed-model tests agree on 12/12 features (score-adjusted, q &lt; 0.05).</code></pre>
+</div>
+</div>
+</section>
+<section id="effect-sizes" class="level3">
+<h3 class="anchored" data-anchor-id="effect-sizes">3.3 Effect sizes</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 3.3</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Ordered by score-adjusted eta^2 so the features carrying the strongest project</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># signature at matched severity sit on the left.</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>eta_long <span class="ot">&lt;-</span> perm_results <span class="sc">%&gt;%</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Feature, <span class="at">Raw =</span> eta2_raw, <span class="st">`</span><span class="at">Score-adjusted</span><span class="st">`</span> <span class="ot">=</span> eta2_adj) <span class="sc">%&gt;%</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>Feature, <span class="at">names_to =</span> <span class="st">"Version"</span>, <span class="at">values_to =</span> <span class="st">"eta2"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Feature =</span> <span class="fu">factor</span>(</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    Feature,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> perm_results<span class="sc">$</span>Feature[<span class="fu">order</span>(<span class="sc">-</span>perm_results<span class="sc">$</span>eta2_adj)]</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>p_eta <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(eta_long, <span class="fu">aes</span>(<span class="at">x =</span> Feature, <span class="at">y =</span> eta2, <span class="at">fill =</span> Version)) <span class="sc">+</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.75</span>), <span class="at">width =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="at">Raw =</span> <span class="st">"grey65"</span>, <span class="st">`</span><span class="at">Score-adjusted</span><span class="st">`</span> <span class="ot">=</span> <span class="st">"#2166AC"</span>)) <span class="sc">+</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="fu">expression</span>(<span class="st">"Between-leaf variance explained by project ("</span> <span class="sc">*</span> eta<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> <span class="st">")"</span>),</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">fill =</span> <span class="cn">NULL</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">40</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>), <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>),</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Extra left margin so the first rotated label is not clipped when saved.</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.margin =</span> <span class="fu">margin</span>(<span class="fl">5.5</span>, <span class="fl">5.5</span>, <span class="fl">5.5</span>, <span class="dv">55</span>)</span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>p_eta</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="11_project_feature_differences_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_eta, <span class="st">"project_effect_sizes.png"</span>, <span class="at">width =</span> <span class="dv">9</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+</section>
+<section id="how-large-are-the-differences" class="level2">
+<h2 class="anchored" data-anchor-id="how-large-are-the-differences">4. How large are the differences?</h2>
+<section id="feature-distributions-by-project" class="level3">
+<h3 class="anchored" data-anchor-id="feature-distributions-by-project">4.1 Feature distributions by project</h3>
+<p>Crop-level distributions of all twelve features, split by project. Free y-axes, since the features are on different scales.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.1</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>long_feat <span class="ot">&lt;-</span> feat <span class="sc">%&gt;%</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(source, Project, <span class="fu">all_of</span>(feat_order)) <span class="sc">%&gt;%</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(feat_order), <span class="at">names_to =</span> <span class="st">"feature"</span>, <span class="at">values_to =</span> <span class="st">"value"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">feature =</span> <span class="fu">factor</span>(feature, <span class="at">levels =</span> feat_order, <span class="at">labels =</span> <span class="fu">unname</span>(feat_labels)))</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>p_box <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(long_feat, <span class="fu">aes</span>(<span class="at">x =</span> Project, <span class="at">y =</span> value, <span class="at">fill =</span> Project)) <span class="sc">+</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">outlier.size =</span> <span class="fl">0.3</span>, <span class="at">outlier.alpha =</span> <span class="fl">0.15</span>) <span class="sc">+</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>feature, <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> project_pal, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> <span class="cf">function</span>(x) <span class="fu">sub</span>(<span class="st">"Project "</span>, <span class="st">""</span>, x)) <span class="sc">+</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Project"</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>), <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">13</span>)</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>p_box</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="11_project_feature_differences_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="1056"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_box, <span class="st">"features_by_project_boxplots.png"</span>, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="project-signatures-at-matched-severity" class="level3">
+<h3 class="anchored" data-anchor-id="project-signatures-at-matched-severity">4.2 Project signatures at matched severity</h3>
+<p>Each project’s mean score-adjusted leaf value per feature, expressed in standard deviations of the between-leaf distribution. This puts all twelve features on one scale, so the pattern of a project’s departure from the dataset average is readable as a signature.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.2</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># z-scores are taken over leaves (the independent unit), then averaged within</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co"># project, so a large project does not shrink its own z simply by dominating the</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co"># dataset mean.</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>z_leaf <span class="ot">&lt;-</span> leaf_adj</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>z_leaf[adj_names] <span class="ot">&lt;-</span> <span class="fu">scale</span>(<span class="fu">as.matrix</span>(leaf_adj[adj_names]))</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>project_z <span class="ot">&lt;-</span> z_leaf <span class="sc">%&gt;%</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Project) <span class="sc">%&gt;%</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">all_of</span>(adj_names), mean), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>Project, <span class="at">names_to =</span> <span class="st">"feature"</span>, <span class="at">values_to =</span> <span class="st">"z"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">feature =</span> <span class="fu">factor</span>(</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sub</span>(<span class="st">"_adj$"</span>, <span class="st">""</span>, feature),</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> perm_results<span class="sc">$</span>feature[<span class="fu">order</span>(<span class="sc">-</span>perm_results<span class="sc">$</span>eta2_adj)],</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">unname</span>(feat_labels[perm_results<span class="sc">$</span>feature[<span class="fu">order</span>(<span class="sc">-</span>perm_results<span class="sc">$</span>eta2_adj)]])</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>p_heat <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(project_z, <span class="fu">aes</span>(<span class="at">x =</span> feature, <span class="at">y =</span> Project, <span class="at">fill =</span> z)) <span class="sc">+</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">colour =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.4</span>) <span class="sc">+</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.1f"</span>, z)), <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient2</span>(</span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">low =</span> <span class="st">"#2166AC"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#B2182B"</span>, <span class="at">midpoint =</span> <span class="dv">0</span>,</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"Project mean</span><span class="sc">\n</span><span class="st">(SD of leaf</span><span class="sc">\n</span><span class="st">distribution)"</span></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_discrete</span>(<span class="at">limits =</span> rev) <span class="sc">+</span></span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">40</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.y =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>), <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Extra left margin so the first rotated label is not clipped when saved.</span></span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.margin =</span> <span class="fu">margin</span>(<span class="fl">5.5</span>, <span class="fl">5.5</span>, <span class="fl">5.5</span>, <span class="dv">55</span>)</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>p_heat</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="11_project_feature_differences_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_heat, <span class="st">"project_feature_signature_heatmap.png"</span>, <span class="at">width =</span> <span class="dv">9</span>, <span class="at">height =</span> <span class="fl">5.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 4.2b</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="co"># The largest project-to-project gap per feature, in between-leaf SDs, with the</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co"># two projects it separates.</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>gaps <span class="ot">&lt;-</span> project_z <span class="sc">%&gt;%</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(feature) <span class="sc">%&gt;%</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">gap_sd =</span> <span class="fu">max</span>(z) <span class="sc">-</span> <span class="fu">min</span>(z),</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">highest =</span> Project[<span class="fu">which.max</span>(z)], <span class="at">lowest =</span> Project[<span class="fu">which.min</span>(z)],</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(gap_sd))</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>gaps <span class="sc">%&gt;%</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">Feature =</span> feature, <span class="st">`</span><span class="at">Largest gap (SD)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(gap_sd, <span class="dv">2</span>),</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">Highest =</span> highest, <span class="at">Lowest =</span> lowest</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Largest project-to-project difference per feature, at matched severity."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Largest project-to-project difference per feature, at matched severity.</caption>
+<colgroup>
+<col style="width: 46%">
+<col style="width: 24%">
+<col style="width: 14%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Feature</th>
+<th style="text-align: right;">Largest gap (SD)</th>
+<th style="text-align: left;">Highest</th>
+<th style="text-align: left;">Lowest</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">CDA-leaf entropy difference</td>
+<td style="text-align: right;">2.54</td>
+<td style="text-align: left;">Project B</td>
+<td style="text-align: left;">Project F</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Whole-leaf mean green level</td>
+<td style="text-align: right;">2.10</td>
+<td style="text-align: left;">Project H</td>
+<td style="text-align: left;">Project E</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf brightness</td>
+<td style="text-align: right;">2.09</td>
+<td style="text-align: left;">Project H</td>
+<td style="text-align: left;">Project E</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA brightness</td>
+<td style="text-align: right;">1.90</td>
+<td style="text-align: left;">Project H</td>
+<td style="text-align: left;">Project E</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Within-CDA brightness variation</td>
+<td style="text-align: right;">1.89</td>
+<td style="text-align: left;">Project A</td>
+<td style="text-align: left;">Project C</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Within-CDA greenness variation</td>
+<td style="text-align: right;">1.80</td>
+<td style="text-align: left;">Project D</td>
+<td style="text-align: left;">Project C</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf greenness spread</td>
+<td style="text-align: right;">1.58</td>
+<td style="text-align: left;">Project D</td>
+<td style="text-align: left;">Project C</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA-leaf greenness contrast</td>
+<td style="text-align: right;">1.47</td>
+<td style="text-align: left;">Project D</td>
+<td style="text-align: left;">Project C</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whole-leaf greenness bimodality</td>
+<td style="text-align: right;">1.42</td>
+<td style="text-align: left;">Project H</td>
+<td style="text-align: left;">Project A</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Log green-to-red ratio</td>
+<td style="text-align: right;">1.33</td>
+<td style="text-align: left;">Project C</td>
+<td style="text-align: left;">Project G</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Shannon entropy</td>
+<td style="text-align: right;">1.32</td>
+<td style="text-align: left;">Project A</td>
+<td style="text-align: left;">Project G</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CDA greenness</td>
+<td style="text-align: right;">1.25</td>
+<td style="text-align: left;">Project C</td>
+<td style="text-align: left;">Project G</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="do-the-twelve-features-jointly-separate-projects" class="level2">
+<h2 class="anchored" data-anchor-id="do-the-twelve-features-jointly-separate-projects">5. Do the twelve features jointly separate projects?</h2>
+<section id="multivariate-permutation-test" class="level3">
+<h3 class="anchored" data-anchor-id="multivariate-permutation-test">5.1 Multivariate permutation test</h3>
+<p>The univariate tests ask each feature separately. This asks whether the twelve together separate projects, using a PERMANOVA-style pseudo-F on the standardised score-adjusted leaf means with Euclidean distance, and the same whole-leaf label permutation. R² is the share of total multivariate dispersion between projects.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.1</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>Z <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(z_leaf[adj_names])</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>pseudo_f <span class="ot">&lt;-</span> <span class="cf">function</span>(Z, g) {</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">factor</span>(g)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">nlevels</span>(g)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  group_mean <span class="ot">&lt;-</span> <span class="fu">t</span>(<span class="fu">sapply</span>(<span class="fu">levels</span>(g), <span class="cf">function</span>(l) <span class="fu">colMeans</span>(Z[g <span class="sc">==</span> l, , <span class="at">drop =</span> <span class="cn">FALSE</span>])))</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  group_n <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">table</span>(g))</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  grand <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(Z)</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  ss_between <span class="ot">&lt;-</span> <span class="fu">sum</span>(group_n <span class="sc">*</span> <span class="fu">rowSums</span>((group_mean <span class="sc">-</span> <span class="fu">matrix</span>(grand, k, <span class="fu">ncol</span>(Z), <span class="at">byrow =</span> <span class="cn">TRUE</span>))<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>  ss_within <span class="ot">&lt;-</span> <span class="fu">sum</span>((Z <span class="sc">-</span> group_mean[g, , <span class="at">drop =</span> <span class="cn">FALSE</span>])<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">F =</span> (ss_between <span class="sc">/</span> (k <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">/</span> (ss_within <span class="sc">/</span> (<span class="fu">nrow</span>(Z) <span class="sc">-</span> k)),</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">R2 =</span> ss_between <span class="sc">/</span> (ss_between <span class="sc">+</span> ss_within)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>observed_mv <span class="ot">&lt;-</span> <span class="fu">pseudo_f</span>(Z, z_leaf<span class="sc">$</span>Project)</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>null_mv <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_perm, <span class="fu">pseudo_f</span>(Z, <span class="fu">sample</span>(z_leaf<span class="sc">$</span>Project))[<span class="st">"F"</span>])</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Multivariate (12 features, score-adjusted leaf means): pseudo-F = %.2f, R2 = %.3f, p = %.4f</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>  observed_mv[<span class="st">"F"</span>], observed_mv[<span class="st">"R2"</span>], (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(null_mv <span class="sc">&gt;=</span> observed_mv[<span class="st">"F"</span>])) <span class="sc">/</span> (n_perm <span class="sc">+</span> <span class="dv">1</span>)</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Multivariate (12 features, score-adjusted leaf means): pseudo-F = 8.77, R2 = 0.231, p = 0.0001</code></pre>
+</div>
+</div>
+</section>
+<section id="ordination-of-leaves-by-project" class="level3">
+<h3 class="anchored" data-anchor-id="ordination-of-leaves-by-project">5.2 Ordination of leaves by project</h3>
+<p>PCA of the same standardised score-adjusted leaf means, coloured by project. If projects were interchangeable, the clouds would overlay one another.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.2</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>pca <span class="ot">&lt;-</span> <span class="fu">prcomp</span>(Z, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>var_pc <span class="ot">&lt;-</span> <span class="dv">100</span> <span class="sc">*</span> pca<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">sum</span>(pca<span class="sc">$</span>sdev<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>pca_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">PC1 =</span> pca<span class="sc">$</span>x[, <span class="dv">1</span>], <span class="at">PC2 =</span> pca<span class="sc">$</span>x[, <span class="dv">2</span>], <span class="at">Project =</span> z_leaf<span class="sc">$</span>Project)</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Ellipses are drawn only for projects with at least 8 leaves. A covariance</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ellipse fitted to 4 points (Projects A and F) is arbitrary, so those projects</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="co"># are shown as points only.</span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>ellipse_projects <span class="ot">&lt;-</span> project_sizes<span class="sc">$</span>Project[project_sizes<span class="sc">$</span>Leaves <span class="sc">&gt;=</span> <span class="dv">8</span>]</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>p_pca <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(pca_df, <span class="fu">aes</span>(PC1, PC2, <span class="at">colour =</span> Project)) <span class="sc">+</span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.8</span>, <span class="at">alpha =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_ellipse</span>(</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> <span class="fu">filter</span>(pca_df, Project <span class="sc">%in%</span> ellipse_projects),</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">level =</span> <span class="fl">0.68</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span></span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> project_pal) <span class="sc">+</span></span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="fu">sprintf</span>(<span class="st">"PC1 (%.1f%%)"</span>, var_pc[<span class="dv">1</span>]), <span class="at">y =</span> <span class="fu">sprintf</span>(<span class="st">"PC2 (%.1f%%)"</span>, var_pc[<span class="dv">2</span>]),</span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="fu">paste</span>(</span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>      <span class="st">"One point per source leaf. Ellipses cover 68% of each project,"</span>,</span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>      <span class="st">"and are omitted for the two projects with only 4 leaves."</span></span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>), <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>))</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>p_pca</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="11_project_feature_differences_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="720"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save_plot</span>(p_pca, <span class="st">"project_pca_leaf_means.png"</span>, <span class="at">width =</span> <span class="fl">7.5</span>, <span class="at">height =</span> <span class="fl">5.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="can-the-project-be-identified-from-the-features-alone" class="level3">
+<h3 class="anchored" data-anchor-id="can-the-project-be-identified-from-the-features-alone">5.3 Can the project be identified from the features alone?</h3>
+<p>A practical restatement of the same question. A random forest is trained to predict the project from the twelve crop-level features, under the same source-grouped 5-fold cross-validation used in <code>10_segmentation_and_feature_extraction/10b_score_prediction</code> §2, so no leaf appears in both the training and held-out folds. Projects are downsampled to equal size, so chance is 1/8 = 12.5% and exact accuracy equals balanced accuracy. A shuffled-label run is included as a leakage check.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5.3</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>min_n <span class="ot">&lt;-</span> <span class="fu">min</span>(<span class="fu">table</span>(feat<span class="sc">$</span>Project))</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>balanced_idx <span class="ot">&lt;-</span> <span class="fu">unlist</span>(<span class="fu">lapply</span>(<span class="fu">levels</span>(feat<span class="sc">$</span>Project), <span class="cf">function</span>(p) {</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  idx <span class="ot">&lt;-</span> <span class="fu">which</span>(feat<span class="sc">$</span>Project <span class="sc">==</span> p)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(idx) <span class="sc">&gt;</span> min_n) <span class="fu">sample</span>(idx, min_n) <span class="cf">else</span> idx</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>bal <span class="ot">&lt;-</span> feat[balanced_idx, ]</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>usrc <span class="ot">&lt;-</span> <span class="fu">unique</span>(<span class="fu">as.character</span>(bal<span class="sc">$</span>source))</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>src_fold <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">sample</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span>K, <span class="at">length.out =</span> <span class="fu">length</span>(usrc))), usrc)</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>fold <span class="ot">&lt;-</span> <span class="fu">unname</span>(src_fold[<span class="fu">as.character</span>(bal<span class="sc">$</span>source)])</span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(bal[, feat_order])</span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>grouped_cv_accuracy <span class="ot">&lt;-</span> <span class="cf">function</span>(y) {</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>  pred <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(y)), <span class="at">levels =</span> <span class="fu">levels</span>(y))</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>K) {</span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>    tr <span class="ot">&lt;-</span> fold <span class="sc">!=</span> k</span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>    model <span class="ot">&lt;-</span> randomForest<span class="sc">::</span><span class="fu">randomForest</span>(<span class="at">x =</span> X[tr, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="at">y =</span> y[tr], <span class="at">ntree =</span> <span class="dv">300</span>)</span>
+<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>    pred[<span class="sc">!</span>tr] <span class="ot">&lt;-</span> <span class="fu">predict</span>(model, X[<span class="sc">!</span>tr, , <span class="at">drop =</span> <span class="cn">FALSE</span>])</span>
+<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(</span>
+<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">balanced =</span> <span class="fu">mean</span>(<span class="fu">vapply</span>(<span class="fu">levels</span>(y), <span class="cf">function</span>(l) <span class="fu">mean</span>(pred[y <span class="sc">==</span> l] <span class="sc">==</span> l), <span class="fu">numeric</span>(<span class="dv">1</span>))),</span>
+<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">per_class =</span> <span class="fu">vapply</span>(<span class="fu">levels</span>(y), <span class="cf">function</span>(l) <span class="fu">mean</span>(pred[y <span class="sc">==</span> l] <span class="sc">==</span> l), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-30"><a href="#cb31-30" aria-hidden="true" tabindex="-1"></a>y_project <span class="ot">&lt;-</span> <span class="fu">droplevels</span>(bal<span class="sc">$</span>Project)</span>
+<span id="cb31-31"><a href="#cb31-31" aria-hidden="true" tabindex="-1"></a>acc <span class="ot">&lt;-</span> <span class="fu">grouped_cv_accuracy</span>(y_project)</span>
+<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">9</span>)</span>
+<span id="cb31-33"><a href="#cb31-33" aria-hidden="true" tabindex="-1"></a>acc_shuffled <span class="ot">&lt;-</span> <span class="fu">grouped_cv_accuracy</span>(<span class="fu">factor</span>(<span class="fu">sample</span>(<span class="fu">as.character</span>(y_project)), <span class="at">levels =</span> <span class="fu">levels</span>(y_project)))</span>
+<span id="cb31-34"><a href="#cb31-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-35"><a href="#cb31-35" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(</span>
+<span id="cb31-36"><a href="#cb31-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste0</span>(</span>
+<span id="cb31-37"><a href="#cb31-37" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Balanced set: %d crops per project (%d total).</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb31-38"><a href="#cb31-38" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Project identification from the 12 features: %.1f%% balanced accuracy"</span>,</span>
+<span id="cb31-39"><a href="#cb31-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">" (chance %.1f%%).</span><span class="sc">\n</span><span class="st">Shuffled-label control: %.1f%%.</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb31-40"><a href="#cb31-40" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb31-41"><a href="#cb31-41" aria-hidden="true" tabindex="-1"></a>  min_n, <span class="fu">nrow</span>(bal), <span class="dv">100</span> <span class="sc">*</span> acc<span class="sc">$</span>balanced, <span class="dv">100</span> <span class="sc">/</span> <span class="fu">nlevels</span>(y_project), <span class="dv">100</span> <span class="sc">*</span> acc_shuffled<span class="sc">$</span>balanced</span>
+<span id="cb31-42"><a href="#cb31-42" aria-hidden="true" tabindex="-1"></a>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Balanced set: 233 crops per project (1864 total).
+Project identification from the 12 features: 40.5% balanced accuracy (chance 12.5%).
+Shuffled-label control: 11.8%.</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">Project =</span> <span class="fu">names</span>(acc<span class="sc">$</span>per_class), <span class="at">Accuracy =</span> <span class="fu">round</span>(acc<span class="sc">$</span>per_class, <span class="dv">3</span>), <span class="at">row.names =</span> <span class="cn">NULL</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Held-out project identification accuracy per project (chance = 0.125)."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Held-out project identification accuracy per project (chance = 0.125).</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Project</th>
+<th style="text-align: right;">Accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Project A</td>
+<td style="text-align: right;">0.150</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project B</td>
+<td style="text-align: right;">0.481</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project C</td>
+<td style="text-align: right;">0.545</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project D</td>
+<td style="text-align: right;">0.442</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project E</td>
+<td style="text-align: right;">0.099</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project F</td>
+<td style="text-align: right;">0.335</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Project G</td>
+<td style="text-align: right;">0.567</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Project H</td>
+<td style="text-align: right;">0.622</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="interpretation-and-discussion" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-and-discussion">6. Interpretation and Discussion</h2>
+<ul>
+<li><strong>The features differ between projects, and it is not just severity mix.</strong> All twelve features differ significantly between projects at matched severity (leaf-level permutation ANOVA, BH-corrected q &lt; 0.05, §3.1), and the crop-level mixed models agree (§3.2). Only <code>cda_bright_sd</code> is non-significant <em>before</em> score adjustment and significant after, which is what a severity-driven confound looks like when it runs against the batch effect. The tests are on leaf means with whole-leaf label permutation, so the result is not an artefact of treating correlated crops as independent observations.</li>
+<li><strong>The effects are large for the appearance and texture features.</strong> At matched severity, project explains 26-35% of the between-leaf variance in within-CDA greenness variation, whole-leaf greenness spread, whole-leaf brightness, whole-leaf mean green level and CDA brightness (§3.1), and the largest project-to-project gaps reach 2.1-2.5 SD of the between-leaf distribution (§4.2). These are the features expected to track camera, exposure and imaging geometry, so a project signature in them is the expected result rather than a surprise. Projects E and H sit at opposite extremes on every brightness feature, differing by ~2 SD in whole-leaf brightness alone.</li>
+<li><strong>Internal contrast features are not the safe harbour they were expected to be.</strong> The hypothesis was that CDA-vs-leaf contrasts would be stable across projects because they are normalised by their own leaf. <code>green_gap</code> and <code>ent_gap</code> still show substantial project effects (η² ≈ 0.26-0.28 adjusted), so normalising a lesion against its own leaf removes some but not all of the batch effect. The two features that come closest to project-invariant are Shannon entropy (η² ≈ 0.08) and greenness bimodality (η² ≈ 0.08 adjusted, down from 0.27 raw, so most of its apparent project difference <em>is</em> severity mix). Notably, bimodality is the feature used for CDA presence detection in <code>10_segmentation_and_feature_extraction</code> §4, which is reassuring for that particular use.</li>
+<li><strong>Jointly, the features carry a strong project signature.</strong> The multivariate permutation test gives pseudo-F ≈ 8.8 with project accounting for ~23% of the multivariate dispersion between leaves (p &lt; 0.001, §5.1), and a random forest identifies which of eight projects a crop came from ~41% of the time from the twelve features alone, against 12.5% chance and a 12% shuffled-label control (§5.3). For comparison, the same features predict the exact severity score ~62% of the time in <code>10_segmentation_and_feature_extraction/10b_score_prediction</code>, so they encode a substantial amount about which experiment produced an image alongside what it shows.</li>
+<li><strong>Consequence for modelling.</strong> Because project identity is partly recoverable from the features, a model trained on the pooled dataset can lean on imaging batch, and the source-grouped cross-validation used in <code>10_segmentation_and_feature_extraction/10b_score_prediction</code> does not protect against this. It holds out leaves, not projects, so every held-out leaf has same-project leaves in training. The ~62% held-out accuracy reported there should therefore be read as within-dataset performance, and a leave-one-project-out evaluation would be the honest estimate of transfer to a new lab or camera. The same caution applies to the deep-learning models trained on this dataset.</li>
+<li><strong>Caveats.</strong> Project is fully confounded with everything that varies between experiments, including camera, exposure, imaging distance, plant batch, growth conditions and infiltration protocol, so these tests establish <em>that</em> the projects differ, not <em>why</em>. Two projects contribute only four source leaves each (§2.1), so their means are imprecise and their contribution to the effect-size estimates is weak. Score adjustment uses a single pooled per-class mean, which removes the average severity effect but not any project-specific difference in how a given score class looks, and that residual is by construction attributed to project.</li>
+</ul>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

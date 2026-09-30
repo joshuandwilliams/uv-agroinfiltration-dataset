@@ -1,0 +1,730 @@
+---
+title: "Do the hand-crafted features differ between projects?"
+format:
+  html:
+    code-fold: true
+---
+
+Date: 07/08/2026
+
+## GOHREP
+
+**Goal:**
+
+Test whether the twelve hand-crafted image features computed in
+`10_segmentation_and_feature_extraction` differ significantly between the eight
+source projects that contributed images to the dataset, and quantify how large
+any differences are.
+
+**Hypothesis:**
+
+The features will differ between projects. The dataset is pooled from
+independent experiments run by different people, on different plants, with
+different cameras, exposures and imaging geometry, so the whole-leaf
+brightness/colour features (`leaf_bright`, `mean_green`, `log_gr`) should carry
+a clear project signature. The contrast-type features that compare the CDA
+against its own leaf (`green_gap`, `ent_gap`) are internally normalised by the
+leaf they came from, so they were expected to be more stable across projects.
+
+**Rationale:**
+
+Two things ride on this. First, if features carry a project signature, then a
+model trained on the pooled dataset can partly key on imaging batch rather than
+on cell death, and any accuracy estimate that does not hold out whole projects
+is optimistic about generalisation to a new lab or camera. Second, project is
+confounded with severity in this dataset (projects differ strongly in their
+score-class mix, `04_project_level_analysis` §5), so a raw project difference in
+a feature could simply reflect that one project's leaves are more diseased. Every
+test here is therefore run twice, once raw and once after removing the severity
+score's effect, so genuine imaging-batch differences are separated from severity
+composition.
+
+Two structural facts constrain the analysis. Crops from the same source leaf
+share lighting, plant and tissue, so crops are not independent, and the
+independent unit is the source leaf
+(`10_segmentation_and_feature_extraction/10b_score_prediction` §2 makes the same
+argument for cross-validation). And the projects are very
+unequal in size, from 4 to 89 leaves. The primary test is therefore a leaf-level
+permutation ANOVA, which needs no distributional assumption and permutes whole
+leaves, with a mixed model (crops nested in leaves) as a parametric companion.
+
+---
+
+## 1. Setup
+
+### 1.1 Load required packages
+
+```{r}
+#| output: false
+# 1.1
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(patchwork)
+library(here)
+# lme4 and randomForest are called namespaced (lme4::lmer,
+# randomForest::randomForest) rather than attached, so they do not mask
+# dplyr::select etc.
+requireNamespace("lme4", quietly = TRUE)
+requireNamespace("randomForest", quietly = TRUE)
+```
+
+### 1.2 Helper functions and output folder
+
+```{r}
+# 1.2
+source(here("src", "data_helpers.R"))
+source(here("src", "plotting_helpers.R"))
+save_plot <- make_save_plot("11_project_feature_differences")
+```
+
+### 1.3 Load the twelve features and attach project labels
+
+The features are not recomputed here. The eleven region features come from the
+segmentation cache written by `10_segmentation_and_feature_extraction` (§4), and
+Shannon entropy comes from `09_image_entropy`, joined exactly as in the exported
+feature table (`data/features/cda_image_features.csv`, §4.1 there).
+`frac_g_gt_r` is excluded, matching the model feature set in
+`10b_score_prediction`.
+
+```{r}
+# 1.3.1
+seg <- readRDS(here(
+  "analyses", "10_segmentation_and_feature_extraction", "segmentation_cache",
+  "cda_segmentation_metrics.rds"
+))
+entropy_raw <- readRDS(here(
+  "analyses", "09_image_entropy", "entropy_cache", "cda_metrics.rds"
+)) %>%
+  filter(size == "Raw") %>%
+  transmute(image_id, entropy_raw = entropy)
+
+# Feature order and labels are kept identical to
+# 10_segmentation_and_feature_extraction §5, so the two analyses' figures can be
+# read side by side: CDA (lesion) measures, then whole-leaf measures, then the
+# CDA-vs-leaf contrasts and global measures.
+feat_order <- c(
+  "cda_green", "cda_bright", "cda_green_sd", "cda_bright_sd",
+  "mean_green", "leaf_bright", "leaf_green_sd", "sep", "log_gr",
+  "green_gap", "ent_gap", "entropy_raw"
+)
+feat_labels <- c(
+  "CDA greenness", "CDA brightness", "Within-CDA greenness variation",
+  "Within-CDA brightness variation", "Whole-leaf mean green level",
+  "Whole-leaf brightness", "Whole-leaf greenness spread",
+  "Whole-leaf greenness bimodality", "Log green-to-red ratio",
+  "CDA-leaf greenness contrast", "CDA-leaf entropy difference", "Shannon entropy"
+)
+names(feat_labels) <- feat_order
+```
+
+Each crop's filename is `<SourceBasename>_<Row>_<Col>_<Pos>`, so stripping the
+trailing `_Row_Col_Pos` recovers the source leaf. `image_info.csv` gives each
+source leaf's folder, whose top level is the project, mapped to its anonymised
+label (`Project A`, `Project B`, ...) with the shared key. This is the same
+authoritative mapping used in `04_project_level_analysis` §1.5.
+
+```{r}
+# 1.3.2
+project_key <- load_project_key()
+project_lookup <- setNames(project_key$Anon_Label, project_key$Project)
+
+# Path is recorded once per folder in image_info.csv, so it is filled downwards.
+# Extensions differ in case between image_info.csv (.TIF) and the crop
+# filenames, so the join is on the extension-stripped stem.
+leaf_project <- read_csv(
+  here("analyses", "01_generate_raw_data", "01_allocation_info", "image_info.csv"),
+  show_col_types = FALSE
+) %>%
+  fill(Path, .direction = "down") %>%
+  transmute(
+    stem = tools::file_path_sans_ext(Image),
+    Project = unname(project_lookup[sub("/.*", "", Path)])
+  )
+
+feat <- seg %>%
+  select(image_id, score, all_of(setdiff(feat_order, "entropy_raw"))) %>%
+  inner_join(entropy_raw, by = "image_id") %>%
+  mutate(source = sub("_[0-9]+_[0-9]+_[0-9]+$", "", image_id)) %>%
+  left_join(leaf_project, by = c("source" = "stem")) %>%
+  mutate(
+    Project = factor(Project),
+    source = factor(source),
+    score_f = factor(score, levels = 0:6)
+  )
+
+stopifnot(!anyNA(feat$Project))
+cat(sprintf(
+  "%d crops from %d source leaves across %d projects; %d features.\n",
+  nrow(feat), nlevels(feat$source), nlevels(feat$Project), length(feat_order)
+))
+```
+
+---
+
+## 2. What is being compared
+
+### 2.1 Crops and leaves per project
+
+Project sizes are highly unequal. Project B alone contributes 42% of the crops,
+while Projects A and F contribute four source leaves each. Because the leaf is
+the independent unit, the effective sample size is the leaf count, not the crop
+count, and the small projects are estimated from very few leaves.
+
+```{r}
+# 2.1
+project_sizes <- feat %>%
+  group_by(Project) %>%
+  summarise(Leaves = n_distinct(source), Crops = n(), .groups = "drop") %>%
+  mutate(`Crops (%)` = round(100 * Crops / sum(Crops), 1)) %>%
+  arrange(desc(Crops))
+knitr::kable(project_sizes, caption = "Source leaves and crops per project")
+
+# Project colours, shared with 07_visual_complexity's raw-pixel PCA so a project
+# keeps its colour across the two ordinations. Those are matplotlib's tab10
+# sampled at 8 points (plt.cm.tab10(np.linspace(0, 1, 8)), which skips tab10's
+# red and pink), assigned in the same descending crop-count order used there.
+project_pal <- c(
+  "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd",
+  "#8c564b", "#7f7f7f", "#bcbd22", "#17becf"
+)
+stopifnot(nrow(project_sizes) == length(project_pal))
+project_pal <- setNames(project_pal, as.character(project_sizes$Project))
+```
+
+### 2.2 Severity mix per project (the confound)
+
+Projects differ strongly in severity composition. Project B is 52% score-0 while
+Project H has almost no score-0 crops, so a project difference in any
+score-sensitive feature is partly a difference in how diseased that project's
+leaves are. This is why every test below is also run on score-adjusted values.
+
+```{r}
+# 2.2
+feat %>%
+  count(Project, score_f) %>%
+  group_by(Project) %>%
+  mutate(pct = round(100 * n / sum(n), 1)) %>%
+  select(-n) %>%
+  pivot_wider(names_from = score_f, values_from = pct, values_fill = 0) %>%
+  knitr::kable(caption = "Percent of each project's crops in each severity score class")
+```
+
+### 2.3 Score adjustment
+
+Score adjustment removes each severity class's mean from a feature, pooled over
+the whole dataset, and keeps the residual. A project difference that survives
+this is a difference between projects *at matched severity*, which is the
+imaging-batch effect of interest rather than a difference in disease mix.
+
+```{r}
+# 2.3.1
+# Residual of each feature after removing the per-score-class mean (a one-way
+# fit on score_f). Residuals are formed on the full crop-level data, then
+# averaged per leaf below, so a leaf's residual mean is its typical departure
+# from what its severity classes alone would predict.
+adj_names <- paste0(feat_order, "_adj")
+for (i in seq_along(feat_order)) {
+  feat[[adj_names[i]]] <- residuals(lm(feat[[feat_order[i]]] ~ feat$score_f))
+}
+```
+
+```{r}
+# 2.3.2
+# Leaf-level tables: one row per source leaf, the independent unit. Raw means
+# for the unadjusted tests, score-adjusted residual means for the adjusted ones.
+leaf_raw <- feat %>%
+  group_by(source, Project) %>%
+  summarise(across(all_of(feat_order), mean), n_crops = n(), .groups = "drop")
+leaf_adj <- feat %>%
+  group_by(source, Project) %>%
+  summarise(across(all_of(adj_names), mean), .groups = "drop")
+cat(sprintf(
+  "Leaf-level tables: %d leaves, median %d crops per leaf.\n",
+  nrow(leaf_raw), median(leaf_raw$n_crops)
+))
+```
+
+---
+
+## 3. Does each feature differ between projects?
+
+### 3.1 Leaf-level permutation ANOVA (primary test)
+
+For each feature, the one-way ANOVA F statistic across projects is computed on
+the leaf means, then the null distribution is built by randomly reassigning the
+project labels *of whole leaves* 9,999 times. Permuting leaves rather than crops
+is what keeps the test honest, since crops within a leaf are correlated.
+Permutation also avoids assuming normality or equal variances, both of which are
+doubtful with project sizes from 4 to 89 leaves. Effect size is η², the share of
+between-leaf variance in the feature attributable to project. The twelve
+p-values are Benjamini-Hochberg corrected.
+
+```{r}
+# 3.1.1
+f_stat <- function(y, g) {
+  g <- factor(g)
+  group_mean <- tapply(y, g, mean)
+  group_n <- tapply(y, g, length)
+  ss_between <- sum(group_n * (group_mean - mean(y))^2)
+  ss_within <- sum((y - group_mean[g])^2)
+  c(
+    F = (ss_between / (nlevels(g) - 1)) / (ss_within / (length(y) - nlevels(g))),
+    eta2 = ss_between / (ss_between + ss_within)
+  )
+}
+
+n_perm <- 9999
+perm_test <- function(y, g, seed) {
+  set.seed(seed)
+  observed <- f_stat(y, g)
+  null_f <- replicate(n_perm, f_stat(y, sample(g))["F"])
+  # +1 in both numerator and denominator: the observed labelling is itself one
+  # of the permutations, so p can never be 0.
+  c(observed, p = (1 + sum(null_f >= observed["F"])) / (n_perm + 1))
+}
+```
+
+```{r}
+# 3.1.2
+perm_results <- bind_rows(lapply(seq_along(feat_order), function(i) {
+  raw <- perm_test(leaf_raw[[feat_order[i]]], leaf_raw$Project, seed = 100 + i)
+  adj <- perm_test(leaf_adj[[adj_names[i]]], leaf_adj$Project, seed = 200 + i)
+  data.frame(
+    feature = feat_order[i], Feature = unname(feat_labels[i]),
+    F_raw = raw["F"], eta2_raw = raw["eta2"], p_raw = raw["p"],
+    F_adj = adj["F"], eta2_adj = adj["eta2"], p_adj = adj["p"],
+    row.names = NULL
+  )
+})) %>%
+  mutate(
+    q_raw = p.adjust(p_raw, "BH"),
+    q_adj = p.adjust(p_adj, "BH")
+  )
+
+perm_results %>%
+  transmute(
+    Feature,
+    `F (raw)` = round(F_raw, 2), `eta2 (raw)` = round(eta2_raw, 3),
+    `q (raw)` = signif(q_raw, 2),
+    `F (score-adj)` = round(F_adj, 2), `eta2 (score-adj)` = round(eta2_adj, 3),
+    `q (score-adj)` = signif(q_adj, 2)
+  ) %>%
+  arrange(desc(`eta2 (score-adj)`)) %>%
+  knitr::kable(
+    caption = paste(
+      "Leaf-level permutation ANOVA of each feature across projects",
+      "(9,999 permutations of whole-leaf project labels; q = BH-corrected p)."
+    )
+  )
+
+cat(sprintf(
+  "Significant at q < 0.05: %d/%d features raw, %d/%d score-adjusted.\n",
+  sum(perm_results$q_raw < 0.05), nrow(perm_results),
+  sum(perm_results$q_adj < 0.05), nrow(perm_results)
+))
+```
+
+### 3.2 Mixed-model likelihood-ratio tests (parametric companion)
+
+The same question asked a second way, at crop level, with the leaf as a random
+intercept so within-leaf correlation is modelled rather than averaged away.
+Project is tested by a likelihood-ratio test against the same model without
+project, and the score-adjusted version adds severity class as a fixed effect
+(`value ~ score_f + Project + (1 | leaf)` against `value ~ score_f + (1 | leaf)`).
+Effect size is the increase in marginal R² when project is added, which is the
+share of total variance the project term explains. This is a companion rather
+than the primary test, because the likelihood-ratio chi-square is anticonservative
+with only eight groups.
+
+```{r}
+#| output: false
+# 3.2.1
+# Marginal R^2 (Nakagawa): variance of the fixed-effect predictions over the
+# total of fixed, random-intercept, and residual variance.
+r2_marginal <- function(model) {
+  var_fixed <- var(as.vector(model.matrix(model) %*% lme4::fixef(model)))
+  var_random <- sum(as.numeric(lme4::VarCorr(model)))
+  var_fixed / (var_fixed + var_random + sigma(model)^2)
+}
+
+# ML (not REML) fits, since the likelihood-ratio test compares fixed-effect
+# structures.
+lrt_project <- function(value, with_score) {
+  dat <- data.frame(
+    value = value, Project = feat$Project, source = feat$source, score_f = feat$score_f
+  )
+  form_full <- if (with_score) value ~ score_f + Project + (1 | source) else value ~ Project + (1 | source)
+  form_null <- if (with_score) value ~ score_f + (1 | source) else value ~ 1 + (1 | source)
+  m_full <- lme4::lmer(form_full, dat, REML = FALSE)
+  m_null <- lme4::lmer(form_null, dat, REML = FALSE)
+  comparison <- anova(m_null, m_full)
+  c(
+    chisq = comparison$Chisq[2], df = comparison$Df[2],
+    p = comparison$`Pr(>Chisq)`[2],
+    dR2 = r2_marginal(m_full) - r2_marginal(m_null)
+  )
+}
+
+lmm_results <- bind_rows(lapply(seq_along(feat_order), function(i) {
+  raw <- lrt_project(feat[[feat_order[i]]], with_score = FALSE)
+  adj <- lrt_project(feat[[feat_order[i]]], with_score = TRUE)
+  data.frame(
+    feature = feat_order[i], Feature = unname(feat_labels[i]),
+    chisq_raw = raw["chisq"], df = raw["df"], p_raw = raw["p"], dR2_raw = raw["dR2"],
+    chisq_adj = adj["chisq"], p_adj = adj["p"], dR2_adj = adj["dR2"],
+    row.names = NULL
+  )
+})) %>%
+  mutate(q_raw = p.adjust(p_raw, "BH"), q_adj = p.adjust(p_adj, "BH"))
+```
+
+```{r}
+# 3.2.2
+lmm_results %>%
+  transmute(
+    Feature,
+    `chi2 (raw)` = round(chisq_raw, 1), `q (raw)` = signif(q_raw, 2),
+    `chi2 (score-adj)` = round(chisq_adj, 1), `q (score-adj)` = signif(q_adj, 2),
+    `dR2 (score-adj)` = round(dR2_adj, 3)
+  ) %>%
+  arrange(desc(`chi2 (score-adj)`)) %>%
+  knitr::kable(caption = "Mixed-model likelihood-ratio tests of the project term (7 df).")
+
+agree <- sum((perm_results$q_adj < 0.05) == (lmm_results$q_adj < 0.05))
+cat(sprintf(
+  "Permutation and mixed-model tests agree on %d/%d features (score-adjusted, q < 0.05).\n",
+  agree, nrow(perm_results)
+))
+```
+
+### 3.3 Effect sizes
+
+```{r fig.width=9, fig.height=5}
+#| fig-width: 9
+#| fig-height: 5
+# 3.3
+# Ordered by score-adjusted eta^2 so the features carrying the strongest project
+# signature at matched severity sit on the left.
+eta_long <- perm_results %>%
+  select(Feature, Raw = eta2_raw, `Score-adjusted` = eta2_adj) %>%
+  pivot_longer(-Feature, names_to = "Version", values_to = "eta2") %>%
+  mutate(Feature = factor(
+    Feature,
+    levels = perm_results$Feature[order(-perm_results$eta2_adj)]
+  ))
+
+p_eta <- ggplot(eta_long, aes(x = Feature, y = eta2, fill = Version)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.7) +
+  scale_fill_manual(values = c(Raw = "grey65", `Score-adjusted` = "#2166AC")) +
+  labs(
+    x = NULL, y = expression("Between-leaf variance explained by project (" * eta^2 * ")"),
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 40, hjust = 1, size = 10),
+    axis.text.y = element_text(size = 11), axis.title = element_text(size = 12),
+    legend.position = "top",
+    # Extra left margin so the first rotated label is not clipped when saved.
+    plot.margin = margin(5.5, 5.5, 5.5, 55)
+  )
+p_eta
+save_plot(p_eta, "project_effect_sizes.png", width = 9, height = 5)
+```
+
+---
+
+## 4. How large are the differences?
+
+### 4.1 Feature distributions by project
+
+Crop-level distributions of all twelve features, split by project. Free y-axes,
+since the features are on different scales.
+
+```{r fig.width=11, fig.height=12}
+#| fig-width: 11
+#| fig-height: 12
+# 4.1
+long_feat <- feat %>%
+  select(source, Project, all_of(feat_order)) %>%
+  pivot_longer(all_of(feat_order), names_to = "feature", values_to = "value") %>%
+  mutate(feature = factor(feature, levels = feat_order, labels = unname(feat_labels)))
+
+p_box <- ggplot(long_feat, aes(x = Project, y = value, fill = Project)) +
+  geom_boxplot(outlier.size = 0.3, outlier.alpha = 0.15) +
+  facet_wrap(~feature, ncol = 3, scales = "free_y") +
+  scale_fill_manual(values = project_pal, guide = "none") +
+  scale_x_discrete(labels = function(x) sub("Project ", "", x)) +
+  labs(x = "Project", y = NULL) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 11), axis.text = element_text(size = 10),
+    axis.title = element_text(size = 13)
+  )
+p_box
+save_plot(p_box, "features_by_project_boxplots.png", width = 11, height = 12)
+```
+
+### 4.2 Project signatures at matched severity
+
+Each project's mean score-adjusted leaf value per feature, expressed in standard
+deviations of the between-leaf distribution. This puts all twelve features on
+one scale, so the pattern of a project's departure from the dataset average is
+readable as a signature.
+
+```{r fig.width=9, fig.height=5.5}
+#| fig-width: 9
+#| fig-height: 5.5
+# 4.2
+# z-scores are taken over leaves (the independent unit), then averaged within
+# project, so a large project does not shrink its own z simply by dominating the
+# dataset mean.
+z_leaf <- leaf_adj
+z_leaf[adj_names] <- scale(as.matrix(leaf_adj[adj_names]))
+
+project_z <- z_leaf %>%
+  group_by(Project) %>%
+  summarise(across(all_of(adj_names), mean), .groups = "drop") %>%
+  pivot_longer(-Project, names_to = "feature", values_to = "z") %>%
+  mutate(feature = factor(
+    sub("_adj$", "", feature),
+    levels = perm_results$feature[order(-perm_results$eta2_adj)],
+    labels = unname(feat_labels[perm_results$feature[order(-perm_results$eta2_adj)]])
+  ))
+
+p_heat <- ggplot(project_z, aes(x = feature, y = Project, fill = z)) +
+  geom_tile(colour = "white", linewidth = 0.4) +
+  geom_text(aes(label = sprintf("%.1f", z)), size = 3) +
+  scale_fill_gradient2(
+    low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0,
+    name = "Project mean\n(SD of leaf\ndistribution)"
+  ) +
+  scale_y_discrete(limits = rev) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 40, hjust = 1, size = 10),
+    axis.text.y = element_text(size = 11), panel.grid = element_blank(),
+    # Extra left margin so the first rotated label is not clipped when saved.
+    plot.margin = margin(5.5, 5.5, 5.5, 55)
+  )
+p_heat
+save_plot(p_heat, "project_feature_signature_heatmap.png", width = 9, height = 5.5)
+```
+
+```{r}
+# 4.2b
+# The largest project-to-project gap per feature, in between-leaf SDs, with the
+# two projects it separates.
+gaps <- project_z %>%
+  group_by(feature) %>%
+  summarise(
+    gap_sd = max(z) - min(z),
+    highest = Project[which.max(z)], lowest = Project[which.min(z)],
+    .groups = "drop"
+  ) %>%
+  arrange(desc(gap_sd))
+gaps %>%
+  transmute(
+    Feature = feature, `Largest gap (SD)` = round(gap_sd, 2),
+    Highest = highest, Lowest = lowest
+  ) %>%
+  knitr::kable(caption = "Largest project-to-project difference per feature, at matched severity.")
+```
+
+---
+
+## 5. Do the twelve features jointly separate projects?
+
+### 5.1 Multivariate permutation test
+
+The univariate tests ask each feature separately. This asks whether the twelve
+together separate projects, using a PERMANOVA-style pseudo-F on the standardised
+score-adjusted leaf means with Euclidean distance, and the same whole-leaf label
+permutation. R² is the share of total multivariate dispersion between projects.
+
+```{r}
+# 5.1
+Z <- as.matrix(z_leaf[adj_names])
+pseudo_f <- function(Z, g) {
+  g <- factor(g)
+  k <- nlevels(g)
+  group_mean <- t(sapply(levels(g), function(l) colMeans(Z[g == l, , drop = FALSE])))
+  group_n <- as.numeric(table(g))
+  grand <- colMeans(Z)
+  ss_between <- sum(group_n * rowSums((group_mean - matrix(grand, k, ncol(Z), byrow = TRUE))^2))
+  ss_within <- sum((Z - group_mean[g, , drop = FALSE])^2)
+  c(
+    F = (ss_between / (k - 1)) / (ss_within / (nrow(Z) - k)),
+    R2 = ss_between / (ss_between + ss_within)
+  )
+}
+
+set.seed(7)
+observed_mv <- pseudo_f(Z, z_leaf$Project)
+null_mv <- replicate(n_perm, pseudo_f(Z, sample(z_leaf$Project))["F"])
+cat(sprintf(
+  "Multivariate (12 features, score-adjusted leaf means): pseudo-F = %.2f, R2 = %.3f, p = %.4f\n",
+  observed_mv["F"], observed_mv["R2"], (1 + sum(null_mv >= observed_mv["F"])) / (n_perm + 1)
+))
+```
+
+### 5.2 Ordination of leaves by project
+
+PCA of the same standardised score-adjusted leaf means, coloured by project. If
+projects were interchangeable, the clouds would overlay one another.
+
+```{r fig.width=7.5, fig.height=5.5}
+#| fig-width: 7.5
+#| fig-height: 5.5
+# 5.2
+pca <- prcomp(Z, center = TRUE, scale. = FALSE)
+var_pc <- 100 * pca$sdev^2 / sum(pca$sdev^2)
+pca_df <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Project = z_leaf$Project)
+
+# Ellipses are drawn only for projects with at least 8 leaves. A covariance
+# ellipse fitted to 4 points (Projects A and F) is arbitrary, so those projects
+# are shown as points only.
+ellipse_projects <- project_sizes$Project[project_sizes$Leaves >= 8]
+
+p_pca <- ggplot(pca_df, aes(PC1, PC2, colour = Project)) +
+  geom_point(size = 1.8, alpha = 0.8) +
+  stat_ellipse(
+    data = filter(pca_df, Project %in% ellipse_projects),
+    level = 0.68, linewidth = 0.6
+  ) +
+  scale_colour_manual(values = project_pal) +
+  labs(
+    x = sprintf("PC1 (%.1f%%)", var_pc[1]), y = sprintf("PC2 (%.1f%%)", var_pc[2]),
+    caption = paste(
+      "One point per source leaf. Ellipses cover 68% of each project,",
+      "and are omitted for the two projects with only 4 leaves."
+    )
+  ) +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 12), legend.title = element_text(size = 11))
+p_pca
+save_plot(p_pca, "project_pca_leaf_means.png", width = 7.5, height = 5.5)
+```
+
+### 5.3 Can the project be identified from the features alone?
+
+A practical restatement of the same question. A random forest is trained to
+predict the project from the twelve crop-level features, under the same
+source-grouped 5-fold cross-validation used in
+`10_segmentation_and_feature_extraction/10b_score_prediction` §2, so no leaf
+appears in both the
+training and held-out folds. Projects are downsampled to equal size, so chance
+is 1/8 = 12.5% and exact accuracy equals balanced accuracy. A shuffled-label
+run is included as a leakage check.
+
+```{r}
+# 5.3
+set.seed(42)
+min_n <- min(table(feat$Project))
+balanced_idx <- unlist(lapply(levels(feat$Project), function(p) {
+  idx <- which(feat$Project == p)
+  if (length(idx) > min_n) sample(idx, min_n) else idx
+}))
+bal <- feat[balanced_idx, ]
+
+K <- 5
+set.seed(42)
+usrc <- unique(as.character(bal$source))
+src_fold <- setNames(sample(rep(1:K, length.out = length(usrc))), usrc)
+fold <- unname(src_fold[as.character(bal$source)])
+
+X <- as.matrix(bal[, feat_order])
+grouped_cv_accuracy <- function(y) {
+  pred <- factor(rep(NA, length(y)), levels = levels(y))
+  for (k in 1:K) {
+    tr <- fold != k
+    model <- randomForest::randomForest(x = X[tr, , drop = FALSE], y = y[tr], ntree = 300)
+    pred[!tr] <- predict(model, X[!tr, , drop = FALSE])
+  }
+  list(
+    balanced = mean(vapply(levels(y), function(l) mean(pred[y == l] == l), numeric(1))),
+    per_class = vapply(levels(y), function(l) mean(pred[y == l] == l), numeric(1))
+  )
+}
+
+y_project <- droplevels(bal$Project)
+acc <- grouped_cv_accuracy(y_project)
+set.seed(9)
+acc_shuffled <- grouped_cv_accuracy(factor(sample(as.character(y_project)), levels = levels(y_project)))
+
+cat(sprintf(
+  paste0(
+    "Balanced set: %d crops per project (%d total).\n",
+    "Project identification from the 12 features: %.1f%% balanced accuracy",
+    " (chance %.1f%%).\nShuffled-label control: %.1f%%.\n"
+  ),
+  min_n, nrow(bal), 100 * acc$balanced, 100 / nlevels(y_project), 100 * acc_shuffled$balanced
+))
+data.frame(Project = names(acc$per_class), Accuracy = round(acc$per_class, 3), row.names = NULL) %>%
+  knitr::kable(caption = "Held-out project identification accuracy per project (chance = 0.125).")
+```
+
+---
+
+## 6. Interpretation and Discussion
+
+- **The features differ between projects, and it is not just severity mix.**
+  All twelve features differ significantly between projects at matched severity
+  (leaf-level permutation ANOVA, BH-corrected q < 0.05, §3.1), and the
+  crop-level mixed models agree (§3.2). Only `cda_bright_sd` is
+  non-significant *before* score adjustment and significant after, which is what
+  a severity-driven confound looks like when it runs against the batch effect.
+  The tests are on leaf means with whole-leaf label permutation, so the result
+  is not an artefact of treating correlated crops as independent observations.
+- **The effects are large for the appearance and texture features.** At matched
+  severity, project explains 26-35% of the between-leaf variance in within-CDA
+  greenness variation, whole-leaf greenness spread, whole-leaf brightness,
+  whole-leaf mean green level and CDA brightness (§3.1), and the largest
+  project-to-project gaps reach 2.1-2.5 SD of the between-leaf distribution
+  (§4.2). These are the features expected to track camera, exposure and imaging
+  geometry, so a project signature in them is the expected result rather than a
+  surprise. Projects E and H sit at opposite extremes on every brightness
+  feature, differing by ~2 SD in whole-leaf brightness alone.
+- **Internal contrast features are not the safe harbour they were expected to
+  be.** The hypothesis was that CDA-vs-leaf contrasts would be stable across
+  projects because they are normalised by their own leaf. `green_gap` and
+  `ent_gap` still show substantial project effects (η² ≈ 0.26-0.28 adjusted),
+  so normalising a lesion against its own leaf removes some but not all of the
+  batch effect. The two features that come closest to project-invariant are
+  Shannon entropy (η² ≈ 0.08) and greenness bimodality (η² ≈ 0.08 adjusted, down
+  from 0.27 raw, so most of its apparent project difference *is* severity mix).
+  Notably, bimodality is the feature used for CDA presence detection in
+  `10_segmentation_and_feature_extraction` §4, which is reassuring for that
+  particular use.
+- **Jointly, the features carry a strong project signature.** The multivariate
+  permutation test gives pseudo-F ≈ 8.8 with project accounting for ~23% of the
+  multivariate dispersion between leaves (p < 0.001, §5.1), and a random forest
+  identifies which of eight projects a crop came from ~41% of the time from the
+  twelve features alone, against 12.5% chance and a 12% shuffled-label control
+  (§5.3). For comparison, the same features predict the exact severity score
+  ~62% of the time in `10_segmentation_and_feature_extraction/10b_score_prediction`,
+so they encode
+  a substantial amount about which experiment produced an image alongside what it
+  shows.
+- **Consequence for modelling.** Because project identity is partly recoverable
+  from the features, a model trained on the pooled dataset can lean on imaging
+  batch, and the source-grouped cross-validation used in
+  `10_segmentation_and_feature_extraction/10b_score_prediction` does not protect
+against this. It
+  holds out leaves, not projects, so every held-out leaf has same-project leaves
+  in training. The ~62% held-out accuracy reported there should therefore be
+  read as within-dataset performance, and a leave-one-project-out evaluation
+  would be the honest estimate of transfer to a new lab or camera. The same
+  caution applies to the deep-learning models trained on this dataset.
+- **Caveats.** Project is fully confounded with everything that varies between
+  experiments, including camera, exposure, imaging distance, plant batch, growth
+  conditions and infiltration protocol, so these tests establish *that* the
+  projects differ, not *why*. Two projects contribute only four source leaves
+  each (§2.1), so their means are imprecise and their contribution to the
+  effect-size estimates is weak. Score adjustment uses a single pooled
+  per-class mean, which removes the average severity effect but not any
+  project-specific difference in how a given score class looks, and that
+  residual is by construction attributed to project.
