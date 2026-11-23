@@ -45,7 +45,9 @@ def _draw_score_label_pil(draw, row, label_x, label_y, font, font_size):
         cursor += char_width(text)
 
 
-def _draw_score_label_tk(canvas, row, label_x, label_y, tk_font_obj):
+# The two Tk functions below open a live window, which needs a display and the group's
+# network drive. Neither exists in CI, so they are excluded from coverage.
+def _draw_score_label_tk(canvas, row, label_x, label_y, tk_font_obj):  # pragma: no cover
     """Draw a [s1,s2,s3] label with per-scorer colours at (label_x, label_y)."""
     scores = [row[f"Score{i}"] for i in range(1, 4)]
 
@@ -168,7 +170,7 @@ def save_all_annotation_images(
         print(f"Saved {output_path.name}")
 
 
-def view_annotations(
+def view_annotations(  # pragma: no cover
     data_path: str | Path,
     raw_folder_path: str | Path,
     mode: str = "cda",
