@@ -4,6 +4,7 @@ stay on disk locally and are gitignored.
 
 Reads:
   - anonymisation_keys/anonymisation_key.csv (scorer name -> ID)
+  - anonymisation_keys/project_name_key.csv (real project folder name -> token)
   - data/cdascorer/set{1,2}/<Name>.csv
   - analyses/06_intra_rater_reliability/rescore_<Name>.csv
   - analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv
@@ -15,7 +16,11 @@ Writes:
   - analyses/06_intra_rater_reliability/rescore_anon/Scorer<ID>.csv (scorer
     column replaced with the ID)
   - analyses/01_generate_raw_data/01_allocation_info/randomised_info_anon.csv
-    (scorer1/2/3 columns replaced with IDs)
+    (scorer1/2/3 columns replaced with IDs, and real project folder names in
+    Path replaced with tokens such as Project_A)
+
+Both keys stay local and are gitignored. They are backed up in the private
+repository joshuandwilliams/uv-agroinfiltration-private.
 
 Run this after regenerating any of the original files it reads from.
 """
@@ -38,6 +43,18 @@ def basename(path: str) -> str:
 def load_scorer_key() -> dict[str, int]:
     key = pd.read_csv(REPO_ROOT / "anonymisation_keys" / "anonymisation_key.csv")
     return dict(zip(key["Scorer_Name"], key["ID"], strict=True))
+
+
+def load_project_tokens() -> dict[str, str]:
+    key = pd.read_csv(REPO_ROOT / "anonymisation_keys" / "project_name_key.csv")
+    return dict(zip(key["Project"], key["Token"], strict=True))
+
+
+def anonymise_path(path: str, tokens: dict[str, str]) -> str:
+    """Replace each real folder name in a path with its token."""
+    for name, token in tokens.items():
+        path = path.replace(name, token)
+    return path
 
 
 def anonymise_cdascorer(name_to_id: dict[str, int]) -> None:
@@ -64,7 +81,7 @@ def anonymise_rescore(name_to_id: dict[str, int]) -> None:
         df.to_csv(dst_dir / f"Scorer{scorer_id}.csv", index=False)
 
 
-def anonymise_randomised_info(name_to_id: dict[str, int]) -> None:
+def anonymise_randomised_info(name_to_id: dict[str, int], tokens: dict[str, str]) -> None:
     src_path = (
         REPO_ROOT
         / "analyses"
@@ -75,6 +92,7 @@ def anonymise_randomised_info(name_to_id: dict[str, int]) -> None:
     df = pd.read_csv(src_path)
     for col in ["scorer1", "scorer2", "scorer3"]:
         df[col] = df[col].map(name_to_id)
+    df["Path"] = df["Path"].map(lambda p: anonymise_path(p, tokens))
     df.to_csv(src_path.parent / "randomised_info_anon.csv", index=False)
 
 
@@ -82,5 +100,5 @@ if __name__ == "__main__":
     scorer_key = load_scorer_key()
     anonymise_cdascorer(scorer_key)
     anonymise_rescore(scorer_key)
-    anonymise_randomised_info(scorer_key)
+    anonymise_randomised_info(scorer_key, load_project_tokens())
     print("Done.")

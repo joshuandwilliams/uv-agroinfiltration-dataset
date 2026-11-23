@@ -26,6 +26,7 @@ data/cdascorer/
 # Rater ID to name. Backed up in the private repository
 # joshuandwilliams/uv-agroinfiltration-private.
 anonymisation_keys/anonymisation_key.csv
+anonymisation_keys/project_name_key.csv
 analyses/06_intra_rater_reliability/rescore_*.csv
 analyses/01_generate_raw_data/01_allocation_info/randomised_info.csv
 
