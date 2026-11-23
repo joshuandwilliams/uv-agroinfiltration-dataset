@@ -48,7 +48,7 @@ jobs:
 
       - name: Install R packages
         run: |
-          Rscript -e 'install.packages(c("testthat", "covr", "here", "withr", "digest", "dplyr", "ggplot2", "irr", "irrCAC", "RColorBrewer", "readr", "tibble", "tidyr"))'
+          Rscript -e 'install.packages(c("testthat", "covr", "xml2", "here", "withr", "digest", "dplyr", "ggplot2", "irr", "irrCAC", "RColorBrewer", "readr", "tibble", "tidyr"))'
 
       - name: Run tests with coverage
         run: Rscript tests/r_coverage.R
