@@ -42,3 +42,13 @@ tmp/
 # Build artifacts
 *.egg-info/
 Rplots.pdf
+# Quarto renders. Regenerate with `quarto render`.
+analyses/**/*.html
+analyses/**/render.log
+
+# Coverage reports written by the test workflow
+coverage.xml
+cobertura.xml
+
+# Superseded analyses, kept locally only
+analyses/Synthesis_Old/
