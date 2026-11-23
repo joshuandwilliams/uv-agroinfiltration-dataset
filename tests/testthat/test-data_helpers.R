@@ -81,3 +81,17 @@ test_that("load_project_key reads the project key CSV as-is", {
   expect_equal(key$Anon_Label, "Project A")
   expect_equal(key$Dual_Infiltration, 0)
 })
+
+test_that("the keys are read from anonymisation_keys/ by default", {
+  root <- withr::local_tempdir()
+  dir.create(file.path(root, "anonymisation_keys"))
+  writeLines(c("ID,Scorer_Name", "1,A", "2,B"), file.path(root, "anonymisation_keys", "anonymisation_key.csv"))
+  writeLines(
+    c("Project,Anon_Label,Dual_Infiltration", "Project_A,Project A,0"),
+    file.path(root, "anonymisation_keys", "project_anonymisation_key.csv")
+  )
+  local_mocked_bindings(here = function(...) file.path(root, ...), .package = "here")
+
+  expect_equal(load_scorer_key(), c(A = 1L, B = 2L))
+  expect_equal(load_project_key()$Anon_Label, "Project A")
+})

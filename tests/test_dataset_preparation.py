@@ -10,11 +10,13 @@ from dataset_preparation import (
     _find_closest_coordinates,
     _find_overlapping_coordinates,
     _overlap,
+    _pairwise_iou,
     add_median_column,
     clean_coordinates,
     clean_scores,
     combine_CDA_dataframes,
     get_central_scorer,
+    get_iou_medoid_scorer,
     read_CDAScorer_data,
     save_cropped_images,
 )
@@ -1182,3 +1184,43 @@ class TestSaveCroppedImages:
         assert not mock_imread.called
         assert mock_print.called
         assert any("Image not found for" in call[0][0] for call in mock_print.call_args_list)
+
+
+class TestPairwiseIou:
+    def test_overlapping_boxes(self):
+        # 8 x 10 intersection over a 120 union
+        assert _pairwise_iou([0, 10, 0, 10], [2, 12, 0, 10]) == pytest.approx(80 / 120)
+
+    def test_disjoint_boxes(self):
+        assert _pairwise_iou([0, 10, 0, 10], [20, 30, 20, 30]) == 0.0
+
+    def test_zero_area_boxes(self):
+        assert _pairwise_iou([5, 5, 5, 5], [5, 5, 5, 5]) == 0.0
+
+
+def _boxes(*boxes):
+    """A row with up to three [x1, x2, y1, y2] boxes; None leaves a box missing."""
+    row = {}
+    for i, box in enumerate(boxes, start=1):
+        for name, value in zip(["X1", "X2", "Y1", "Y2"], box or [np.nan] * 4, strict=True):
+            row[f"{name}_{i}"] = value
+    return pd.Series(row)
+
+
+class TestGetIouMedoidScorer:
+    def test_picks_the_box_with_the_highest_mean_iou(self):
+        # Box 2 sits between boxes 1 and 3, so it agrees most with both
+        row = _boxes([0, 10, 0, 10], [2, 12, 0, 10], [4, 14, 0, 10])
+        assert get_iou_medoid_scorer(row) == 2
+
+    def test_tie_is_broken_by_larger_area(self):
+        # Boxes 1 and 2 have the same mean IoU; box 3 is an outlier
+        row = _boxes([0, 10, 0, 10], [0, 12, 0, 10], [50, 60, 50, 60])
+        assert get_iou_medoid_scorer(row) == 2
+
+    def test_fewer_than_two_boxes_gives_none(self):
+        assert get_iou_medoid_scorer(_boxes([0, 10, 0, 10], None, None)) is None
+
+    def test_no_overlap_gives_none(self):
+        row = _boxes([0, 10, 0, 10], [20, 30, 20, 30], None)
+        assert get_iou_medoid_scorer(row) is None
