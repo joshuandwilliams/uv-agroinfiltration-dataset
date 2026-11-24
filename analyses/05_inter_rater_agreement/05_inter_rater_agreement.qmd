@@ -697,7 +697,10 @@ make_alpha_hist_panel <- function(boot_vec, xlab, show_threshold = TRUE) {
 
   base <- ggplot(data.frame(alpha = boot_vec), aes(x = alpha)) +
     geom_histogram(bins = 30, fill = "cornflowerblue", color = "white")
-  max_count <- max(ggplot_build(base)$data[[1]]$count)
+  # The 30 bins span the whole x-axis, which includes the 0.8 threshold line when it is
+  # drawn. Count with that same axis, or the tallest bars exceed the y-limit and are dropped.
+  counted <- if (show_threshold) base + geom_blank(data = data.frame(alpha = threshold)) else base
+  max_count <- max(ggplot_build(counted)$data[[1]]$count)
   line_top <- max_count * 1.06
   label_y <- max_count * 1.15
 
