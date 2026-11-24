@@ -212,3 +212,45 @@ test_that("corrected_median_agreement zeroes out only the tautological match", {
   expect_equal(result$Exact_Match, c(FALSE, FALSE, FALSE))
   expect_equal(result$NearMiss_Match, c(TRUE, FALSE, TRUE))
 })
+
+test_that("bootstrap_gwet_ac2 returns n_boot reproducible replicates", {
+  set.seed(1)
+  mat <- matrix(sample(0:6, 3 * 20, replace = TRUE), nrow = 3)
+  rownames(mat) <- paste0("scorer", 1:3)
+
+  boot <- bootstrap_gwet_ac2(mat, n_boot = 4, sample_size = 10, seed = 42)
+  expect_length(boot, 4)
+  expect_true(all(boot >= -1 & boot <= 1))
+  expect_equal(boot, bootstrap_gwet_ac2(mat, n_boot = 4, sample_size = 10, seed = 42))
+
+  quiet <- bootstrap_gwet_ac2(
+    mat,
+    n_boot = 4, sample_size = 10, seed = 42, suppress_warnings = TRUE
+  )
+  expect_equal(quiet, boot)
+})
+
+test_that("bootstrap_gwet_ac2 caches results and reuses them on a hit", {
+  set.seed(2)
+  mat <- matrix(sample(0:6, 3 * 20, replace = TRUE), nrow = 3)
+  cache_path <- file.path(withr::local_tempdir(), "sub", "ac2.rds")
+
+  first <- bootstrap_gwet_ac2(mat, n_boot = 3, sample_size = 10, cache_path = cache_path)
+  expect_true(file.exists(cache_path))
+
+  # A hit returns the cached values, even if they no longer match a fresh run
+  cached <- readRDS(cache_path)
+  cached$boot <- c(9, 9, 9)
+  saveRDS(cached, cache_path)
+  expect_equal(
+    bootstrap_gwet_ac2(mat, n_boot = 3, sample_size = 10, cache_path = cache_path),
+    c(9, 9, 9)
+  )
+
+  # A different key misses the cache and recomputes
+  expect_equal(
+    bootstrap_gwet_ac2(mat, n_boot = 3, sample_size = 10, seed = 7, cache_path = cache_path),
+    bootstrap_gwet_ac2(mat, n_boot = 3, sample_size = 10, seed = 7)
+  )
+  expect_length(first, 3)
+})
