@@ -11,11 +11,11 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Generate a JPEG annotation image for every source agroinfiltration image in both
-dataset parts, showing all collected bounding boxes overlaid on the image.
+Make a JPEG for every source agroinfiltration image in both parts of the dataset,
+with all the collected bounding boxes drawn on it.
 
 ### 1. Import required packages
-Requires connection to the lab network drive.
+This needs the lab network drive.
 ```{python}
 # 1
 import pandas as pd
@@ -53,4 +53,3 @@ save_all_annotation_images(data2, SCORING_DIRS[2], output_dir, skip_existing=Tru
 
 ## Discussion
 
-_Add notes here._

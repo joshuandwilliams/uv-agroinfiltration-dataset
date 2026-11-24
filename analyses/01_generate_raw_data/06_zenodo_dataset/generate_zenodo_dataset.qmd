@@ -11,18 +11,18 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Generate the files required for Zenodo upload in FAIR-compliant formats.
+Make the files for the Zenodo upload, in formats that follow the FAIR principles.
 
 **Rationale:**
 
-The dataset should be Interoperable (FAIR principle). Since the images are
-pre-cropped classification images, COCO JSON (designed for detection/segmentation)
-is not appropriate. Interoperability is achieved through the ImageNet-style
-directory structure (score-class subfolders), a well-documented multi-rater CSV
-containing both individual scores and the median, and clear README documentation.
+The dataset should be interoperable, one of the FAIR principles. The images are
+already cropped for classification, so COCO JSON, which is designed for detection
+and segmentation, does not fit. Interoperability comes instead from three things:
+an ImageNet-style folder structure with one subfolder per score, a documented CSV
+with every rater's score and the median, and a clear README.
 
-Zenodo allows a maximum of 100 files per record, so images are bundled into
-ZIP archives. Output files are written to data/zenodo/ and are gitignored.
+Zenodo allows at most 100 files per record, so the images are bundled into ZIP
+archives. The output goes to data/zenodo/, which git ignores.
 
 ### 1. Import required packages
 ```{python}
@@ -117,4 +117,3 @@ print(f"Saved annotated_raw_images.zip: {len(zf.namelist())} files")
 
 ## Discussion
 
-_Add notes here._

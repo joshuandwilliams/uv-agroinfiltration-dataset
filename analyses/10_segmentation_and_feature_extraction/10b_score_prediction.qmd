@@ -11,30 +11,33 @@ Date: 13/7/2026
 
 **Goal:**
 
-Test how well a CDA's 0-6 severity score can be predicted from twelve
-hand-crafted image features, and find which of those features carry the signal.
+Test how well twelve hand-crafted image features predict a CDA's severity score
+from 0 to 6, and find which features carry the information.
 
 **Hypothesis:**
 
-The features are summaries of colour, brightness, texture and lesion geometry
-that a human rater plausibly uses, and each one rises with severity, so a simple
-model over the twelve should recover the score far better than chance. But
-because no single feature separates neighbouring scores (adjacent-class AUC
-peaks at 0.68 in `10_segmentation_and_feature_extraction`), the models are
-expected to place a CDA in roughly the right region of the scale while failing
-to pin the exact score.
+The features summarise colour, brightness, texture and lesion shape, which a
+rater could plausibly use. Each one rises with severity. So a simple model of all
+twelve should recover the score far better than chance. But no single feature
+separates neighbouring scores. The best AUC between adjacent scores is 0.68 in
+`10_segmentation_and_feature_extraction`. So the models should place a CDA in
+roughly the right part of the scale but miss the exact score.
 
 **Rationale:**
 
-The features are extracted in `10_segmentation_and_feature_extraction` and
-written to `data/features/cda_image_features.csv`. This analysis starts from that
-table and does nothing but model it. Three model families are fitted so the
-result is not an artefact of one inductive bias: k-NN (local, no assumed form), a
-random forest (non-linear, interaction-capable) and proportional-odds ordinal
-regression (linear, and the only one that uses the fact the scale is ordered).
-Each is scored under the same source-grouped cross validation, compared against a
-majority-class baseline and a single-feature threshold rule, and the winner is
-attributed with Gini importance and SHAP.
+`10_segmentation_and_feature_extraction` extracts the features and saves them to
+`data/features/cda_image_features.csv`. This analysis only models that table.
+Three kinds of model are fitted, so the result does not depend on one model's
+assumptions:
+- k-NN, which is local and assumes no form.
+- A random forest, which is non-linear and can capture interactions.
+- Proportional-odds ordinal regression, which is linear and is the only one that
+  uses the order of the scale.
+
+Each is scored with the same cross validation, grouped by source leaf. Each is
+compared with a majority-class baseline and a one-feature threshold rule. The
+features the best model relies on are then measured with Gini importance and
+SHAP.
 
 ---
 
@@ -69,18 +72,19 @@ save_plot <- make_save_plot("10_segmentation_and_feature_extraction")
 
 ## 2. Features, class balance and a leakage-safe cross-validation
 
-All modelling uses a class-balanced dataset, every score downsampled to the
-smallest class, so the abundant score-0 class cannot dominate. Because the classes
-are equal, a majority-class guess scores 1/7 and exact accuracy equals balanced
-accuracy. Accuracy is reported as exact (predicted = true), near-miss (within one
-point) and balanced (mean of the per-class exact accuracies).
+All models use a class-balanced dataset. Every score is downsampled to the size
+of the smallest class, so the common score 0 cannot dominate. With equal classes,
+always guessing one class scores 1/7, and exact accuracy equals balanced
+accuracy. Accuracy is reported three ways. Exact means the prediction equals the
+label. Near-miss means it is within one score. Balanced is the mean exact
+accuracy over the classes.
 
-The input is one row per cropped CDA image, read from
-`data/features/cda_image_features.csv`. Each feature is a scalar summary of the
-raw crop computed with no per-image threshold tuning, defined in full by
-`10_segmentation_and_feature_extraction`. The "CDA" is the segmented cell-death
-region, the "leaf" is all non-black pixels, and "greenness" means G - R (green
-minus red channel).
+The input has one row per cropped CDA image, from
+`data/features/cda_image_features.csv`. Each feature is one number summarising
+the raw crop, computed with no threshold tuned for any image.
+`10_segmentation_and_feature_extraction` defines them in full. The "CDA" is the
+segmented region of cell death, and the "leaf" is all the pixels that are not
+black. "Greenness" means G - R, green minus red.
 
 | Variable | Feature | Source |
 |---|---|---|
@@ -97,19 +101,19 @@ minus red channel).
 | `leaf_bright` | mean brightness over the leaf | `09_image_entropy` |
 | `entropy_raw` | Shannon entropy of the raw crop | `09_image_entropy` |
 
-Two further columns are not model features. `frac_g_gt_r` (CDA area over leaf
-area) is used only for the single-feature baseline, since Otsu splits every leaf
-whether or not a lesion is present, and `source` names the leaf each crop came
-from and groups the folds below.
+Two more columns are not used as features. `frac_g_gt_r`, the CDA area divided
+by the leaf area, is only used for the one-feature baseline. Otsu splits every
+leaf whether or not there is a lesion, so it is not a model feature. `source`
+names the leaf each crop came from, and groups the folds below.
 
-Crops from one leaf share lighting, plant and tissue, so they are not
-independent. Whole leaves are therefore assigned to folds, and no leaf ever
-appears in both the training and held-out folds.
+Crops from the same leaf share lighting, plant and tissue, so they are not
+independent. So whole leaves are assigned to folds. No leaf is ever in both the
+training and the held-out folds.
 
-- Balancing leaves 436 crops per class and 3052 in total, so the majority-class
-  floor is 1/7 and exact accuracy equals balanced accuracy.
-- A shuffled-label run returns 0.146 against a 0.143 chance level, so the
-  pipeline carries no leakage of its own.
+- Balancing leaves 436 crops per class, 3052 in all. Always guessing one class
+  scores 1/7, and exact accuracy equals balanced accuracy.
+- With shuffled labels the pipeline scores 0.146, against 0.143 by chance. So
+  the pipeline itself leaks nothing.
 
 ```{r}
 # 2.1  Features and class balancing
@@ -208,13 +212,14 @@ cat(sprintf(
 
 ## 3. Choosing k for k-NN
 
-Only held-out accuracy is shown, since at k = 1 each training point is its own
-neighbour and scores 100% by construction.
+Only held-out accuracy is shown. At k = 1 each training point is its own nearest
+neighbour, so it always scores 100% on the training data.
 
-- Held-out accuracy climbs from 0.462 at k = 1 to 0.556 at k = 27, so single
-  nearest neighbours overfit the local noise and averaging fixes it.
-- Every k from 5 upward lands between 0.511 and 0.556, so the exact choice of k
-  matters far less than the ceiling the feature space imposes.
+- Held-out accuracy rises from 0.462 at k = 1 to 0.556 at k = 27. A single
+  nearest neighbour overfits local noise, and averaging more neighbours fixes
+  that.
+- Every k from 5 upwards scores between 0.511 and 0.556. The exact k matters far
+  less than the limit set by the features.
 
 ```{r}
 # 3.1
@@ -277,17 +282,17 @@ save_plot(p_ksweep, "seg_knn_k_sweep.png", width = 8, height = 4.5)
 
 ## 4. Random forest: regularising to control overfitting
 
-The forest is fixed at 200 trees and tree size is capped with `maxnodes`, taking
-the largest held-out accuracy whose train-to-held-out gap stays within 15 points.
-Training accuracy is fit and scored on all the data, held-out is the grouped
-5-fold cross validation.
+The forest has 200 trees, and tree size is capped with `maxnodes`. The cap chosen
+gives the highest held-out accuracy with a gap of at most 15 points between
+training and held-out accuracy. Training accuracy is fitted and scored on all
+the data. Held-out accuracy comes from the grouped 5-fold cross validation.
 
-- Capping trees at 128 leaf nodes reaches 0.562 held-out for a gap of 0.109,
-  while 256 nodes adds only 0.010 held-out accuracy for a 0.168 gap that breaks
-  the 15-point rule.
-- Training accuracy keeps climbing (0.370 to 0.741 across the sweep, and 0.924
-  fully grown) while held-out accuracy stalls near 0.57, so the extra capacity is
-  memorisation rather than signal.
+- With a cap of 128 leaf nodes, held-out accuracy is 0.562 and the gap is 0.109.
+  256 nodes adds only 0.010 held-out accuracy, and its gap of 0.168 breaks the
+  15-point rule.
+- Training accuracy keeps rising, from 0.370 to 0.741 across the sweep and 0.924
+  for fully grown trees. Held-out accuracy stalls near 0.57. So the extra
+  capacity only memorises the training data.
 
 ```{r}
 # 4.1
@@ -357,22 +362,21 @@ save_plot(p_reg, "seg_rf_regularisation.png", width = 8, height = 4.5)
 
 ### 4.1 Does the tree count matter?
 
-The 200 trees above are asserted rather than tuned, so the sweep is repeated
-across tree counts. Unlike `maxnodes`, the number of trees is not a capacity
-parameter. A random forest averages independently grown trees, and its
-generalisation error converges as trees are added rather than degrading
-(Breiman 2001), so more trees should buy variance reduction and nothing else.
-If that holds, the table below is flat along its rows and the chosen `maxnodes`
-does not depend on the tree count.
+The 200 trees above were set, not tuned, so the sweep is repeated with different
+numbers of trees. Unlike `maxnodes`, the number of trees does not control
+capacity. A random forest averages independently grown trees. As trees are
+added, its generalisation error converges rather than getting worse (Breiman
+2001). So more trees should only reduce variance. If so, the table below is flat
+along its rows, and the chosen `maxnodes` does not depend on the number of
+trees.
 
-- Held-out accuracy climbs by up to 0.014 between 25 and 100 trees, then moves by
-  at most 0.007 out to 800, against a 0.005 spread from merely re-seeding a
-  single setting, so the plateau arrives by roughly 100 trees.
-- The best cap is 256 leaf nodes in all six columns, so the two settings do not
-  interact and the chosen `maxnodes` would be identical at any tree count.
-- 200 trees therefore sits comfortably past the plateau, and a full
-  two-dimensional search would cost six times the compute to return the same
-  model.
+- Held-out accuracy rises by up to 0.014 between 25 and 100 trees. From there to
+  800 trees it moves by at most 0.007. Rerunning one setting with a new seed
+  moves it by 0.005. So accuracy levels off by about 100 trees.
+- The best cap is 256 leaf nodes in all six columns. The two settings do not
+  interact, and the chosen `maxnodes` would be the same for any number of trees.
+- So 200 trees is well past the level point. A full search over both settings
+  would cost six times as much computing and give the same model.
 
 ```{r}
 # 4.3  ntree x maxnodes, under the same undersample and grouped folds as above.
@@ -436,15 +440,15 @@ cat(sprintf(
 
 ## 5. Ordinal regression
 
-Proportional-odds ordinal logistic regression fits one linear predictor to the 12
-features and six ordered cut-points that split it into the seven classes, so the
-model uses the ordering of the scale rather than treating the classes as
-unrelated labels. It has no hyperparameter, so there is no sweep.
+Proportional-odds ordinal logistic regression fits one linear combination of the
+12 features. Six ordered cut-points split it into the seven scores. So the model
+uses the order of the scale, rather than treating the scores as unrelated
+labels. It has no hyperparameters, so there is nothing to sweep.
 
-- Held-out exact accuracy is 0.615 against 0.616 training, a gap of 0.002, so
-  twelve coefficients plus six cut-points leave nothing to memorise.
-- Near-miss accuracy is 0.978, so all but 2% of crops land within one point of
-  the true score.
+- Held-out exact accuracy is 0.615, against 0.616 in training, a gap of 0.002.
+  Twelve coefficients and six cut-points leave nothing to memorise.
+- Near-miss accuracy is 0.978. All but 2% of crops are within one score of their
+  label.
 
 ```{r}
 # 5.1  Ordinal logistic regression (proportional odds, MASS::polr), scored under
@@ -490,25 +494,24 @@ cat(sprintf(
 
 ### 5.1 Distribution over 1,000 undersamples
 
-Every accuracy above rests on one balanced undersample drawn at seed 42, which
-throws away 52% of the crops and could be lucky or unlucky. The whole experiment
-is therefore repeated 1,000 times, each iteration drawing a fresh undersample of
-436 crops per class and a fresh source-grouped fold assignment, then scoring the
-ordinal regression exactly as above. Both accuracies are held-out: every crop is
-predicted only while its leaf sits in the held-out fold, and the 3052 out-of-fold
-predictions are pooled once all five folds are done. This mirrors the repeat stratified
-undersampling used for the human scoring in `03_human_performance`, so the model
-and the raters are summarised the same way.
+Every accuracy above comes from one balanced undersample, drawn with seed 42.
+It leaves out 52% of the crops and could be lucky or unlucky. So the whole
+experiment is repeated 1,000 times. Each time draws a new undersample of 436
+crops per class and new folds grouped by leaf, then scores the ordinal
+regression as above. Both accuracies are held-out. Each crop is only predicted
+while its leaf is in the held-out fold. The 3052 held-out predictions are pooled
+once all five folds are done. This matches the repeated stratified undersampling
+used for the human raters in `03_human_performance`, so the model and the raters
+are summarised the same way.
 
-- Across 1,000 undersamples exact accuracy averages 0.608 with a 95% interval of
-  0.597 to 0.619, so which crops are drawn moves the headline by about a point in
-  either direction.
-- The seed-42 draw used above scores 0.615, the 91st percentile of that
-  distribution, so the single figure quoted for it is mildly lucky rather than
-  typical.
-- Every one of the 1,000 draws still beats the random forest (0.565) and k-NN
-  (0.556), and near-miss accuracy varies by only sd 0.0018, so both the model
-  ranking and the one-point reliability survive resampling.
+- Over 1,000 undersamples, exact accuracy averages 0.608, with a 95% interval of
+  0.597 to 0.619. Which crops are drawn moves the result by about one point
+  either way.
+- The seed 42 draw used above scores 0.615, the 91st percentile. So that single
+  figure is slightly lucky rather than typical.
+- All 1,000 draws still beat the random forest (0.565) and k-NN (0.556).
+  Near-miss accuracy has a standard deviation of only 0.0018. So both the order
+  of the models and the accuracy within one score hold up under resampling.
 
 ```{r}
 # 5.2  1,000 undersamples, each scored by the same grouped 5-fold ordinal
@@ -614,11 +617,12 @@ save_plot(p_dist, "seg_ordinal_undersample_dist.png", width = 10, height = 4.5)
 
 ## 6. Model comparison, with per-fold results
 
-- Ordinal regression leads at 0.615 held-out against 0.565 for the random forest
-  and 0.556 for k-NN, so the linear model that uses the ordering of the scale
+- Ordinal regression leads, at 0.615 held-out, against 0.565 for the random
+  forest and 0.556 for k-NN. The linear model that uses the order of the scale
   beats both models that do not.
-- The single-feature CDA-area rule reaches 0.111, below the 0.143 majority-class
-  floor, confirming that lesion area carries no usable severity signal on its own.
+- The one-feature rule on CDA area reaches 0.111, below the 0.143 of always
+  guessing one class. This confirms that lesion area alone says nothing useful
+  about severity.
 
 ```{r}
 # 6.1
@@ -701,28 +705,29 @@ cat(sprintf(
 ))
 ```
 
-- Per-fold exact accuracy spans 0.592 to 0.634 across the five folds, so the
-  headline 0.615 is not the product of one lucky split.
-- For reference, and not a like-for-like comparison, the project's deep-learning
-  models reach 60-67% held-out test accuracy against 61.5% here, so twelve
-  hand-crafted features land in the same range as a learned representation.
+- Exact accuracy ranges from 0.592 to 0.634 over the five folds. So the overall
+  0.615 does not come from one lucky split.
+- For reference only, since the comparison is not like for like, the project's
+  deep learning models reach 60 to 67% accuracy on the held-out test split,
+  against 61.5% here. So twelve hand-crafted features land in the same range as
+  a learned model.
 
 ---
 
 ## 7. Confusion matrix of the best model
 
-Everything from here on is fitted on the single seed-42 undersample used
-throughout, not on any of the 1,000 draws above and not on the best of them.
-Picking the best draw would select the top of a distribution and bias every
-figure downstream, but the fixed draw is not neutral either: it reports 61.5%
-exact against a resampled mean of 60.8%, so the percentages below sit at the
-optimistic end by roughly a point.
+From here on, everything is fitted on the seed 42 undersample used throughout.
+It is not any of the 1,000 draws above, and not the best of them. Picking the
+best draw would take the top of a distribution and bias every later figure. The
+fixed draw is not neutral either. It scores 61.5% exact, against a resampled
+mean of 60.8%. So the percentages below are about one point optimistic.
 
-- Errors are almost all off-by-one: 36.3% of crops land exactly one class away
-  and only 2.2% two or more, which is the tight band diagonal.
-- The ends of the scale are recovered best (79.8% at score 0 and 71.1% at score
-  6) while every interior class sits near 55%, so the middle of the scale is
-  where the features run out.
+- Almost all errors are off by one. 36.3% of crops are exactly one score away,
+  and only 2.2% are two or more away. This gives the narrow band around the
+  diagonal.
+- The ends of the scale are recovered best, with 79.8% at score 0 and 71.1% at
+  score 6. Every score in between is near 55%. The features run out in the
+  middle of the scale.
 
 ```{r fig.width=7, fig.height=6}
 #| fig-width: 7
@@ -766,10 +771,11 @@ save_plot(p_cm, "seg_confusion_matrix.png", width = 7, height = 6)
 
 ## 8. Gini importance
 
-- CDA greenness (234) and the log green-to-red ratio (198) lead, with within-CDA
-  greenness variation last at 37, so lesion colour dominates the splits.
-- The top five span only 234 to 139 and several of them are near duplicates, so
-  the ranking should be read as blocks rather than a strict per-feature order.
+- CDA greenness (234) and the log green to red ratio (198) lead. The spread of
+  greenness within the CDA is last, at 37. So the lesion's colour dominates the
+  splits.
+- The top five only range from 234 to 139, and several are near duplicates. So
+  the ranking should be read as groups, not as a strict order.
 
 ```{r fig.width=7, fig.height=5}
 #| fig-width: 7
@@ -799,16 +805,16 @@ save_plot(p_imp, "seg_feature_importance.png", width = 7, height = 5)
 
 ## 9. SHAP analysis
 
-Gini importance is global and directionless. SHAP attributes each prediction to
-its features, showing magnitude and direction, computed here on the random forest
-regressor with an interventional, class-balanced background set.
+Gini importance is overall and has no direction. SHAP splits each prediction
+between the features, with size and direction. It is computed here on the random
+forest regressor, with an interventional, class-balanced background set.
 
-- The log green-to-red ratio and CDA greenness dominate, and high values of both
-  push the prediction upward across the whole explanation set, so the model reads
-  severity mainly off lesion colour.
-- The four weakest features stay within 0.05 of zero, and within-CDA greenness
-  variation contributes a mean absolute SHAP of 0.01, so lesion mottling barely
-  moves a prediction.
+- The log green to red ratio and CDA greenness dominate. High values of both
+  push the prediction up across the whole set. So the model reads severity mainly
+  from the lesion's colour.
+- The four weakest features stay within 0.05 of zero. The spread of greenness
+  within the CDA has a mean absolute SHAP of 0.01. So how mottled a lesion is
+  hardly changes a prediction.
 
 ```{r}
 #| output: false
@@ -839,11 +845,11 @@ p_bee
 save_plot(p_bee, "seg_shap_beeswarm.png", width = 8, height = 6)
 ```
 
-- All three leading features have monotonic effects, but CDA brightness is flat
-  below about 100 and only then climbs from -0.25 to +0.6, so once a lesion is
-  dark enough the model stops distinguishing further dimming.
-- The log green-to-red ratio saturates at both ends, sitting near -0.7 below -8
-  and near +0.5 above 0, so extreme values add nothing beyond the threshold.
+- All three leading features have effects that only rise. CDA brightness is flat
+  below about 100, then climbs from -0.25 to +0.6. Once a lesion is dark enough,
+  the model ignores further dimming.
+- The log green to red ratio levels off at both ends, near -0.7 below -8 and near
+  +0.5 above 0. Values beyond those points add nothing.
 
 ```{r fig.width=11, fig.height=4}
 #| fig-width: 11
@@ -858,11 +864,11 @@ p_dep
 save_plot(p_dep, "seg_shap_dependence.png", width = 11, height = 4)
 ```
 
-- The top two features are the same at both ends of the scale, so the model is
-  not running on separate low- and high-severity specialists.
-- Greenness bimodality matters more at low severity (0.30 against 0.19) while CDA
-  brightness rises from fifth to third, which fits bimodality's role in telling a
-  faint lesion from none at all.
+- The top two features are the same at both ends of the scale. The model does
+  not use separate features for low and high severity.
+- Greenness bimodality matters more at low severity (0.30 against 0.19), and CDA
+  brightness rises from fifth to third. This fits bimodality's role in telling a
+  faint lesion from none.
 
 ```{r}
 # 9.4 Does the feature ranking reshuffle between low (0-1) and high (5-6)
@@ -881,11 +887,11 @@ mshap %>%
   as.data.frame()
 ```
 
-- For this mid-severity crop no single feature dominates, the largest push being
-  -0.28 from the log green-to-red ratio.
-- Those small contributions carry the prediction from a 3.05 baseline to 2.42,
-  which rounds to 2 and lands one class below the truth, the off-by-one error the
-  confusion matrix is full of.
+- For this mid-severity crop, no feature dominates. The largest push is -0.28,
+  from the log green to red ratio.
+- These small contributions move the prediction from a baseline of 3.05 to 2.42.
+  That rounds to 2, one score below the label. This is the off-by-one error that
+  fills the confusion matrix.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -904,23 +910,24 @@ save_plot(p_wf, "seg_shap_waterfall.png", width = 8, height = 5)
 
 ## 10. Importance against univariate separability
 
-Gini and SHAP both rank features by how much a fitted model leans on them, which
+Gini and SHAP both rank features by how much a fitted model relies on them. That
 is not the same as how well a feature separates severity on its own. The
-univariate measure is the mean adjacent-class AUC from
-`10_segmentation_and_feature_extraction`: for each neighbouring score pair
-(0-1, 1-2, and so on) the probability that a CDA from the higher score has the
-larger feature value, averaged over the six pairs, where 0.5 is no separation.
-Plotting one against the other shows whether the models are simply recovering the
-univariate ranking or exploiting something a single feature cannot see.
+measure for a single feature is the mean AUC between adjacent scores, from
+`10_segmentation_and_feature_extraction`. For each pair of neighbouring scores
+(0 and 1, 1 and 2, and so on), it is the probability that a CDA with the higher
+score has the larger feature value. It is averaged over the six pairs, and 0.5
+means no separation. Plotting one measure against the other shows whether the
+models just recover the single-feature ranking, or use something no single
+feature shows.
 
-- Both rankings track separability almost exactly, at Spearman 0.95 for Gini and
-  0.94 for SHAP, so neither model is finding much beyond what each feature
-  already does on its own.
-- `mean_green` is the clearest exception, separating adjacent classes at AUC 0.63
-  yet drawing a mean absolute SHAP of only 0.07, because its signal is already
-  carried by `cda_green` and `log_gr`, which it correlates with strongly.
-- `cda_green_sd` sits at AUC 0.49 with the lowest score on both measures, so the
-  models agree with the univariate view that lesion mottling is uninformative.
+- Both rankings follow separability almost exactly, with Spearman 0.95 for Gini
+  and 0.94 for SHAP. Neither model finds much beyond what each feature does on
+  its own.
+- `mean_green` is the clearest exception. It separates adjacent scores with AUC
+  0.63 but has a mean absolute SHAP of only 0.07. Its information is already in
+  `cda_green` and `log_gr`, which it correlates with strongly.
+- `cda_green_sd` has AUC 0.49 and the lowest value on both measures. The models
+  agree with the single-feature result that lesion mottling tells nothing.
 
 ```{r fig.width=11, fig.height=5}
 #| fig-width: 11
@@ -985,28 +992,30 @@ print(imp_cmp[order(-imp_cmp$adj_auc), ], row.names = FALSE, digits = 3)
 
 ## 11. Interpretation and Discussion
 
-- The features place a CDA within one point of its score almost always but pin
+- The features put a CDA within one score of its label almost always, but get
   the exact score only about 60% of the time. Ordinal regression averages 60.8%
-  exact across 1,000 balanced undersamples (95% interval 59.7 to 61.9) and 97.7%
-  near-miss, so the ordering is recoverable while the exact class is not.
-- A linear model on an ordered scale is enough, and the margin is real. Ordinal
+  exact over 1,000 balanced undersamples (95% interval 59.7 to 61.9) and 97.7%
+  near-miss. So the order of the scores can be recovered, but the exact score
+  cannot.
+- A linear model of an ordered scale is enough, and its lead is real. Ordinal
   regression beats the random forest (56.5%) and k-NN (55.6%) with only twelve
-  coefficients and six cut-points, and every one of the 1,000 undersamples clears
-  both, so there is little non-linear structure left for a tree ensemble to find.
-- Single-undersample figures should be read with care. The seed-42 draw reports
-  61.5% exact, the 91st percentile of the resampled distribution, so any headline
-  resting on one balanced sample can be a point optimistic.
-- Regularising the forest costs almost nothing. A fully grown forest hits 92.4%
-  training accuracy against 57.0% held-out, and capping it at 128 leaf nodes
-  gives up 0.8 points of held-out accuracy to close a 35-point gap.
+  coefficients and six cut-points. All 1,000 undersamples beat both. So little
+  non-linear structure is left for a forest to find.
+- Figures from one undersample need care. The seed 42 draw scores 61.5% exact,
+  the 91st percentile of the resampled distribution. Any result from one
+  balanced sample can be about one point optimistic.
+- Regularising the forest costs almost nothing. A fully grown forest reaches
+  92.4% training accuracy against 57.0% held-out. Capping it at 128 leaf nodes
+  gives up 0.8 points of held-out accuracy and closes a 35-point gap.
 - Gini importance and SHAP agree on what matters. CDA greenness and the log
-  green-to-red ratio lead both rankings, while the two within-CDA texture
-  features contribute a mean absolute SHAP of 0.01, so how mottled a lesion is
-  matters far less than how green and bright it is.
-- Grouping folds by leaf changes less than expected. It costs the fully grown
-  forest 1.9 points and the regularised forest 0.9, and leaves ordinal regression
-  unchanged at 61.5% against 60.9% ungrouped, so the headline result was never
-  resting on leaked leaf identity.
-- Low scores remain hard. Every interior class sits near 55% exact against 79.8%
-  at score 0, so mild cell death is genuinely close to healthy tissue and to its
-  neighbours, which is why a learned model is needed for the fine-grained scores.
+  green to red ratio lead both rankings. The two texture features within the CDA
+  have a mean absolute SHAP of 0.01. How mottled a lesion is matters far less
+  than how green and bright it is.
+- Grouping the folds by leaf changes less than expected. It costs the fully
+  grown forest 1.9 points and the regularised forest 0.9. Ordinal regression
+  scores 61.5% grouped and 60.9% ungrouped. So the result never relied on leaked
+  leaf identity.
+- Low scores remain hard. Every score between the ends is near 55% exact,
+  against 79.8% at score 0. Mild cell death really is close to healthy tissue
+  and to its neighbouring scores. This is why a learned model is needed for the
+  finer scores.

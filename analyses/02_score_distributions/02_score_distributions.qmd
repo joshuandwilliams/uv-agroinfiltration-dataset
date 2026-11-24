@@ -438,7 +438,7 @@ save_plot(p, "skip_counts.png", width = 12, height = 6)
 
 ## 5. Interpretation and Discussion
 
-Cell death area source images from past Banfield lab projects were annotated with bounding boxes and severity scores, which ranged from 0 (no cell death) to 6 (strong cell death). Each cell death area was annotated by three raters, and the median of these three raters' scores are chosen as representative labels.
+Raters drew a bounding box around each cell death area (CDA) in source images from past Banfield lab projects. They also gave each CDA a severity score from 0 (no cell death) to 6 (strong cell death). Three raters annotated each CDA. The median of their three scores is the CDA's label.
 
 ---
 

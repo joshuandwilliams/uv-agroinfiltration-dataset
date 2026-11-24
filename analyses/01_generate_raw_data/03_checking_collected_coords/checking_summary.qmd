@@ -11,8 +11,8 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Quantify how many bounding box annotations were changed during the manual
-checking process, by comparing coordinates before and after checking.
+Count how many bounding boxes were changed during the manual check, by comparing
+their coordinates before and after.
 
 ### 1. Load data
 ```{python}
@@ -96,4 +96,3 @@ print(f"Annotations changed (both sets): {total_changed_all} / {total_annotation
 
 ## Discussion
 
-_Add notes here._

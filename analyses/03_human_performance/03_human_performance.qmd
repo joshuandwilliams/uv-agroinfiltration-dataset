@@ -20,7 +20,7 @@ Human raters will not always agree.
 
 **Rationale:**
 
-Scoring is subjective, particularly given the scoring key's simple nature.
+Scoring is subjective, especially because the scoring key is simple.
 
 ## 1. Setup
 
@@ -50,26 +50,26 @@ data = pd.read_csv(str(repo_root / "analyses/01_generate_raw_data/04_representat
 
 ## 2. Compute agreement metrics
 
-Metric 1: Rater agreement with their own median
-- Treat the model and rater the same: compare both against the rater median.
-- Rater scores are compared to a median they helped build, so human performance is inflated.
+Metric 1: agreement of each rater with the median score
+- The model and the raters are treated the same. Both are compared with the median of the raters' scores.
+- Each rater helped set that median, so this metric overstates human performance.
 - All agree: 100%
 - 2/3 agree: 67%
-- None agree: 33% <- problem
+- None agree: 33%. This is the problem: a rater always matches the median when all three differ.
 
-Metric 2: Average agreement of each score pair
-- A measure of inter-rater agreement.
+Metric 2: mean agreement between each pair of raters
+- This measures agreement between raters.
 - All agree: 100%
-- 2/3 agree: 33% <- problem
+- 2/3 agree: 33%. This is the problem: it scores a two-to-one majority far below the median-based metrics.
 - None agree: 0%
 
-Metric 3: Corrected rater agreement with their own median
-- Adapt metric 1 by setting agreement = 0 for three disagreeing scores. This removes the "guaranteed agreement" issue of Metric 1.
+Metric 3: corrected agreement of each rater with the median score
+- This is Metric 1, with agreement set to 0 when all three scores differ. That removes the guaranteed agreement in Metric 1.
 - All agree: 100%
 - 2/3 agree: 67%
 - None agree: 0%
 
-Metric 3 appears to be the most appropriate metric.
+Metric 3 is the most suitable of the three.
 
 ```{python}
 # 2.0
@@ -325,10 +325,10 @@ get_dist_stats(corrected_nearmiss, "Near-Miss Accuracy (Metric 3: corrected agre
 
 ### 3.4 Metric 3 (non-median-0 CDAs): summary statistics (mean, 95% CI, SD)
 
-Metric 3 recomputed after excluding CDAs with a median severity score of 0.
-Because class-0 CDAs are near-unanimously agreed upon, this isolates rater
-agreement on the harder non-zero severity classes, giving the appropriate
-inter-rater baseline for comparison against non-median-0 intra-rater agreement.
+Metric 3 again, without the CDAs whose median score is 0. Raters almost
+always agree on score 0, so leaving it out measures agreement on the harder
+scores, 1 to 6. This is the right baseline for comparison with intra-rater
+agreement, which also leaves out median score 0.
 
 ```{python}
 # 3.4
@@ -338,7 +338,7 @@ get_dist_stats(corrected_nz_nearmiss, "Near-Miss Accuracy (Metric 3, non-median-
 
 ## 4. Distribution plots
 
-Repeat stratified undersampling: Each of the 1,000 iterations draws a random subsample of 436 CDAs for each severity class (undersampling each class down to the smallest one's size). Undersampling means that no single class can dominate the metric. Repeating many times at random makes sure that the randomly chosen subset isn't isn't especially lucky or unlucky by chance.
+Repeated stratified undersampling. Each of the 1,000 iterations draws 436 random CDAs from each severity class, which is the size of the smallest class. Undersampling stops any one class from dominating the metric. Repeating the draw 1,000 times means the result does not depend on one lucky or unlucky subset.
 
 ### 4.1 Metric 1: histograms of agreement distributions
 

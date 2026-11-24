@@ -11,15 +11,15 @@ Date: 15/5/2024 – 10/6/2024
 
 **Goal:**
 
-Investigate changes to average pairwise agreement when each rater is removed. Investigate differences in agreement across source agroinfiltration images. Quantify the overall inter-rater reliability of the human rater panel using Krippendorff's alpha.
+Measure how mean pairwise agreement changes when each rater is removed. Compare agreement between source images. Measure the overall reliability of the raters with Krippendorff's alpha.
 
 **Hypothesis:**
 
-Excluding scores from raters with low pairwise agreement will increase the overall average pairwise agreement. Some images will be scored more consistently than others due to differences in clarity or familiarity. Krippendorff's alpha on raw scores will be high (>0.8), reflecting that raters broadly agree on severity ordering even when they differ by ±1.
+Removing raters with low pairwise agreement will raise mean pairwise agreement. Some images will be scored more consistently than others, because they are clearer or more familiar. Krippendorff's alpha on the raw scores will be high (above 0.8). Raters agree on the order of severity even when their scores differ by one.
 
 **Rationale:**
 
-Differences in lighting or leaf clarity could cause some images to be scored less consistently. Identifying which raters most reduce overall agreement informs future data collection decisions. Krippendorff's alpha is the standard metric for ordinal inter-rater reliability and handles missing data (not all raters rated all CDAs), giving a single overall reliability estimate that pairwise % agreement alone does not.
+Differences in lighting or leaf clarity could make some images harder to score consistently. Knowing which raters lower agreement most can guide future data collection. Krippendorff's alpha is the standard measure of reliability for ordinal scores. It handles missing scores, since not every rater scored every CDA. It also gives one overall reliability value, which pairwise percentage agreement does not.
 
 ---
 
@@ -309,8 +309,9 @@ p
 save_plot(p, "scorer_accuracy.png", width = 8, height = 6, dir = "thesis_plots")
 ```
 
-The same per-rater values shown in the figure above, as a table (Exact agreement,
-and total agreement within ±1 of the median; n = CDAs scored by that rater):
+The values in the figure above, as a table. It gives each rater's exact agreement
+with the median and agreement within one score of it. n is the number of CDAs that
+rater scored.
 
 ```{r}
 # 3 (table)
@@ -334,12 +335,13 @@ scorer_accuracy_values %>%
 
 ### 3.1 Direction of disagreement (rater score minus median)
 
-Ported from PhD_DL_Models/analyses/0024_EDA_Plots/EDA.qmd (anonymised raters,
-same corrected-median dataset). For every CDA a rater scored, how far their score
-sat from that CDA's median severity (Score - median): 0 means they matched the
-consensus, positive means they scored higher than it, negative lower. Each cell is
-the proportion of that rater's scores at that distance (columns sum to 100%), so
-it shows the *direction* in which a rater tends to disagree, not just how often.
+Adapted from PhD_DL_Models/analyses/0024_EDA_Plots/EDA.qmd, with anonymised raters
+and the same corrected-median dataset. For every CDA a rater scored, it shows how far
+their score was from the median (score minus median). Zero means the rater matched
+the median. A positive value means they scored higher, and a negative value lower.
+Each cell is the proportion of that rater's scores at that distance, so each column
+sums to 100%. The plot shows which *direction* a rater tends to disagree in, as well
+as how often.
 
 ```{r fig.width=10, fig.height=10.4}
 #| fig-width: 10
@@ -377,9 +379,9 @@ p
 save_plot(p, "score_distance_by_rater_heatmap.png", width = 10, height = 10.4, dir = "thesis_plots")
 ```
 
-Summarising the same data as the direction of each rater's bias: of the times a
-rater disagreed with the median (distance != 0), what share was scored higher
-versus lower. Disagreement rate is the share of all of that rater's scores that
+The same data, summarised as each rater's bias. When a rater disagreed with the
+median, this gives the share of those scores that were higher and the share that
+were lower. The disagreement rate is the share of all that rater's scores that
 differed from the median.
 
 ```{r}
@@ -750,17 +752,15 @@ make_alpha_hist_panel <- function(boot_vec, xlab, show_threshold = TRUE) {
 
 ### 7.1 Interval metric — all CDAs
 
-Krippendorff's alpha is reported here using the **interval** metric, which treats
-the 0-6 severity scores as equally spaced, so a two-class disagreement counts
-four times a one-class disagreement. The **ordinal** metric is deliberately not
-used. Its distance between two scores is derived from the marginal frequencies of
-the scores lying between them, so those distances are a property of this
-particular sample's score distribution rather than of the scale itself: a
-different dataset would imply different distances between the same scores, which
-makes ordinal alpha an unstable basis for a statement about the scale. The
-interval metric instead applies a fixed, interpretable spacing, matching how the
-scores are treated in the rest of this work. Missing values are handled
-automatically: expected agreement is estimated from all rated pairs.
+Krippendorff's alpha is reported with the **interval** metric. It treats the 0 to 6
+scores as equally spaced, so a disagreement of two scores counts four times as much
+as a disagreement of one. The **ordinal** metric is not used. It sets the distance
+between two scores from how often the scores between them occur. Those distances
+therefore depend on this dataset's score distribution, not on the scale. A different
+dataset would give different distances between the same scores, so ordinal alpha
+says little about the scale itself. The interval metric uses a fixed spacing, which
+matches how the scores are treated in the rest of this work. Missing scores are
+handled automatically. Expected agreement is estimated from all rated pairs.
 
 ```{r}
 # 7.1.1  Interval alpha on the full rater x CDA matrix (no median involved).
@@ -844,14 +844,14 @@ save_plot(p, "krippendorff_alpha_raw_interval_no0.png", width = 7, height = 4.1,
 
 ### 7.3 Interval metric — with-replacement bootstrap (for comparison with intra-rater α)
 
-The 7.1/7.2 distributions above subsample 500 CDAs *without* replacement, so
-their spread reflects how much α varies across 500-CDA subsets rather than the
-sampling uncertainty of the estimate itself. For a like-for-like comparison
-against the intra-rater α in `06_intra_rater_reliability` (whose ~100-CDA-per-rater
-sets are too small to subsample 500 without replacement), the same interval α is
-bootstrapped here with replacement over all CDAs (n-of-n) — the standard
-nonparametric bootstrap. Both variants are kept so either can be used downstream;
-the point estimates (7.1.1, 7.2.1) are unchanged.
+The distributions in 7.1 and 7.2 draw 500 CDAs *without* replacement. Their spread
+shows how α varies between subsets of 500 CDAs, not the uncertainty of the estimate
+itself. The intra-rater α in `06_intra_rater_reliability` uses sets of about 100 CDAs
+per rater, which are too small to draw 500 from without replacement. So, for a
+like-for-like comparison, the same interval α is also bootstrapped here with
+replacement over all CDAs (n of n), which is the standard nonparametric bootstrap.
+Both versions are kept, so either can be used later. The point estimates in 7.1.1
+and 7.2.1 do not change.
 
 ```{r}
 # 7.3.1  All CDAs, with-replacement (n-of-n) bootstrap.
@@ -905,7 +905,6 @@ save_plot(p, "krippendorff_alpha_raw_interval_no0_wr.png", width = 7, height = 4
 
 ## 8. Interpretation and Discussion
 
-_Add notes here._
 
 ---
 

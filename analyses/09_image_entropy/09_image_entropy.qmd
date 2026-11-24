@@ -11,36 +11,34 @@ Date: 13/7/2026
 
 **Goal:**
 
-1. Measure how much image information (Shannon entropy) each cropped CDA image
-   retains as it is downsampled to progressively smaller side lengths, in order
-   to justify a standardised input size for model training.
-2. Characterise how Shannon entropy, the green/red colour balance, and the mean
-   green level of a CDA relate to its severity score.
+1. Measure how much information (Shannon entropy) each cropped CDA image keeps
+   as it is shrunk to smaller and smaller sizes. This justifies one standard
+   input size for model training.
+2. Describe how Shannon entropy, the balance of green to red, and the mean green
+   level of a CDA relate to its severity score.
 
 **Hypothesis:**
 
-1. Shannon entropy stays roughly constant from the raw crop down to a moderate
-   side length, then falls once the image becomes too small to hold the same
-   range of pixel intensities. A side length just above that drop-off preserves
-   almost all of the information while minimising the number of pixels (and
-   therefore the training compute).
-2. Under the UV-fluorescence imaging used here, healthy tissue autofluoresces
-   red and cell death shifts the balance towards green, so the green/red ratio
-   and the mean green level should both increase with severity score. Shannon
-   entropy alone is expected to overlap heavily between scores.
+1. Shannon entropy stays about the same from the raw crop down to a moderate
+   size. It then falls once the image is too small to hold the same range of
+   pixel values. A size just above that drop keeps almost all the information
+   with the fewest pixels, and so the least training compute.
+2. Under UV light, healthy tissue fluoresces red, and cell death shifts the
+   colour towards green. So the green to red ratio and the mean green level
+   should both rise with severity score. Shannon entropy alone should overlap
+   heavily between scores.
 
 **Rationale:**
 
-Downsampling reduces the number of pixels and therefore the number of distinct
-intensity values an image can represent, which caps its Shannon entropy. If
-entropy is preserved down to a given side length, that size still carries the
-information a model could use; shrinking further discards information. Locating
-the side length at which entropy begins to fall gives a principled, information-
-theoretic basis for choosing the input resolution (64 × 64 px) used elsewhere in
+Shrinking an image reduces its number of pixels. That limits how many distinct
+values it can hold, which caps its Shannon entropy. If entropy holds down to a
+given size, that size still carries the information a model could use. Shrinking
+further loses information. Finding the size at which entropy starts to fall
+gives an information-based reason for the 64 × 64 px input size used elsewhere in
 this project (see `07_visual_complexity`).
 
-This analysis reproduces, for the full multi-set dataset, figures first made on
-Set 1 alone during the Year 1 probationary review.
+This analysis repeats, for the whole dataset, figures first made for Set 1 alone
+in the Year 1 probationary review.
 
 ---
 
@@ -152,9 +150,9 @@ image_metrics <- function(path) {
 
 ## 2. Compute per-image metrics
 
-The full dataset is a few thousand crops, each resized six times, so the
-per-image metrics are computed once and cached to `entropy_cache/`. Delete that
-file to force a recompute.
+The dataset has a few thousand crops, each resized six times. So the metrics
+for each image are computed once and saved in `entropy_cache/`. Delete that file
+to compute them again.
 
 ```{r}
 # 2.1
@@ -221,11 +219,11 @@ per_image %>%
 
 ## 3. Image information versus input size
 
-Before comparing entropy across input sizes, the native sizes of the cropped CDA
-images are summarised. CDAScorer stores each CDA as a square crop, but the side
-length varies with the size of the annotated bounding box. The minimum, median,
-maximum, mean and variance of the native side length are printed below, and their
-distribution is shown as a histogram (dashed line: the 64 px training size).
+First, a summary of the original sizes of the cropped CDA images. CDAScorer
+stores each CDA as a square crop, whose side length depends on the size of the
+bounding box. The minimum, median, maximum, mean and variance of the side length
+are printed below. The histogram shows their distribution, with a dashed line at
+the 64 px training size.
 
 ```{r}
 # 3.0.1  Native crop side lengths (square crops, so side = height = width). Cached.
@@ -269,11 +267,12 @@ save_plot(p_sides, "crop_side_lengths.png", width = 8, height = 4.5, dir = "thes
 
 ### 3.0.3 Example smallest and largest native crops
 
-The five smallest and five largest native crops, each shown at equal display size
-(nearest-neighbour, so the smallest appear pixelated) with its median severity
-score and true side length. The smallest crops are tiny bounding boxes, mostly
-score 0-1 over largely healthy leaf (hence their noise-like appearance), while the
-largest hold a full CDA. The smallest boxes are inspected in context in 3.0.4.
+The five smallest and five largest original crops, all shown at the same size
+with their median score and true side length. They are enlarged by
+nearest-neighbour scaling, so the smallest look pixelated. The smallest crops are
+tiny bounding boxes, mostly scored 0 or 1, over mostly healthy leaf. That is why
+they look like noise. The largest each hold a whole CDA. Section 3.0.4 shows the
+smallest boxes in context.
 
 ```{r fig.width=10, fig.height=4.8}
 #| fig-width: 10
@@ -307,11 +306,11 @@ save_plot(p_examples, "example_crops_min_max.png", width = 10, height = 4.8)
 
 ### 3.0.4 Smallest crops shown in context
 
-The smallest 20 crops, each shown as a 200 × 200 px window from the native source
-image centred on the CDA's representative (Medoid_Coords) bounding box, which is
-outlined in cyan. This shows what each small bounding box actually encloses; many
-of the smallest boxes sit on largely healthy leaf and do not clearly enclose a
-cell death area, suggesting they are erroneous annotations.
+The 20 smallest crops, each shown as a 200 × 200 px window of the original source
+image. Each window is centred on the CDA's representative bounding box
+(Medoid_Coords), outlined in cyan. This shows what each small box encloses. Many
+of the smallest boxes sit on mostly healthy leaf and do not clearly enclose a cell
+death area. They are probably annotation errors.
 
 ```{r fig.width=13, fig.height=11}
 #| fig-width: 13
@@ -384,12 +383,11 @@ save_plot(p_context, "smallest_crops_in_context.png", width = 13, height = 11)
 
 ### 3.1 Entropy across image sizes (parallel coordinates)
 
-Each faint line is one CDA, tracing its Shannon entropy as it is downsampled
-from the raw crop to a 4 × 4 px thumbnail. The thick line is the per-size
-median. Entropy is essentially flat from Raw down to 32 px, dips slightly at
-16 px, then falls sharply at 8 and 4 px — the point at which images are too
-small to hold their intensity range. 64 × 64 px sits comfortably on the flat
-region.
+Each faint line is one CDA. It traces the CDA's Shannon entropy as the image
+shrinks from the raw crop to 4 × 4 px. The thick line is the median at each size.
+Entropy is almost flat from the raw crop down to 32 px. It dips slightly at 16 px
+and falls sharply at 8 and 4 px, where the images are too small to hold their
+range of values. 64 × 64 px is well within the flat region.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -421,9 +419,9 @@ save_plot(p_parallel, "parallel_coords.png",
 
 ### 3.2 Entropy distribution at each image size (ridge plot)
 
-The same information as a set of stacked densities, from the raw crop (top) to
-4 × 4 px (bottom). The distribution holds its shape and position down to 16 px,
-then shifts left and collapses at 8 and 4 px.
+The same information as stacked density curves, from the raw crop at the top to
+4 × 4 px at the bottom. The distribution keeps its shape and position down to
+16 px. At 8 and 4 px it shifts left and collapses.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -496,9 +494,9 @@ save_plot(p_ridge, "ridge_plot.png", width = 8, height = 5, dir = "thesis_plots"
 
 ### 3.3 Fraction of raw entropy retained at each size
 
-A numeric summary of the two plots above: the median entropy at each size, and
-the fraction of the raw median it retains. 64 × 64 px keeps almost all of the
-raw information; the loss only becomes substantial below 16 px.
+A numerical summary of the two plots above. It gives the median entropy at each
+size and the fraction of the raw median that remains. 64 × 64 px keeps almost all
+the raw information. The loss only becomes large below 16 px.
 
 ```{r}
 # 3.3
@@ -519,9 +517,9 @@ size_median %>%
 
 ### 4.1 Shannon entropy by score
 
-Raw-crop entropy against severity score. Entropy rises slightly with score but
-overlaps heavily between adjacent scores, so — as found in the Year 1 review —
-Shannon entropy alone does not cleanly separate the severity classes.
+Entropy of the raw crop against severity score. Entropy rises slightly with
+score but overlaps heavily between adjacent scores. As the Year 1 review found,
+Shannon entropy alone does not separate the severity scores cleanly.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -549,9 +547,9 @@ save_plot(p_ent_score, "entropy_score_boxplots.png", width = 8, height = 5)
 
 ### 5.1 Green/red ratio by score
 
-The log green:red pixel-count ratio rises steadily with severity score,
-consistent with cell death shifting the fluorescence balance from red (healthy
-tissue) towards green.
+The log of the ratio of green to red pixels rises steadily with severity score.
+This fits with cell death shifting the fluorescence from red, in healthy tissue,
+towards green.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -575,8 +573,8 @@ save_plot(p_ratio, "ratio_score_boxplots.png", width = 8, height = 5)
 
 ### 5.2 Mean green level by score
 
-The mean green-channel intensity of the non-dark pixels also increases with
-severity score, giving a simpler, single-channel view of the same colour shift.
+The mean green intensity of the pixels that are not dark also rises with
+severity score. It shows the same colour shift more simply, with one channel.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -600,11 +598,11 @@ save_plot(p_green, "green_score_boxplots.png", width = 8, height = 5)
 
 ### 5.3 Mean green level by project
 
-The green level of a CDA depends not only on its severity but on the lighting
-and exposure of the source image it was cropped from, which varies between
-imaging sessions and projects. Here each point is one CDA and boxes are grouped
-by project (projects ordered by median green): the between-project differences
-in green level are a source of lighting variation that is unrelated to score.
+A CDA's green level depends on its severity, and also on the lighting and
+exposure of its source image. These vary between imaging sessions and between
+projects. Each point here is one CDA, and the boxes group CDAs by project, in
+order of median green. The differences in green between projects come from
+lighting, not from score.
 
 ```{r}
 # 5.3.1
@@ -673,18 +671,17 @@ save_plot(p_green_proj, "green_project_boxplots.png", width = 8, height = 5)
 
 ### 5.4 Lighting-normalised green level by score
 
-To remove the between-project lighting offset seen in §5.3, each CDA's green
-level is centred on its project mean and shifted back to the global mean
-(`green_norm = green - project_mean + global_mean`). This corrects for
-per-project brightness without touching the score differences that exist
-*within* a project. The two panels below compare raw and project-normalised
-green by score.
+To remove the lighting difference between projects seen in §5.3, each CDA's
+green level is centred on its project's mean and moved back to the overall mean
+(`green_norm = green - project_mean + global_mean`). This corrects for each
+project's brightness and keeps the score differences *within* each project. The
+two panels below compare raw and corrected green by score.
 
-The correction is applied at project level rather than per source image on
-purpose: an individual source image holds only ~30 CDAs whose scores are
-correlated, so its own green mean partly encodes score, and normalising there
-removes real signal (η² below). A project spans many source images and the full
-score range, so its mean is a cleaner estimate of the lighting baseline.
+The correction is made per project, not per source image. One source image holds
+only about 30 CDAs, and their scores are correlated. So its mean green partly
+depends on score, and correcting per image would remove real differences between
+scores (see η² below). A project covers many source images and the full range of
+scores, so its mean is a cleaner estimate of the lighting.
 
 ```{r fig.width=11, fig.height=5}
 #| fig-width: 11
@@ -741,26 +738,27 @@ save_plot(p_green_norm, "green_score_normalised_boxplots.png", width = 11, heigh
 
 ### 5.5 Isolating the leaf region to estimate lighting
 
-The green normalisation in §5.4 uses green to estimate lighting, which is
-circular. A cleaner lighting proxy is the **brightness** of the leaf itself
-(mean of the R, G, B channels), measured only over leaf pixels so that the
-black background — including holes and cell-death voids at the leaf edge — does
-not drag the estimate down.
+The correction in §5.4 uses green to estimate the lighting, which is circular.
+A cleaner measure of lighting is the **brightness** of the leaf itself, the mean
+of the red, green and blue channels. It is measured over leaf pixels only, so
+the black background does not pull it down. The background includes holes and
+gaps left by cell death at the leaf edge.
 
-To decide which pixels are leaf, two thresholds on each CDA's own brightness
-histogram are compared:
+Two thresholds on each CDA's brightness histogram are compared for deciding which
+pixels are leaf:
 
-- **Otsu** — the image-adaptive threshold that maximises between-class variance,
-  i.e. the natural split in the brightness distribution.
-- **Leaf (background-only cut)** — a low fixed cut (brightness ≥ 0.1) that
-  removes only the near-black background and keeps *all* tissue.
+- **Otsu.** A threshold set for each image to maximise the variance between the
+  two classes. It finds the natural split in the brightness distribution.
+- **Leaf (background only).** A low fixed threshold, brightness ≥ 0.1. It removes
+  only the near-black background and keeps *all* the tissue.
 
-Otsu cleanly removes the black background where there is one, but because healthy
-tissue fluoresces red (darker) while lesions are bright yellow-green, in
-higher-score CDAs Otsu selects the **lesion** rather than the whole leaf, so its
-foreground brightness tracks score — a poor lighting proxy; the background-only
-leaf brightness does not. Example masks (one CDA per score) are shown in the
-segmentation analysis (`10_segmentation_and_feature_extraction`, §3.2).
+Otsu removes the black background cleanly where there is one. But healthy tissue
+fluoresces darker red, and lesions are bright yellow-green. So in CDAs with higher
+scores, Otsu picks out the **lesion** rather than the whole leaf. Its brightness
+then follows the score, which makes it a poor measure of lighting. The
+background-only leaf brightness does not follow the score. Example masks, one CDA
+per score, are in the segmentation analysis (`10_segmentation_and_feature_extraction`,
+§3.2).
 
 ```{r}
 # 5.5.2
@@ -778,10 +776,10 @@ cat(sprintf(
 ))
 ```
 
-Leaf brightness is far less score-driven than Otsu brightness and carries more
-between-project (lighting) variation than green, so it is used as the lighting
-baseline. Grouping it by project shows the same lighting differences seen for
-green in §5.3.
+Leaf brightness depends much less on score than Otsu brightness does. It also
+varies more between projects than green does, which is the lighting variation.
+So it is used as the measure of lighting. Grouped by project, it shows the same
+lighting differences as green in §5.3.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -808,11 +806,11 @@ save_plot(p_leafbright_proj, "leaf_brightness_project_boxplots.png", width = 8, 
 
 ### 5.6 Normalising green by leaf brightness
 
-Each CDA's green is now divided by the leaf-brightness baseline of its source
-image (or project), scaled to the global mean — a multiplicative correction for
-per-source/-project lighting gain that, unlike §5.4, does not use green to
-estimate the lighting. The panels compare raw green with the best correction
-(per source image).
+Each CDA's green is now divided by the leaf brightness of its source image, or of
+its project, and scaled to the overall mean. This corrects for the lighting of
+each source image or project by multiplication. Unlike §5.4, it does not use
+green to estimate the lighting. The panels compare raw green with the best
+correction, which is per source image.
 
 ```{r fig.width=11, fig.height=5}
 #| fig-width: 11
@@ -855,18 +853,18 @@ p_green_lb
 save_plot(p_green_lb, "green_score_leafnorm_boxplots.png", width = 11, height = 5)
 ```
 
-Correcting green for leaf brightness gives the largest improvement of any
-normalisation tried (η² ≈ 0.52 → 0.58), confirming that between-source lighting
-does add real noise. But the gain is modest and the adjacent-score boxes still
-overlap heavily: even the best hand-crafted, lighting-corrected single feature
-cannot separate neighbouring severity classes. This is the motivation for a
-learned model (see `07_visual_complexity`) rather than hand-engineered features.
+Correcting green for leaf brightness improves it more than any other correction
+tried (η² ≈ 0.52 → 0.58). This confirms that lighting differences between source
+images add real noise. But the gain is small, and the boxes for adjacent scores
+still overlap heavily. Even the best single hand-crafted feature, corrected for
+lighting, cannot separate neighbouring scores. This is why a learned model is
+used (see `07_visual_complexity`) rather than hand-crafted features.
 
 ### 5.7 Green/red ratio versus entropy
 
 The Year 1 review also asked whether entropy and colour carry the same
-information. They do not: the green:red ratio and Shannon entropy are only
-weakly related, so colour separates the scores (§5.1) where entropy alone does
+information. They do not. The green to red ratio and Shannon entropy are only
+weakly related. So colour separates the scores (§5.1) where entropy alone does
 not (§4.1).
 
 ```{r fig.width=8, fig.height=5}
@@ -898,34 +896,35 @@ save_plot(p_scatter, "ratio_entropy_scatter.png", width = 8, height = 5)
 
 ## 6. Interpretation and Discussion
 
-- **Input size.** Shannon entropy is preserved from the raw crop down to about
-  16 px and only falls substantially at 8 and 4 px (§3.1–3.3). 64 × 64 px
-  therefore retains essentially all of the information in the raw crops while
-  keeping the pixel count — and the training compute — low, supporting the
-  64 × 64 input size used for model training (see `07_visual_complexity`).
+- **Input size.** Shannon entropy holds from the raw crop down to about 16 px.
+  It only falls sharply at 8 and 4 px (§3.1 to 3.3). So 64 × 64 px keeps almost
+  all the information in the raw crops with few pixels and little training
+  compute. This supports the 64 × 64 input size used for training (see
+  `07_visual_complexity`).
 - **Entropy and score.** Entropy overlaps heavily between adjacent scores
-  (§4.1), so it is not a usable single feature for classifying severity.
-- **Colour and score.** Both the green:red ratio (§5.1) and the mean green
-  level (§5.2) increase monotonically with severity, and colour is only weakly
-  correlated with entropy (§5.7) — colour carries score information that
-  entropy does not.
-- **Lighting is a real but only partly removable confound.** Green level varies
-  between projects (§5.3; ~16% of green variance is between-project), confirming
-  that imaging/lighting differences add noise on top of the score signal. Three
-  intuition-led corrections were tried:
-  - *Centring green on the project mean* (§5.4): removes the offset and modestly
-    tightens the within-score spread, but the gain is small because green's
-    score signal is partly correlated with which project a CDA is from.
-  - *Source-image centring* (§5.4): over-corrects — a source image's own green
-    mean partly encodes the scores of its ~30 CDAs — so it removes real signal.
-  - *Segmenting the leaf and normalising green by leaf brightness* (§5.5–5.6):
-    the best proxy, because leaf brightness is far less score-driven than an
-    Otsu foreground (which latches onto the lesion) and carries more
-    between-project variation than green. This gives the largest improvement
+  (§4.1). It cannot classify severity on its own.
+- **Colour and score.** The green to red ratio (§5.1) and the mean green level
+  (§5.2) both rise steadily with severity. Colour is only weakly correlated with
+  entropy (§5.7). So colour carries information about score that entropy does
+  not.
+- **Lighting is a real confound that can only partly be removed.** Green level
+  varies between projects (§5.3). About 16% of the variance in green lies
+  between projects. This confirms that imaging and lighting differences add
+  noise on top of the differences between scores. Three corrections were tried:
+  - *Centring green on the project mean* (§5.4). This removes the offset and
+    slightly narrows the spread within each score. The gain is small, because a
+    CDA's green partly depends on which project it is from.
+  - *Centring on each source image* (§5.4). This over-corrects. A source image's
+    mean green partly depends on the scores of its roughly 30 CDAs, so the
+    correction removes real differences.
+  - *Segmenting the leaf and dividing green by leaf brightness* (§5.5 and 5.6).
+    This is the best measure of lighting. Leaf brightness depends much less on
+    score than Otsu brightness, which picks out the lesion. It also varies more
+    between projects than green. This gives the largest improvement
     (η² ≈ 0.52 → 0.58).
-- **The features are not enough.** Even the best lighting-corrected single
-  feature still leaves neighbouring severity classes heavily overlapped
-  (§5.6). Hand-engineered colour/brightness/entropy features capture part of
-  the severity signal but cannot cleanly separate adjacent scores — the
-  motivation for a learned model over hand-crafted features.
+- **The features are not enough.** Even the best single feature, corrected for
+  lighting, leaves neighbouring scores overlapping heavily (§5.6). Hand-crafted
+  colour, brightness and entropy features capture part of what determines
+  severity. They cannot cleanly separate adjacent scores, which is why a learned
+  model is used instead.
 ```
