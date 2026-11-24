@@ -11,7 +11,7 @@ Date: 08/06/2026
 
 **Goal:**
 
-Investigate trends between source images, and between the projects they belong to.
+Compare agreement between source images, and between the projects they come from.
 
 ## 1. Setup
 
@@ -630,9 +630,8 @@ p
 save_plot(p, "metric3_by_project_boxplot.png", width = 10, height = 11, dir = "thesis_plots")
 ```
 
-The value at the centre (median) of each boxplot in panels A and B, alongside
-the panel A zero-proportion overlay, in the same left-to-right project order as
-the figure:
+The median of each boxplot in panels A and B, and the proportion of zero scores
+overlaid on panel A. Projects are in the same left-to-right order as the figure.
 
 ```{r}
 # 6.2 (table) - boxplot medians behind panels A and B, plus the overlay
@@ -662,10 +661,9 @@ panel_medians %>%
 
 ### 6.3 Median agreement normalised by zero-proportion
 
-Dividing each project's median Metric 3 agreement (the middle of its boxplot) by
-its percentage of zero severity scores. If between-project differences in
-agreement were entirely explained by how many easy-to-score zeros a project
-contains, this normalised value would be roughly constant across projects.
+Each project's median Metric 3 agreement, divided by its percentage of zero
+scores. Zeros are easy to score. If they explained all the differences between
+projects, this ratio would be about the same for every project.
 
 ```{r}
 # 6.3
@@ -722,7 +720,7 @@ knitr::kable(results_df, digits = 2)
 
 ### 7.2 Zero proportion vs corrected agreement, per project
 
-Superseded as a thesis figure by the combined boxplot + secondary-axis overlay in 6.2, which shows the same relationship directly on the project-ordered boxplot. Kept here as a supplementary direct correlation view.
+The thesis uses the boxplot with the overlaid zero proportion in 6.2 instead. It shows the same relationship on the boxplot itself. This plot is kept as a supplementary view of the correlation.
 
 ```{r fig.width=10, fig.height=6}
 #| fig-width: 10
@@ -881,7 +879,6 @@ save_plot(p, "sensitivity_agreement_change.png", width = 10, height = 6, dir = "
 
 ## 9. Interpretation and Discussion
 
-_Add notes here._
 
 ## 10. Additional Information
 
@@ -912,7 +909,7 @@ image_info %>%
 
 ### 11.1 Dual-infiltration image example
 
-![Dual-infiltration example: each leaf received two infiltrations, producing both green and orange cell death areas. The orange areas were ignored during scoring.](assets/dual_infiltration_example.png){width="400"}
+![Dual-infiltration example. Each leaf had two infiltrations, which produced green and orange cell death areas. Raters ignored the orange areas.](assets/dual_infiltration_example.png){width="400"}
 
 ### 11.2 CDA count per image by project
 

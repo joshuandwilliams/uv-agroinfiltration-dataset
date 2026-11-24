@@ -12,15 +12,15 @@ Date: 08/06/2026
 
 **Goal:**
 
-Document how source agroinfiltration images were allocated to raters, so that the
-expected number of scores collected by each rater (and each rater pair) can be
-reasoned about in the downstream analyses.
+Record how the source agroinfiltration images were shared between raters. The
+later analyses use this to work out how many scores to expect from each rater
+and each pair of raters.
 
 ## Strategy
 
-- The estimated total number of cell death areas (CDAs) per source agro image was taken as `leaf_count * pos_per_leaf`.
-- Image order was randomised.
-- Images were divided equally (by CDA count) between raters using a staggered approach, so that some raters never scored the same image:
+- The number of cell death areas (CDAs) in each source image was estimated as `leaf_count * pos_per_leaf`.
+- The images were put in random order.
+- The images were split into equal portions by CDA count. Each portion went to three raters in a staggered pattern, so some pairs of raters never scored the same image:
 
 | Dataset portion (all equal in size) | Rater 1 | Rater 2 | Rater 3 |
 |-------------------------------------|---------|---------|---------|
@@ -34,9 +34,8 @@ reasoned about in the downstream analyses.
 | H                                   | 8       | 9       | 1       |
 | I                                   | 9       | 1       | 2       |
 
-The allocation itself is produced by `allocations.py` and recorded in
-`randomised_info.csv` (per-image scorer assignments) and `image_info.csv`
-(per-image CDA counts).
+`allocations.py` makes the allocation. `randomised_info.csv` records which raters
+scored each image, and `image_info.csv` records each image's CDA count.
 
 ## 1. Total source images
 
@@ -98,4 +97,3 @@ annotations_per_cda
 
 ## Discussion
 
-_Add notes here._

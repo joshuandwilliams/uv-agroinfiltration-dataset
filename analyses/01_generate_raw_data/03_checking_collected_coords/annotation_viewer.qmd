@@ -11,18 +11,18 @@ Date: 02/06/2026
 ## GOHREP
 **Goal:**
 
-Interactively view CDA bounding box annotations overlaid on source agroinfiltration
-images, to check and verify collected annotations.
+View the CDA bounding boxes on top of the source agroinfiltration images, to check
+the collected annotations.
 
 **Hypothesis:**
 
-Annotation mistakes will be present and need to be identified visually.
+Some annotations will be wrong, and they need to be found by eye.
 
 ### 1. Import required packages
-Run in 'cda' mode to step through one CDA at a time, or 'raw' mode to see all
-CDAs for a full agroinfiltration image at once. Press spacebar to save the current
-view as a JPEG. Requires connection to the lab network drive. Note: the Tkinter
-window closes when you close the interactive session — this is expected.
+Use 'cda' mode to step through one CDA at a time, or 'raw' mode to see all the
+CDAs in one agroinfiltration image. Press the space bar to save the current view
+as a JPEG. The viewer needs the lab network drive. The Tkinter window closes when
+the interactive session closes, which is expected.
 ```{python}
 # 1
 from pathlib import Path
@@ -55,4 +55,3 @@ view_annotations(
 
 ## Discussion
 
-_Add notes here._

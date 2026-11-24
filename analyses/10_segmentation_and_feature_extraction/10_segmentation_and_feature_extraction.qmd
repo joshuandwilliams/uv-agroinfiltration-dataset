@@ -11,28 +11,28 @@ Date: 13/7/2026
 
 **Goal:**
 
-Test whether the cell death area (CDA) of a leaf can be separated from the
-healthy leaf background universally, with one method and no per-image manual
-threshold tuning, using the distribution of pixel values.
+Test whether one method can separate the cell death area (CDA) from the healthy
+leaf in every image, using the distribution of pixel values and no threshold
+tuned by hand for each image.
 
 **Hypothesis:**
 
 An earlier attempt (`PhD_DL_Models/analyses/0009_Non_DL_Green_Channel_Analysis`)
-watershedded on image brightness and found the threshold had to be retuned per
-image. The reason is colour. Under this UV-fluorescence imaging the healthy leaf
-is red (high R, low G) and cell death is yellow-green (G at or above R), and red
-leaf and green CDA have similar brightness. Segmenting on a greenness channel
-(G - R) instead should separate CDA from leaf with a threshold that Otsu can set
-automatically per image, because the two tissues form distinct modes in greenness
-even when they do not in brightness.
+used a watershed on image brightness, and its threshold had to be retuned for
+each image. The reason is colour. Under UV light the healthy leaf is red (high R,
+low G) and cell death is yellow-green (G at or above R). The red leaf and green
+CDA are about equally bright. Segmenting on greenness (G - R) should separate CDA
+from leaf with a threshold that Otsu's method sets automatically for each image.
+The two tissues form separate peaks in greenness even when they do not in
+brightness.
 
 **Rationale:**
 
-Otsu's method finds the threshold that best splits a bimodal distribution. If
-CDA and leaf are two modes in greenness, Otsu adapts to each image with no
-manual input. Where there is no CDA (median-0 leaves) there is only one mode, so
-segmentation is only meaningful once an image is known to be non-zero. 0 and
-non-0 are therefore treated separately here.
+Otsu's method finds the threshold that best splits a distribution with two peaks.
+If CDA and leaf form two peaks in greenness, Otsu adapts to each image with no
+manual input. Where there is no CDA, as in leaves with median score 0, there is
+only one peak. Segmentation then only makes sense once an image is known to have
+a score above 0. So scores of 0 and above 0 are treated separately here.
 
 ---
 
@@ -213,10 +213,10 @@ region_entropy <- function(img, mask) {
 
 ## 2. Why brightness fails and greenness works
 
-- Otsu's threshold on brightness falls at 66 of 255 for the score-2 crop and 137
-  for the score-6 crop, so no single fixed brightness cut can serve both images.
-- On greenness the same two thresholds are -0.16 and -0.15, so a single greenness
-  cut transfers between crops with no retuning.
+- Otsu's threshold on brightness is 66 of 255 for the score 2 crop and 137 for
+  the score 6 crop. No single brightness threshold can work for both images.
+- On greenness the same two thresholds are -0.16 and -0.15. One greenness
+  threshold works for both crops with no retuning.
 
 ```{r fig.width=11.538, fig.height=6.154, dpi=130}
 #| fig-width: 11.538
@@ -277,12 +277,12 @@ for (r in seq_along(demo)) {
 
 ## 3. Per-image segmentation via Otsu on greenness
 
-- For every non-zero score the leaf-greenness histogram is bimodal and the Otsu
-  threshold lands in the valley between the modes, so the CDA is isolated with no
+- For every score above 0, the leaf greenness histogram has two peaks. Otsu's
+  threshold falls in the valley between them, so the CDA is separated with no
   manual input.
-- The score-0 crop has no lesion, yet Otsu still splits it, and dataset-wide the
-  segmented region covers 49% of the leaf at score 0 against 46% at score 6, so
-  the segmented area alone cannot say whether a lesion is there.
+- The score 0 crop has no lesion, but Otsu still splits it. Across the dataset,
+  the segmented region covers 49% of the leaf at score 0 and 46% at score 6. So
+  the segmented area alone cannot show whether a lesion is there.
 
 ```{r fig.width=10.714, fig.height=10.714, dpi=140}
 #| fig-width: 10.714
@@ -325,11 +325,11 @@ draw_seg()
 
 ### 3.1 Segmentation of six CDAs per severity score
 
-- Six randomly sampled crops per score, 42 in all, so this is a random audit of
-  the segmentation rather than a curated set of successes.
-- The blue outline follows the visible lesion closely from score 2 upward, while
-  at scores 0-1 it encloses whole regions of healthy or merely infiltrated
-  tissue, which is where the feature overlap later shows up.
+- Six random crops per score, 42 in all. This is a random check of the
+  segmentation, not a chosen set of successes.
+- From score 2 upwards, the blue outline follows the visible lesion closely. At
+  scores 0 and 1 it encloses whole regions of healthy or only infiltrated tissue.
+  This is where the features later overlap.
 
 ```{r fig.width=13.333, fig.height=13.333, dpi=150}
 #| fig-width: 13.333
@@ -371,10 +371,10 @@ draw_seg_grid()
 
 ### 3.2 Otsu vs background-only leaf masks
 
-Which pixels count as leaf when estimating per-image lighting is a separate
-question from segmenting the lesion. The image-adaptive Otsu threshold is
-compared against a low fixed cut (brightness at or above 0.10) that removes only
-the near-black background.
+Deciding which pixels are leaf, to estimate each image's lighting, is a separate
+question from segmenting the lesion. Otsu's threshold, set for each image, is
+compared with a low fixed threshold (brightness at least 0.10). The fixed
+threshold removes only the near-black background.
 
 ```{r fig.width=10, fig.height=12, dpi=150}
 #| fig-width: 10
@@ -429,20 +429,20 @@ invisible(dev.off())
 draw_leaf_masks()
 ```
 
-- At score 6 the Otsu mask keeps only 27% of the crop against 100% for the fixed
-  cut, because the bright yellow-green lesion outranks the darker red healthy
-  tissue, so Otsu selects the lesion rather than the leaf.
-- Where a black background exists the two agree closely (78% against 79% at score
-  2), so the fixed cut is the safer lighting proxy for `09_image_entropy`.
+- At score 6 the Otsu mask keeps only 27% of the crop, against 100% for the fixed
+  threshold. The bright yellow-green lesion is brighter than the dark red healthy
+  tissue, so Otsu picks out the lesion rather than the leaf.
+- Where there is a black background, the two agree closely (78% and 79% at score
+  2). So the fixed threshold is the safer measure of lighting for
+  `09_image_entropy`.
 
 ### 3.3 Choosing the morphological cleanup step
 
-- A median filter at radius 2b gives the roundest outline at circularity 0.95
-  while retaining 98.6% of the raw mask area, so it strips vein spurs without
+- A median filter of radius 2b gives the roundest outline, with circularity 0.95,
+  and keeps 98.6% of the raw mask area. It removes spurs along veins without
   eroding the lesion.
-- The raw mask sits at circularity 0.68 and opening-by-reconstruction leaves it
-  there unchanged, so reconstruction is no use against spurs attached to the
-  bulk of the mask.
+- The raw mask has circularity 0.68, and opening by reconstruction leaves it
+  unchanged. So reconstruction cannot remove spurs joined to the main mask.
 
 ```{r fig.width=16, fig.height=12, dpi=150}
 #| fig-width: 16
@@ -561,9 +561,9 @@ draw_cleanup_grid()
 
 ## 4. Can the distribution alone detect whether a CDA is present?
 
-Segmenting assumes a CDA exists. The natural universal test for whether a lesion
-is present is the bimodality of the leaf-greenness distribution, computed below
-for every image alongside the other region features.
+Segmenting assumes there is a CDA. The natural test for a lesion, usable on
+every image, is whether the leaf greenness distribution has two peaks. It is
+computed below for every image, with the other region features.
 
 ```{r}
 # 5.1
@@ -642,12 +642,12 @@ seg <- seg %>% mutate(
 cat(sprintf("Segmentation metrics for %d images.\n", nrow(seg)))
 ```
 
-- Median separability rises from 0.65 at score 0 to 0.85 at score 6 and
-  classifies 0 against non-0 at AUC 0.944 on its own, so the distribution detects
-  a lesion reliably.
-- The same test on segmented CDA area gives AUC 0.451, no better than chance, so
-  the shape of the greenness distribution carries the presence signal where its
-  area does not.
+- The median separability rises from 0.65 at score 0 to 0.85 at score 6. On its
+  own it separates score 0 from higher scores with AUC 0.944. So the distribution
+  detects a lesion reliably.
+- The same test on the segmented CDA area gives AUC 0.451, no better than chance.
+  So the shape of the greenness distribution shows whether a lesion is present,
+  and the area does not.
 
 ```{r}
 # 5.2
@@ -687,21 +687,21 @@ save_plot(p_sep, "seg_separability_by_score.png", width = 8, height = 5)
 
 The full pipeline, end to end, for one cropped CDA image:
 
-1. Load the raw RGB crop. No resizing, since every feature is a mean, a spread or
-   a ratio and so does not depend on the crop's pixel dimensions.
-2. Leaf mask. Keep pixels whose mean RGB is at least 0.15, which drops the
-   near-black off-leaf background.
-3. Segment the CDA. Rescale greenness (G - R) to 0-1, Gaussian blur at sigma 2,
-   take the Otsu threshold over the leaf pixels only, smooth the mask with a
-   median filter at radius 2b (b = round(5 x side / 264), so smoothing is
-   constant across crop resolutions), re-apply the leaf mask, keep the largest
-   connected component, and fill its enclosed holes.
-4. Summarise the crop. Eleven scalar features are measured here, and Shannon
-   entropy is joined from `09_image_entropy` to make twelve.
+1. Load the raw RGB crop. It is not resized, because every feature is a mean, a
+   spread or a ratio and does not depend on the crop's size in pixels.
+2. Make the leaf mask. Keep pixels whose mean RGB is at least 0.15. This removes
+   the near-black background around the leaf.
+3. Segment the CDA. Rescale greenness (G - R) to 0 to 1 and apply a Gaussian blur
+   with sigma 2. Take Otsu's threshold over the leaf pixels only. Smooth the mask
+   with a median filter of radius 2b, where b = round(5 x side / 264), so the
+   smoothing is the same at every crop size. Apply the leaf mask again, keep the
+   largest connected region, and fill its holes.
+4. Summarise the crop. Eleven features are measured here. Shannon entropy, from
+   `09_image_entropy`, makes twelve.
 
-No per-image threshold tuning anywhere. "Greenness" means G - R (green minus red
-channel). The "CDA" is the segmented region from step 3, the "leaf" is every
-pixel kept by step 2, and the "healthy leaf" is the leaf minus the CDA.
+No threshold is tuned for any image. "Greenness" means G - R, green minus red.
+The "CDA" is the region segmented in step 3, and the "leaf" is every pixel kept
+in step 2. The "healthy leaf" is the leaf minus the CDA.
 
 Segmentation features, measured in this analysis:
 
@@ -725,12 +725,11 @@ Colour, brightness and entropy features, taken from `09_image_entropy`:
 | `leaf_bright` | leaf brightness | mean brightness over non-black leaf pixels (0–255) | rises |
 | `entropy_raw` | Shannon entropy | information content of the raw crop (bits) | weakly rises |
 
-All twelve are written out for every image, along with the source leaf each crop
-came from and the lesion-area fraction `frac_g_gt_r`. `source` is the crop
-filename with the trailing `_Row_Col_Pos` stripped, and is the grouping unit for
-any leakage-safe cross validation, since crops from one leaf share lighting,
-plant and tissue. The table is the input to `10b_score_prediction.qmd` and
-`11_project_feature_differences`.
+All twelve are saved for every image, with each crop's source leaf and its
+lesion area fraction, `frac_g_gt_r`. `source` is the crop filename without the
+final `_Row_Col_Pos`. Cross validation must group by it to avoid leakage, because
+crops from one leaf share lighting, plant and tissue. The table is the input to
+`10b_score_prediction.qmd` and `11_project_feature_differences`.
 
 ```{r}
 # 5.4  Export the full (unbalanced) feature table for every image.
@@ -765,12 +764,12 @@ cat(sprintf(
 
 ## 5. How each feature relates to severity
 
-- Median CDA greenness climbs from -0.19 at score 0 to +0.02 at score 6, crossing
-  zero near score 4, which is where the lesion becomes greener than the leaf
+- The median CDA greenness rises from -0.19 at score 0 to +0.02 at score 6. It
+  crosses zero near score 4, where the lesion becomes greener than the leaf
   around it.
-- Interquartile ranges of neighbouring scores overlap for all twelve features, so
-  the boxplots already show that no single feature will separate adjacent
-  classes.
+- For all twelve features, the interquartile ranges of neighbouring scores
+  overlap. So the boxplots already show that no single feature separates
+  adjacent scores.
 
 ```{r fig.width=11, fig.height=12}
 #| fig-width: 11
@@ -818,10 +817,11 @@ save_plot(p_features, "seg_features_by_score.png", width = 11, height = 12)
 
 ### 5.1 Feature exemplars: low, medium and high
 
-- Within score class 3 alone, CDA greenness spans -0.16 to +0.04 between the 2nd
-  and 98th percentile, over half the full-dataset spread of -0.32 to +0.05.
-- That within-class spread is why crops sharing a score look so different, and why
-  a single feature threshold cannot recover the score.
+- Within score 3 alone, CDA greenness runs from -0.16 to +0.04 between the 2nd
+  and 98th percentiles. That is over half the spread of the whole dataset, -0.32
+  to +0.05.
+- This spread within a score is why crops with the same score look so different.
+  It is also why one threshold on one feature cannot recover the score.
 
 ```{r fig.width=14, fig.height=14.667, dpi=150}
 #| fig-width: 14
@@ -923,13 +923,14 @@ draw_feat_examples()
 
 ### 5.2 How each feature relates to score, and to the others
 
-Both summaries use Spearman (rank) correlation on the full unbalanced dataset, so
-a feature counts as informative if it is monotonically related to score.
+Both summaries use Spearman rank correlation on the full, unbalanced dataset. A
+feature counts as informative if it rises or falls consistently with score.
 
-- CDA greenness, the log green-to-red ratio and greenness bimodality lead at
-  rho = 0.84, 0.84 and 0.83, so lesion colour carries most of the severity signal.
-- Within-CDA greenness variation is flat at rho = 0.03, so how mottled a lesion is
-  says nothing about how severe it is.
+- CDA greenness, the log green to red ratio and greenness bimodality lead, with
+  rho = 0.84, 0.84 and 0.83. So the lesion's colour carries most of the
+  information about severity.
+- The spread of greenness within the CDA is flat, with rho = 0.03. How mottled a
+  lesion is says nothing about how severe it is.
 
 ```{r fig.width=9, fig.height=4.5}
 #| fig-width: 9
@@ -954,14 +955,15 @@ p_scorecor <- ggplot(score_cor, aes(x = reorder(feature, -rho), y = rho, fill = 
 p_scorecor
 ```
 
-- On neighbouring score pairs even the best features reach only AUC 0.68, so the
-  strongest feature is wrong about a third of the time on exactly the comparisons
-  raters confuse.
-- Within-CDA greenness variation sits at AUC 0.49, which is chance, so a feature's
-  marginal correlation overstates how well it separates adjacent classes.
-- The segmented area fraction was dropped as a model feature because Otsu splits
-  every leaf at roughly half its area whatever the score (rho = -0.1), and the
-  CDA-leaf entropy difference replaced it at rho = 0.32.
+- Between neighbouring scores, even the best features only reach AUC 0.68. So the
+  strongest feature is wrong about a third of the time, on exactly the
+  comparisons that raters confuse.
+- The spread of greenness within the CDA has AUC 0.49, which is chance. A
+  feature's overall correlation overstates how well it separates adjacent
+  scores.
+- The segmented area fraction was dropped as a feature. Otsu splits every leaf at
+  about half its area whatever the score (rho = -0.1). The difference in entropy
+  between CDA and leaf replaced it, with rho = 0.32.
 
 ```{r fig.width=9, fig.height=4.5}
 #| fig-width: 9
@@ -1028,12 +1030,13 @@ p_features_abc <- (p_features / p_scorecor_stk / p_auc) +
 save_plot(p_features_abc, "features_by_score.png", width = 11, height = 16, dir = "thesis_plots")
 ```
 
-- The CDA-leaf greenness contrast and whole-leaf greenness spread correlate at
-  rho = 0.97, and CDA greenness with the log green-to-red ratio at rho = 0.92, so
-  twelve columns carry far fewer than twelve independent measurements.
-- The CDA-leaf entropy difference and within-CDA greenness variation join the
-  dendrogram last, so they are the only two features adding information the
-  colour and brightness measures miss.
+- The greenness contrast between CDA and leaf correlates with the whole-leaf
+  greenness spread at rho = 0.97. CDA greenness correlates with the log green to
+  red ratio at rho = 0.92. So the twelve columns hold far fewer than twelve
+  independent measurements.
+- The CDA to leaf entropy difference and the spread of greenness within the CDA
+  join the dendrogram last. They are the only two features that add information
+  the colour and brightness features miss.
 
 ```{r fig.width=9.5, fig.height=10}
 #| fig-width: 9.5
@@ -1112,10 +1115,10 @@ save_plot(p_cormat, "feature_correlation_matrix.png", width = 9.5, height = 10, 
 
 ## 6. PCA of the image content, with and without the background
 
-The same PCA as `07_visual_complexity`, repeated on images with everything
-outside the segmented CDA set to black. Both runs use the same class-balanced
-sample and the same 64 x 64 normalised inputs, so the only difference is whether
-the background is masked.
+The same PCA as `07_visual_complexity`, repeated with everything outside the
+segmented CDA set to black. Both runs use the same class-balanced sample and the
+same normalised 64 x 64 inputs. The only difference is whether the background is
+masked.
 
 ```{r}
 # 8.1  Build original and CDA-masked 64x64 inputs and run PCA (cached: only the
@@ -1216,32 +1219,32 @@ p_pca
 save_plot(p_pca, "seg_pca_masked_vs_original.png", width = 11, height = 5)
 ```
 
-- Masking the background raises PC1's alignment with score from eta-squared 0.27
-  to 0.37, so the severity signal concentrates onto one component once the leaf
-  and imaging artefacts are gone.
-- PC1's share of variance falls from 31.0% to 21.7%, so the masked components
-  explain less of the image while explaining more of the score.
+- Masking the background raises how well PC1 follows score, from eta-squared
+  0.27 to 0.37. Without the leaf and imaging artefacts, the information about
+  severity concentrates in one component.
+- PC1's share of the variance falls from 31.0% to 21.7%. The masked components
+  explain less of the image but more of the score.
 
 ---
 
 ## 7. Interpretation and Discussion
 
-- Greenness solves the universal-threshold problem. Otsu's brightness cut moves
-  from 66 to 137 of 255 between two crops while its greenness cut holds at -0.16
-  to -0.15, so changing channel is what removes the per-image tuning that defeated
-  the earlier brightness watershed.
-- Presence detection works, so segmentation should be conditional. Leaf-greenness
-  bimodality separates 0 from non-0 at AUC 0.944, yet the spatial segmentation
-  still carves 49% of a score-0 leaf into a spurious lesion, so it should run only
-  after the non-zero decision.
-- The features track severity without separating neighbouring scores. Three
-  features reach rho = 0.84 against score, but the best adjacent-class AUC is
-  0.68, so the ordering is recoverable while the exact class is not.
-- The feature set is redundant. Near-duplicate pairs reach rho = 0.97, so the
-  twelve columns carry far fewer than twelve independent measurements.
-- What the features can predict is answered in `10b_score_prediction.qmd`, where
-  they place a CDA within one point of its score almost always but pin the exact
-  score about 60% of the time.
-- Low scores remain hard. Median CDA greenness at scores 1-2 (-0.13 and -0.08) is
-  barely above the score-0 value of -0.19, so mild cell death is genuinely close
-  to healthy tissue in these images.
+- Greenness lets one threshold method work for every image. Otsu's brightness
+  threshold moves from 66 to 137 of 255 between two crops. Its greenness
+  threshold stays at -0.16 to -0.15. Changing channel removes the per-image
+  tuning that defeated the earlier brightness watershed.
+- Detecting a lesion works, so segmentation should depend on it. Leaf greenness
+  bimodality separates score 0 from higher scores with AUC 0.944. But the
+  segmentation still marks 49% of a score 0 leaf as a false lesion. It should
+  only run after deciding that the score is above 0.
+- The features follow severity but do not separate neighbouring scores. Three
+  features reach rho = 0.84 with score, but the best AUC between adjacent scores
+  is 0.68. The order of the scores can be recovered, but the exact score cannot.
+- The features overlap. Near-duplicate pairs reach rho = 0.97, so the twelve
+  columns hold far fewer than twelve independent measurements.
+- `10b_score_prediction.qmd` tests what the features can predict. They put a CDA
+  within one score of its label almost always, but get the exact score about 60%
+  of the time.
+- Low scores remain hard. The median CDA greenness at scores 1 and 2 (-0.13 and
+  -0.08) is only just above the score 0 value of -0.19. Mild cell death really is
+  close to healthy tissue in these images.

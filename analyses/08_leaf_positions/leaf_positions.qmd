@@ -11,17 +11,17 @@ Date: 21/6/2024
 
 **Goal:**
 
-Visualise the average median CDA score by leaf infiltration position to test for systematic differences across the leaf.
+Plot the mean of the CDA median scores at each infiltration position, to test for consistent differences across the leaf.
 
 **Hypothesis:**
 
-Leaf positions closer to the stem will show lower average scores due to physiological differences in cell death susceptibility across the leaf.
+Positions closer to the stem will have lower mean scores, because susceptibility to cell death differs across the leaf.
 
 **Rationale:**
 
-The Banfield lab rotates infiltration patterns anti-clockwise across biological replicates to control for leaf position effects. If cell death severity varies systematically by position, this should be visible in the averaged scores.
+The Banfield lab rotates the infiltration pattern anticlockwise between biological replicates, to control for the effect of leaf position. If severity varies consistently with position, the mean scores will show it.
 
-Position on the leaf varies according to existing research:
+Earlier studies report that position on the leaf matters:
 - https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/10.1002/bit.24523
 - https://link.springer.com/article/10.1186/s13007-015-0091-5
 
@@ -142,4 +142,3 @@ save_plot(p_leaf, "leaf_positions.png", width = 18, height = 6, dir = "thesis_pl
 
 ## 3. Interpretation and Discussion
 
-_Add notes here._

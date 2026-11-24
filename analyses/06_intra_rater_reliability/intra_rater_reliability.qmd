@@ -11,16 +11,16 @@ Date: 2026-06-05
 
 **Goal:**
 
-Quantify how consistently each rater scores the same CDA on two separate occasions (intra-rater reliability). Assess whether rescoring changes agreement with the original ground truth (median score). Investigate how rescoring disagreements would change ground truth labels (median score).
+Measure how consistently each rater scores the same CDA on two occasions (intra-rater reliability). Test whether rescoring changes agreement with the original label, the median score. Find out how disagreements on rescoring would change those labels.
 
 **Hypothesis:**
 
-1. Raters will be more consistent with themselves on extreme scores (1, 6) and less consistent on intermediate scores (2–5).
-2. Rescoring will not systematically improve or worsen agreement with the median — any changes will reflect genuine scoring uncertainty rather than learning.
+1. Raters will agree with themselves more on the extreme scores, 1 and 6, than on the middle scores, 2 to 5.
+2. Rescoring will not consistently raise or lower agreement with the median. Any changes will come from real uncertainty in scoring, not from learning.
 
 **Rationale:**
 
-Only non-zero median CDAs were included in the rescoring set, since 0s are almost always agreed upon. Each rater was presented the same CDAs they originally scored, in a randomised order, without access to their original scores.
+The rescoring set only includes CDAs with a median score above 0, because raters almost always agree on 0. Each rater saw the CDAs they had scored before, in random order, without their original scores.
 
 ---
 
@@ -278,9 +278,9 @@ p
 save_plot(p, "intra_rater_agreement.png", width = 7, height = 5, dir = "thesis_plots")
 ```
 
-The per-rater values shown in panel A above, as a table (exact intra-rater
-self-agreement, and total self-agreement within ±1 of the rater's original
-score; n = rescored CDAs with a recoverable original score):
+The values in panel A above, as a table. It gives each rater's exact agreement
+with their own original score, and agreement within one score of it. n is the
+number of rescored CDAs whose original score could be found.
 
 ```{r}
 # 4.1 (table)
@@ -422,10 +422,9 @@ p
 save_plot(p, "score_change_distribution.png", width = 12, height = 5, dir = "thesis_plots")
 ```
 
-The per-rater direction of change summarising panel B (proportion of rescores
-that were higher, the same as, or lower than the rater's original score), and —
-among the self-disagreements only (excluding unchanged scores) — the split
-between scoring higher versus lower than their own previous score:
+A summary of panel B for each rater. It gives the proportion of rescores that were
+higher than, the same as, or lower than the original score. For the rescores that
+changed, it also gives the split between higher and lower scores.
 
 ```{r}
 # 5.1 (table)
@@ -627,10 +626,10 @@ save_plot(p, "within_vs_between_abs.png", width = 8, height = 5, dir = "thesis_p
 
 ### 7.1.1 Absolute difference distribution — within-rater excluding rater 9
 
-Rater 9 was the clear outlier in self-agreement (sections 4.1 and 5.1). This is a
-copy of 7.1 with rater 9's rescores removed from the within-rater differences, to
-check whether the within- vs between-rater gap is driven by that single rater. The
-between-rater distribution is unchanged.
+Rater 9 was the clear outlier in self-agreement (sections 4.1 and 5.1). This repeats
+7.1 without rater 9's rescores in the within-rater differences. It checks whether
+that one rater causes the gap between within-rater and between-rater agreement. The
+between-rater distribution is the same as in 7.1.
 
 ```{r fig.width=8, fig.height=5}
 #| fig-width: 8
@@ -672,8 +671,8 @@ p
 save_plot(p, "within_vs_between_abs_no9.png", width = 8, height = 5, dir = "thesis_plots")
 ```
 
-Per-difference proportions for within-rater (all raters), within-rater excluding
-rater 9, and between-rater:
+The proportion at each score difference, within raters (all raters), within raters
+without rater 9, and between raters:
 
 ```{r}
 # 7.1.1 (table)
@@ -1076,16 +1075,15 @@ save_plot(p, "intra_vs_inter_ac2_distributions.png", width = 7, height = 5)
 
 ## 8. Gwet's AC2: a prevalence-robust cross-check
 
-Krippendorff's interval α (computed on the inter-rater panel in
-`05_inter_rater_agreement.qmd`, sections 7.1–7.2) estimates chance agreement from
-the observed score distribution, so it can be depressed when one class dominates
-(the kappa "high-agreement paradox"). Gwet's AC2 uses a chance-agreement model
-that is stable under class imbalance. AC2 with quadratic weights is the direct
-analogue of interval α — same inter-rater panel, same 1,000-draw / 500-CDA
-subsample scheme — computed here for the full dataset and the non-zero-median
-subset so it can be read alongside the α values. Where AC2 and α agree, the α
-value is not a paradox artefact; where they diverge, the gap is the prevalence
-effect.
+Krippendorff's interval α, computed for the raters in `05_inter_rater_agreement.qmd`
+(sections 7.1 and 7.2), estimates chance agreement from the observed scores. So it
+can be pulled down when one score dominates. This is known as the kappa
+"high-agreement paradox". Gwet's AC2 uses a model of chance agreement that stays
+stable when the scores are imbalanced. AC2 with quadratic weights corresponds
+directly to interval α. It is computed here with the same raters and the same
+1,000 draws of 500 CDAs, for all CDAs and for those with a median above 0. It can
+then be read next to the α values. Where AC2 and α agree, α is not distorted by the
+paradox. Where they differ, the gap comes from the imbalance between scores.
 
 ### 8.1 AC2 point estimates and bootstrap distributions (full and non-zero-median)
 
@@ -1256,9 +1254,9 @@ p_no0
 
 ### 8.2 All four distributions on a single axis
 
-A compact alternative to the two stacked panels: all four bootstrap distributions
-overlaid on one axis, each statistic shown in a light (all CDAs) and dark
-(non-zero-median) shade of the same hue.
+A compact alternative to the two stacked panels. All four bootstrap distributions
+share one axis. Each statistic has one colour, light for all CDAs and dark for CDAs
+with a median above 0.
 
 ```{r fig.width=11, fig.height=5}
 #| fig-width: 11
@@ -1332,4 +1330,3 @@ save_plot(p_combined, "gwet_vs_krippendorff_combined.png", width = 11, height = 
 
 ## 9. Interpretation and Discussion
 
-_Add notes here._

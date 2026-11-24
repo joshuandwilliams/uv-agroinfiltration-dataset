@@ -11,13 +11,14 @@ Date: 21/07/2026
 ## GOHREP
 **Goal:**
 
-Partner to `median_and_centre_coords.qmd`. Same cleaning and median-score steps,
-but the single representative box per CDA is chosen by **IoU-medoid** (the box
-with the highest mean intersection-over-union to the others) instead of the
-centre-of-overlap. The centre-of-overlap rule tends to pick the *smallest* box
-(a small box sits more centrally on the overlap), which occasionally selects a
-tiny/misplaced outlier; the medoid is the most-agreed-with box and is robust to
-one outlier. Cropped images are written to `data/cropped_images_medoid/`.
+The partner of `median_and_centre_coords.qmd`. The cleaning and median score
+steps are the same. But each CDA's one representative box is the **IoU-medoid**,
+the box with the highest mean intersection-over-union with the other two, rather
+than the box at the centre of the overlap. The centre-of-overlap rule tends to
+pick the *smallest* box, because a small box sits more centrally on the overlap.
+So it sometimes picks a tiny or misplaced outlier. The medoid is the box the
+others agree with most, so one outlier does not affect it. The cropped images are
+saved to `data/cropped_images_medoid/`.
 
 ### 1. Required packages
 ```{python}
@@ -140,4 +141,3 @@ print(f"CDAs skipped (source image unavailable): {n_missing_src}")
 
 ## Discussion
 
-_Add notes here._

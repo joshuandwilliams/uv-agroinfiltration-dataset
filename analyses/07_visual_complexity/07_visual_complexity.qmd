@@ -12,20 +12,20 @@ Date: 18/3/24 and 25/3/24
 
 **Goal:**
 
-1. See how images cluster together following PCA Dimensionality Reduction
-2. Identify images that cluster most distantly from others of their score
+1. See how the images cluster after dimensionality reduction with principal component analysis (PCA).
+2. Find the images that sit furthest from the others with the same score.
 
 **Hypothesis:**
 
-1. Images of the same score will cluster together
-2. Images of adjacent scores will cluster closer than those of more distant scores
-3. Some images will cluster far from other images of the same score, which may indicate mislabelling
+1. Images with the same score will cluster together.
+2. Images with adjacent scores will sit closer together than images with distant scores.
+3. Some images will sit far from the others with the same score. These may be mislabelled.
 
 **Rationale:**
 
-Images of the same score are likely to be more similar than images of different scores, and images of adjacent scores are likely to be more similar than those of distant scores.
+Images with the same score should look more alike than images with different scores. Images with adjacent scores should look more alike than images with distant scores.
 
-Due to variation in human scoring, even with the median of three scores taken, there may be human errors or biases which result in image misclassifications. However, these images that appear to be misclassified may instead just be uncommon.
+Human scores vary, so even the median of three scores can be wrong or biased for some images. An image that looks misclassified may also just be unusual.
 
 ## 1. Setup
 
@@ -682,19 +682,16 @@ print(f"Selected by accuracy   - undersampled: k={bestacc_best_k}, exact accurac
 
 ## 6. Interpretation and Discussion
 
-_Add notes here._
 
 ## 7. Additional Information
 
 ### 7.1 How does PCA work?
 
-PCA is a dimensionality reduction technique, aiming to capture the most important information in the data and minimizing redundancy and noise.
+PCA reduces the number of dimensions while keeping as much of the variation in the data as possible.
 
-1. Build a covariance matrix which captures the relationships between pairs of variables (in our case variables are pixel values). A high covariance suggests a strong relationship.
-2. Calculate eigenvectors, which are directions in the original multidimensional feature space, representing a PC. Calculate eigenvalues, which are the magnitude of variance captured by the corresponding eigenvector.
-3. Rank PCs by their eigenvalues.
-4. Transform the input data into a new coordinate system defined by the principal components.
+1. Build the covariance matrix, which describes how each pair of variables varies together. Here the variables are pixel values. A high covariance means two pixels rise and fall together.
+2. Calculate the eigenvectors. Each is a direction in the original feature space, and each is one principal component (PC). Calculate the eigenvalues. Each is the variance along its eigenvector.
+3. Rank the PCs by their eigenvalues.
+4. Express the data in the new coordinates defined by the PCs.
 
-For each image, the total number of variables is:
-64 x 64 x 3 = 12,288
-Given this large number of variables, there is likely to be more variability in the data and capturing this with a small number of principal components is more challenging.
+Each image has 64 × 64 × 3 = 12,288 variables. With this many variables, a few PCs are less likely to capture most of the variation.

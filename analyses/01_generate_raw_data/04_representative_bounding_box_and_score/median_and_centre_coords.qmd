@@ -11,8 +11,8 @@ Date: 19/06/2025
 ## GOHREP
 **Goal:**
 
-Combine the manually checked annotation dataframes and produce a clean dataset
-with median scores and central coordinates.
+Combine the manually checked annotations into one clean dataset, with each CDA's
+median score and most central bounding box.
 
 ### 1. Required packages
 ```{python}
@@ -87,4 +87,3 @@ cleaned_data.to_csv(repo_root / "analyses/01_generate_raw_data/04_median_and_cen
 
 ## Discussion
 
-_Add notes here._
